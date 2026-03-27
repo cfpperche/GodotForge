@@ -8,6 +8,14 @@ func execute(tool_name: String, input: Dictionary) -> Dictionary:
 			return _add_node(input)
 		"set_property":
 			return _set_property(input)
+		"remove_node":
+			return _remove_node(input)
+		"rename_node":
+			return _rename_node(input)
+		"duplicate_node":
+			return _duplicate_node(input)
+		"move_node":
+			return _move_node(input)
 		_:
 			return {"result": "Unknown node tool: %s" % tool_name, "is_error": true}
 
@@ -60,6 +68,102 @@ func _set_property(input: Dictionary) -> Dictionary:
 
 	node.set(property, converted_value)
 	return {"result": "Set %s.%s = %s" % [node.name, property, str(converted_value)]}
+
+
+func _remove_node(input: Dictionary) -> Dictionary:
+	var node_path: String = input.get("node_path", "")
+	if node_path == "":
+		return {"result": "Missing 'node_path' parameter.", "is_error": true}
+
+	var root := _get_edited_scene_root()
+	if not root:
+		return {"result": "No scene is currently open.", "is_error": true}
+
+	if node_path == "." or node_path == "":
+		return {"result": "Cannot remove the root node.", "is_error": true}
+
+	var node := _find_node_by_path(node_path)
+	if not node:
+		return {"result": "Node not found: %s" % node_path, "is_error": true}
+
+	var node_name := node.name
+	node.get_parent().remove_child(node)
+	node.queue_free()
+	return {"result": "Removed node: %s" % node_name}
+
+
+func _rename_node(input: Dictionary) -> Dictionary:
+	var node_path: String = input.get("node_path", ".")
+	var new_name: String = input.get("new_name", "")
+
+	if new_name == "":
+		return {"result": "Missing 'new_name' parameter.", "is_error": true}
+
+	var node := _find_node_by_path(node_path)
+	if not node:
+		return {"result": "Node not found: %s" % node_path, "is_error": true}
+
+	var old_name := node.name
+	node.name = new_name
+	return {"result": "Renamed '%s' to '%s'." % [old_name, new_name]}
+
+
+func _duplicate_node(input: Dictionary) -> Dictionary:
+	var node_path: String = input.get("node_path", "")
+	var new_name: String = input.get("new_name", "")
+
+	if node_path == "":
+		return {"result": "Missing 'node_path' parameter.", "is_error": true}
+
+	var root := _get_edited_scene_root()
+	if not root:
+		return {"result": "No scene is currently open.", "is_error": true}
+
+	var node := _find_node_by_path(node_path)
+	if not node:
+		return {"result": "Node not found: %s" % node_path, "is_error": true}
+
+	var duplicate := node.duplicate()
+	if new_name != "":
+		duplicate.name = new_name
+	else:
+		duplicate.name = node.name + "Copy"
+
+	node.get_parent().add_child(duplicate)
+	_set_owner_recursive(duplicate, root)
+	return {"result": "Duplicated '%s' as '%s'." % [node.name, duplicate.name]}
+
+
+func _move_node(input: Dictionary) -> Dictionary:
+	var node_path: String = input.get("node_path", "")
+	var new_parent_path: String = input.get("new_parent_path", "")
+
+	if node_path == "":
+		return {"result": "Missing 'node_path' parameter.", "is_error": true}
+	if new_parent_path == "":
+		return {"result": "Missing 'new_parent_path' parameter.", "is_error": true}
+
+	var root := _get_edited_scene_root()
+	if not root:
+		return {"result": "No scene is currently open.", "is_error": true}
+
+	var node := _find_node_by_path(node_path)
+	if not node:
+		return {"result": "Node not found: %s" % node_path, "is_error": true}
+
+	var new_parent := _find_node_by_path(new_parent_path)
+	if not new_parent:
+		return {"result": "New parent not found: %s" % new_parent_path, "is_error": true}
+
+	node.reparent(new_parent)
+	_set_owner_recursive(node, root)
+	return {"result": "Moved '%s' to '%s'." % [node.name, new_parent.name]}
+
+
+func _set_owner_recursive(node: Node, owner: Node) -> void:
+	node.owner = owner
+	for child in node.get_children():
+		_set_owner_recursive(child, owner)
 
 
 func _convert_value(node: Node, property: String, value) -> Variant:

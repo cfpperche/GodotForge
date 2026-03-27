@@ -17,10 +17,15 @@ func _register_defaults() -> void:
 	var node_tools := preload("res://addons/godotforge/tools/node_tools.gd").new()
 	register("add_node", node_tools)
 	register("set_property", node_tools)
+	register("remove_node", node_tools)
+	register("rename_node", node_tools)
+	register("duplicate_node", node_tools)
+	register("move_node", node_tools)
 
 	var script_tools := preload("res://addons/godotforge/tools/script_tools.gd").new()
 	register("create_script", script_tools)
 	register("read_script", script_tools)
+	register("edit_script", script_tools)
 
 
 func register(tool_name: String, handler: GodotForgeToolBase) -> void:

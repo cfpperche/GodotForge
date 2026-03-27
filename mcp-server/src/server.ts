@@ -81,6 +81,57 @@ export function createServer(projectRoot?: string): McpServer {
     async (args) => editorTool(bridge, "read_script", args)
   );
 
+  server.tool(
+    "remove_node",
+    "Remove a node from the currently edited scene in Godot.",
+    {
+      node_path: z.string().describe("NodePath to the node to remove"),
+    },
+    async (args) => editorTool(bridge, "remove_node", args)
+  );
+
+  server.tool(
+    "rename_node",
+    "Rename a node in the currently edited scene in Godot.",
+    {
+      node_path: z.string().describe("NodePath to the node"),
+      new_name: z.string().describe("New name"),
+    },
+    async (args) => editorTool(bridge, "rename_node", args)
+  );
+
+  server.tool(
+    "duplicate_node",
+    "Duplicate a node (and its children) in the currently edited scene.",
+    {
+      node_path: z.string().describe("NodePath to duplicate"),
+      new_name: z.string().optional().describe("Name for the copy"),
+    },
+    async (args) => editorTool(bridge, "duplicate_node", args)
+  );
+
+  server.tool(
+    "move_node",
+    "Move a node to a new parent in the currently edited scene.",
+    {
+      node_path: z.string().describe("NodePath to move"),
+      new_parent_path: z.string().describe("NodePath to the new parent"),
+    },
+    async (args) => editorTool(bridge, "move_node", args)
+  );
+
+  server.tool(
+    "edit_script",
+    "Edit a GDScript file. Use 'content' for full rewrite, or 'old_text'+'new_text' for find-and-replace.",
+    {
+      path: z.string().describe("File path of the script"),
+      content: z.string().optional().describe("Full new content (complete rewrite)"),
+      old_text: z.string().optional().describe("Text to find (partial edit)"),
+      new_text: z.string().optional().describe("Replacement text (partial edit)"),
+    },
+    async (args) => editorTool(bridge, "edit_script", args)
+  );
+
   // --- Local tools ---
 
   server.tool(

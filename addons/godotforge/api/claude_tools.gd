@@ -114,4 +114,98 @@ static func get_tool_definitions() -> Array[Dictionary]:
 				"required": ["path"]
 			}
 		},
+		{
+			"name": "remove_node",
+			"description": "Remove a node from the currently edited scene.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"node_path": {
+						"type": "string",
+						"description": "NodePath to the node to remove (e.g. 'Player/Sprite2D')"
+					}
+				},
+				"required": ["node_path"]
+			}
+		},
+		{
+			"name": "rename_node",
+			"description": "Rename a node in the currently edited scene.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"node_path": {
+						"type": "string",
+						"description": "NodePath to the node to rename"
+					},
+					"new_name": {
+						"type": "string",
+						"description": "New name for the node"
+					}
+				},
+				"required": ["node_path", "new_name"]
+			}
+		},
+		{
+			"name": "duplicate_node",
+			"description": "Duplicate a node (and its children) in the currently edited scene.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"node_path": {
+						"type": "string",
+						"description": "NodePath to the node to duplicate"
+					},
+					"new_name": {
+						"type": "string",
+						"description": "Name for the duplicate (default: original + 'Copy')"
+					}
+				},
+				"required": ["node_path"]
+			}
+		},
+		{
+			"name": "move_node",
+			"description": "Move a node to a new parent in the currently edited scene.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"node_path": {
+						"type": "string",
+						"description": "NodePath to the node to move"
+					},
+					"new_parent_path": {
+						"type": "string",
+						"description": "NodePath to the new parent node"
+					}
+				},
+				"required": ["node_path", "new_parent_path"]
+			}
+		},
+		{
+			"name": "edit_script",
+			"description": "Edit a GDScript file. Use 'content' for full rewrite, or 'old_text'+'new_text' for find-and-replace.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"description": "File path of the script to edit"
+					},
+					"content": {
+						"type": "string",
+						"description": "Full new content (for complete rewrite)"
+					},
+					"old_text": {
+						"type": "string",
+						"description": "Text to find (for partial edit)"
+					},
+					"new_text": {
+						"type": "string",
+						"description": "Text to replace with (for partial edit)"
+					}
+				},
+				"required": ["path"]
+			}
+		},
 	]
