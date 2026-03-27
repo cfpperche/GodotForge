@@ -67,7 +67,7 @@ func _send_request() -> void:
 	}
 
 	if _system_prompt != "":
-		body["system"] = _system_prompt
+		body["system"] = _build_enhanced_prompt()
 
 	var tools := GodotForgeClaudeTools.get_tool_definitions()
 	if tools.size() > 0:
@@ -117,3 +117,25 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 
 func save_api_key(key: String) -> void:
 	_api_key_manager.save_key(key)
+
+
+func _build_enhanced_prompt() -> String:
+	var prompt := _system_prompt
+	var memory := _read_memory_file()
+	if memory != "":
+		prompt += "\n\n<project-memory>\n" + memory + "\n</project-memory>"
+	return prompt
+
+
+func _read_memory_file() -> String:
+	var path := "res://.godotforge/memory.md"
+	if not FileAccess.file_exists(path):
+		return ""
+	var file := FileAccess.open(path, FileAccess.READ)
+	if not file:
+		return ""
+	var content := file.get_as_text()
+	# Cap at ~8000 tokens (~32000 chars)
+	if content.length() > 32000:
+		content = content.substr(0, 32000) + "\n[Memory truncated]"
+	return content

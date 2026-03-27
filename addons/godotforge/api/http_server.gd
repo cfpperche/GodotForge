@@ -163,6 +163,14 @@ func _route(peer: StreamPeerTCP, method: String, path: String, body: String) -> 
 			else:
 				_send_response(peer, 405, {"error": "Method not allowed"})
 
+		"/memory":
+			if method == "GET":
+				_handle_memory_get(peer)
+			elif method == "POST":
+				_handle_memory_post(peer, body)
+			else:
+				_send_response(peer, 405, {"error": "Method not allowed"})
+
 		_:
 			# Check for /tools/{name} pattern
 			if path.begins_with("/tools/") and method == "POST":
@@ -284,6 +292,71 @@ func _send_response(peer: StreamPeerTCP, status_code: int, data: Dictionary, cor
 	response += json_body
 
 	peer.put_data(response.to_utf8_buffer())
+
+
+func _handle_memory_get(peer: StreamPeerTCP) -> void:
+	var memory_path := "res://.godotforge/memory.md"
+	if FileAccess.file_exists(memory_path):
+		var file := FileAccess.open(memory_path, FileAccess.READ)
+		if file:
+			_send_response(peer, 200, {"memory": file.get_as_text()})
+			return
+	_send_response(peer, 200, {"memory": ""})
+
+
+func _handle_memory_post(peer: StreamPeerTCP, body: String) -> void:
+	var json := JSON.new()
+	var err := json.parse(body)
+	if err != OK:
+		_send_response(peer, 400, {"error": "Invalid JSON body"})
+		return
+
+	var data: Dictionary = json.data if json.data is Dictionary else {}
+	var category: String = data.get("category", "")
+	var content: String = data.get("content", "")
+
+	if category == "" or content == "":
+		_send_response(peer, 400, {"error": "Missing 'category' or 'content'"})
+		return
+
+	# Ensure directory exists
+	var dir_path := "res://.godotforge"
+	if not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+
+	var memory_path := dir_path.path_join("memory.md")
+	var timestamp := Time.get_datetime_string_from_system(true)
+	var entry := "- [%s] %s\n" % [timestamp, content]
+
+	# Read existing or create new
+	var existing := ""
+	if FileAccess.file_exists(memory_path):
+		var rf := FileAccess.open(memory_path, FileAccess.READ)
+		if rf:
+			existing = rf.get_as_text()
+
+	if existing == "":
+		existing = "# GodotForge Project Memory\n\n## Conventions\n\n## Patterns\n\n## Decisions\n\n## Architecture\n"
+
+	# Find category section and append
+	var section_header := "## %s" % category
+	var section_idx := existing.find(section_header)
+	if section_idx == -1:
+		existing += "\n%s\n\n%s" % [section_header, entry]
+	else:
+		var after_header := section_idx + section_header.length()
+		var next_section := existing.find("\n## ", after_header)
+		var insert_at := next_section if next_section != -1 else existing.length()
+		var before := existing.substr(0, insert_at).strip_edges()
+		var after := existing.substr(insert_at)
+		existing = "%s\n%s%s" % [before, entry, after]
+
+	var wf := FileAccess.open(memory_path, FileAccess.WRITE)
+	if wf:
+		wf.store_string(existing)
+		_send_response(peer, 200, {"result": "Saved to %s: %s" % [category, content]})
+	else:
+		_send_response(peer, 500, {"error": "Failed to write memory file"})
 
 
 func _write_port_file() -> void:

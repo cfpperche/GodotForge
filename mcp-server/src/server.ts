@@ -6,6 +6,9 @@ import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
 import { searchDocs, getClassReference } from "./docs/search.js";
+import { readMemory, appendMemory, getMemorySize } from "./memory/store.js";
+import { ensureMemoryDb, indexMemoryEntry, searchMemory as searchMemoryDb, getMemoryStats } from "./memory/search.js";
+import { buildContext } from "./context/builder.js";
 
 export function createServer(projectRoot?: string): McpServer {
   const bridge = new GodotBridge(projectRoot);
@@ -243,6 +246,92 @@ export function createServer(projectRoot?: string): McpServer {
       } catch (error) {
         return {
           content: [{ type: "text" as const, text: `Failed to get class reference: ${error instanceof Error ? error.message : error}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // --- Memory tools ---
+
+  server.tool(
+    "save_memory",
+    "Save a fact, convention, pattern, or decision to the project's persistent memory.",
+    {
+      category: z.enum(["Conventions", "Patterns", "Decisions", "Architecture"]).describe("Memory category"),
+      content: z.string().describe("What to remember (e.g. 'We use snake_case for all GDScript functions')"),
+    },
+    async ({ category, content }) => {
+      try {
+        appendMemory(root, category, content);
+        const timestamp = new Date().toISOString();
+        const db = ensureMemoryDb(root);
+        indexMemoryEntry(db, timestamp, category, content);
+        return {
+          content: [{ type: "text" as const, text: `Saved to ${category}: "${content}"` }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: `Failed to save memory: ${error instanceof Error ? error.message : error}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "search_memory",
+    "Search the project's persistent memory for facts, conventions, patterns, or decisions.",
+    {
+      query: z.string().describe("Search query"),
+      limit: z.number().optional().describe("Max results (default: 10)"),
+    },
+    async ({ query, limit }) => {
+      try {
+        const db = ensureMemoryDb(root);
+        const results = searchMemoryDb(db, query, limit || 10);
+
+        if (results.length === 0) {
+          return {
+            content: [{ type: "text" as const, text: `No memory entries found for "${query}".` }],
+          };
+        }
+
+        const formatted = results
+          .map((r) => `[${r.category}] ${r.content}`)
+          .join("\n\n");
+
+        return {
+          content: [{ type: "text" as const, text: `${results.length} memory entries:\n\n${formatted}` }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: `Memory search failed: ${error instanceof Error ? error.message : error}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get_project_memory",
+    "Get the full project memory contents and stats.",
+    {},
+    async () => {
+      try {
+        const memory = readMemory(root);
+        const db = ensureMemoryDb(root);
+        const stats = getMemoryStats(db);
+        const sizeKB = (getMemorySize(root) / 1024).toFixed(1);
+
+        const header = `Memory stats: ${stats.total_entries} entries, ${sizeKB}KB, categories: ${stats.categories.join(", ") || "none"}`;
+
+        return {
+          content: [{ type: "text" as const, text: `${header}\n\n${memory}` }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: `Failed to read memory: ${error instanceof Error ? error.message : error}` }],
           isError: true,
         };
       }
