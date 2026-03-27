@@ -41,15 +41,18 @@ addons/godotforge/
   ui/
     chat_panel.gd                 → Bottom panel chat interface
     message_bubble.gd             → Message rendering (BBCode)
-  context/                        → (planned) Project scanner
-  docs/                           → (planned) SQLite FTS5 docs
+  context/                        → (Phase 4) Project scanner + context builder
+  docs/                           → ✅ SQLite FTS5 docs (912 classes)
 
 mcp-server/
   src/
     index.ts                      → CLI entry point (stdio transport)
-    server.ts                     → MCP server with 10 tools
+    server.ts                     → MCP server with 11 tools (14 target after Phase 4)
     bridge.ts                     → HTTP client → Godot plugin
     tools.ts                      → MCP tool definitions
+    docs/                         → ✅ Docs engine (types, db, parser, downloader, indexer, search)
+    memory/                       → (Phase 4) Memory store + FTS5 search
+    context/                      → (Phase 4) Builder + scanner
 ```
 
 ## Languages & Conventions
@@ -150,12 +153,24 @@ claude mcp add godotforge -- node /path/to/mcp-server/dist/index.js
 - **`_process()` for HTTP polling** — the TCPServer poll runs on the main thread in `_process()`. This is intentional — tool execution needs main thread access for EditorInterface.
 - **Port file cleanup** — if Godot crashes, the port file may be stale. The MCP bridge should handle connection errors and retry with a fresh port read.
 
-## Planned Features (Not Yet Implemented)
+## Completed Features
 
-- **Docs Engine**: SQLite FTS5 indexing of Godot class docs (4.1-4.4), search_docs tool
-- **Context Engine**: Project scanner, persistent context cache, architecture pattern detection
-- **Runtime Tools**: run_game, stop_game, take_screenshot, input simulation
+- **Docs Engine** (Phase 3): SQLite FTS5, 912 Godot classes indexed, `search_docs` + `get_class_reference` tools, auto-download from GitHub, version-aware (4.1-4.6)
+
+## Next: Memory & Context (Phase 4)
+
+Inspired by OpenClaw's memory architecture:
+
+- **Project Memory**: `res://.godotforge/memory.md` — persistent facts (conventions, patterns, decisions)
+- **Session Logs**: `res://.godotforge/sessions/YYYY-MM-DD.md` — daily append-only logs
+- **Memory Tools**: `save_memory`, `search_memory`, `get_project_memory` (FTS5, reuses docs infra)
+- **Context Builder**: project scanner + token-budgeted injection (8000 token cap)
+- **Compaction**: summarize old messages, flush decisions to memory, keep recent messages
+
+## Planned Features (Phase 5+)
+
 - **Advanced Editor Tools**: remove_node, edit_script, rename_node, duplicate_node, move_node
+- **Runtime Tools**: run_game, stop_game, take_screenshot, input simulation
 - **Streaming**: SSE-based streaming responses in native chat panel
 - **Undo/Redo**: EditorUndoRedoManager integration for all tool operations
 - **SSE Transport**: MCP server SSE mode for web-based MCP clients
