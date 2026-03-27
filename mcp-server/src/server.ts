@@ -4,6 +4,8 @@ import { GodotBridge } from "./bridge.js";
 import { TOOLS, EDITOR_TOOLS } from "./tools.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
+import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
+import { searchDocs, getClassReference } from "./docs/search.js";
 
 export function createServer(projectRoot?: string): McpServer {
   const bridge = new GodotBridge(projectRoot);
@@ -173,6 +175,77 @@ export function createServer(projectRoot?: string): McpServer {
       return {
         content: [{ type: "text" as const, text: files.join("\n") || "(empty directory)" }],
       };
+    }
+  );
+
+  // --- Docs tools ---
+
+  server.tool(
+    "search_docs",
+    "Search Godot documentation for classes, methods, properties, or signals. Uses version-aware FTS5 index.",
+    {
+      query: z.string().describe("Search query (e.g. 'CharacterBody2D', 'move_and_slide', 'velocity')"),
+      version: z.string().optional().describe("Godot version (e.g. '4.6'). Auto-detected if omitted."),
+      kind: z.enum(["class", "method", "property", "signal", "constant", "all"]).optional().describe("Filter by type"),
+      limit: z.number().optional().describe("Max results (default: 10)"),
+    },
+    async ({ query, version, kind, limit }) => {
+      try {
+        const ver = version || detectGodotVersion(root) || "4.3";
+        const db = await ensureDocsReady(ver);
+        const results = searchDocs(db, query, kind || "all", limit || 10);
+
+        if (results.length === 0) {
+          return {
+            content: [{ type: "text" as const, text: `No results found for "${query}" in Godot ${ver} docs.` }],
+          };
+        }
+
+        const formatted = results
+          .map((r) => `[${r.kind}] ${r.class_name}.${r.symbol_name}\n  ${r.description}`)
+          .join("\n\n");
+
+        return {
+          content: [{ type: "text" as const, text: `Godot ${ver} docs — ${results.length} results:\n\n${formatted}` }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: `Docs search failed: ${error instanceof Error ? error.message : error}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get_class_reference",
+    "Get the full Godot class reference including methods, properties, signals, and constants.",
+    {
+      class_name: z.string().describe("Class name (e.g. 'Node2D', 'CharacterBody2D')"),
+      version: z.string().optional().describe("Godot version. Auto-detected if omitted."),
+    },
+    async ({ class_name, version }) => {
+      try {
+        const ver = version || detectGodotVersion(root) || "4.3";
+        const db = await ensureDocsReady(ver);
+        const ref = getClassReference(db, class_name);
+
+        if (!ref) {
+          return {
+            content: [{ type: "text" as const, text: `Class "${class_name}" not found in Godot ${ver} docs.` }],
+            isError: true,
+          };
+        }
+
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify(ref, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text" as const, text: `Failed to get class reference: ${error instanceof Error ? error.message : error}` }],
+          isError: true,
+        };
+      }
     }
   );
 

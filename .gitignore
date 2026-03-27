@@ -9,6 +9,9 @@ addons/godotforge/.api_key
 mcp-server/node_modules/
 mcp-server/dist/
 
+# Godot XML docs cache (may leak to root during testing)
+/*.xml
+
 # OS
 .DS_Store
 Thumbs.db
