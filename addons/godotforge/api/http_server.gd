@@ -205,8 +205,12 @@ func _handle_health(peer: StreamPeerTCP) -> void:
 
 
 func _handle_list_tools(peer: StreamPeerTCP) -> void:
-	var tools := GodotForgeClaudeTools.get_tool_definitions()
-	_send_response(peer, 200, {"tools": tools})
+	# Return list of registered editor tool names
+	var tool_names: Array[String] = []
+	if _tool_registry:
+		for key in _tool_registry._handlers.keys():
+			tool_names.append(key)
+	_send_response(peer, 200, {"tools": tool_names})
 
 
 func _handle_execute_tool(peer: StreamPeerTCP, tool_name: String, body: String) -> void:
