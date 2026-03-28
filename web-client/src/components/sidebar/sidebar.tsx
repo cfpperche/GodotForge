@@ -23,7 +23,7 @@ export function Sidebar() {
             { n: "32", l: "Godot" },
             { n: "39", l: "Blender" },
             { n: "4", l: "Pipeline" },
-            { n: "8", l: "Assets" },
+            { n: "10", l: "Other" },
           ].map(({ n, l }) => (
             <div key={l} className="rounded-lg bg-muted/50 p-1.5">
               <div className="text-sm font-bold text-primary">{n}</div>
@@ -32,7 +32,7 @@ export function Sidebar() {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground text-center pt-1">
-          GodotForge v0.2.0 — 83 tools
+          GodotForge v0.2.0 — 85 tools
         </p>
       </div>
     </div>

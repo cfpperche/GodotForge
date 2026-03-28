@@ -87,6 +87,8 @@ function getToolDefinitions(): Array<Record<string, unknown>> {
     { name: "get_project_memory", description: "Get full project memory.", input_schema: { type: "object", properties: {} } },
     { name: "get_service_status", description: "Check which external services have API keys configured.", input_schema: { type: "object", properties: {} } },
     // Asset tools
+    { name: "search_blender_docs", description: "Search Blender bpy API docs for classes, methods, properties.", input_schema: { type: "object", properties: { query: { type: "string" }, limit: { type: "number" } }, required: ["query"] } },
+    { name: "get_blender_class", description: "Get full bpy.types class reference.", input_schema: { type: "object", properties: { class_name: { type: "string" } }, required: ["class_name"] } },
     { name: "assets.search_polyhaven", description: "Search Poly Haven for free textures, models, HDRIs.", input_schema: { type: "object", properties: { type: { type: "string", enum: ["hdris", "textures", "models", "all"] }, categories: { type: "string" } } } },
     { name: "assets.download_polyhaven", description: "Download Poly Haven asset into project.", input_schema: { type: "object", properties: { asset_id: { type: "string" }, resolution: { type: "string" }, format: { type: "string" }, target_dir: { type: "string" } }, required: ["asset_id"] } },
     { name: "assets.search_sketchfab", description: "Search Sketchfab for 3D models.", input_schema: { type: "object", properties: { query: { type: "string" }, downloadable: { type: "boolean" }, animated: { type: "boolean" }, count: { type: "number" } }, required: ["query"] } },

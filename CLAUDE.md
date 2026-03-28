@@ -2,7 +2,7 @@
 
 ## What is GodotForge
 
-GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 83 tools, memory, and context.
+GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 85 tools, memory, and context.
 
 ## Environment
 
@@ -73,8 +73,8 @@ mcp-server/src/
   tools.ts                        → Tool metadata constants
   assets/                         → Asset service clients
     polyhaven.ts / sketchfab.ts / opengameart.ts / handlers.ts
-  docs/                           → Docs engine (SQLite FTS5, 912 Godot classes)
-    types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts
+  docs/                           → Docs engine (SQLite FTS5, 912 Godot + 3800 Blender classes)
+    types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts / blender-docs.ts
   memory/                         → Memory engine (FTS5 + markdown)
     store.ts / search.ts
   context/                        → Context builder (token-budgeted)
@@ -94,7 +94,7 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
   src/lib/api.ts                  → HTTP client to MCP :6980
 ```
 
-## 83 Tools
+## 85 Tools
 
 ### Editor Tools (24 — run in plugin via EditorInterface)
 | Tool | Description |
@@ -131,7 +131,9 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 | `read_file` | Read any project file |
 | `list_files` | List directory contents |
 | `search_docs` | FTS5 search across 912 Godot classes |
-| `get_class_reference` | Full class reference |
+| `get_class_reference` | Full Godot class reference |
+| `search_blender_docs` | FTS5 search across 3800 Blender bpy classes |
+| `get_blender_class` | Full bpy.types class reference |
 | `save_memory` | Persist fact/pattern/decision |
 | `search_memory` | FTS5 search over memory |
 | `get_project_memory` | Full memory contents |
@@ -195,6 +197,10 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Claude CLI Fix**: `--output-format json --mcp-config` for full tool execution via MCP protocol
 - **Memory cap**: 50KB limit + auto-archive to .godotforge/archive/
 - **Compaction**: Summarize old messages when session > 20, keep 6 recent
+- **Blender RAG**: bpy API extraction (3800 classes, 106K members), FTS5 index, auto-inject in context
+- **Auto-RAG**: Context builder detects Godot + Blender class names in messages, pre-loads docs
+- **Game dev rules**: gameplay-code, gdscript-standards, scene-architecture, shader-code, game-design-docs
+- **Game dev skills**: /create-game, /game-polish, /game-review
 
 ### E2E Validations
 - ✅ Flappy Bird (2D game, 32 Godot tools)

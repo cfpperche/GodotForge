@@ -2,9 +2,13 @@
 .godot/
 *.import
 
-# GodotForge secrets
+# GodotForge secrets & generated data
 addons/godotforge/.api_key
 .godotforge/config.json
+.godotforge/*.db
+.godotforge/sessions/
+.godotforge/archive/
+.godotforge/blender-api.json
 
 # MCP Server
 mcp-server/node_modules/

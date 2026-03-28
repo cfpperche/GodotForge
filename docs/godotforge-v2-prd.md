@@ -53,7 +53,7 @@ Todas as interfaces compartilham a mesma memória, contexto e 83 tools.
 
 ---
 
-## 4. Módulos e Tools (83 total)
+## 4. Módulos e Tools (85 total)
 
 ### 4.1 Godot Module (32 tools — ✅ Completo)
 
@@ -100,13 +100,22 @@ Todas as interfaces compartilham a mesma memória, contexto e 83 tools.
 | `assets.download_asset` | Download genérico + auto-import | Qualquer URL |
 | `assets.list_local` | Listar assets locais por tipo/tamanho | Local filesystem |
 
-### 4.5 Config Module (1 tool — ✅ Completo)
+### 4.5 Blender Docs Module (2 tools — ✅ Completo)
+
+| Tool | Descrição |
+|------|-----------|
+| `search_blender_docs` | Busca FTS5 sobre 3800 classes bpy (106K members) |
+| `get_blender_class` | Referência completa de classe bpy.types |
+
+Auto-RAG: context builder detecta classes bpy mencionadas na conversa e injeta docs automaticamente.
+
+### 4.6 Config Module (1 tool — ✅ Completo)
 
 | Tool | Descrição |
 |------|-----------|
 | `get_service_status` | Verificar quais serviços têm API key configurada |
 
-### 4.6 AI Generators Module (Pendente — Phase D)
+### 4.7 AI Generators Module (Pendente — Phase D)
 
 | Tool | Descrição | Provider |
 |------|-----------|----------|
@@ -194,7 +203,7 @@ Todas as interfaces compartilham a mesma memória, contexto e 83 tools.
 
 | Métrica | Target | Atual |
 |---------|--------|-------|
-| Total tools | 100+ | 83 (faltam 9 AI tools) |
+| Total tools | 100+ | 85 (faltam 9 AI tools → 94) |
 | Interfaces | 4 | 4 ✅ (CLI, Godot, Blender, Web) |
 | Blender → Godot pipeline time | < 30s | ~5s ✅ |
 | Asset download → in-game | < 1 min | ~15s ✅ |

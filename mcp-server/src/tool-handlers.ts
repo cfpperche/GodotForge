@@ -438,6 +438,26 @@ export async function executeTool(
     return handleListLocalAssets(args, root);
   }
 
+  // Blender docs tools
+  if (toolName === "search_blender_docs" || toolName === "get_blender_class") {
+    try {
+      const { ensureBlenderDocs, searchBlenderDocs, getBlenderClassReference } = await import("./docs/blender-docs.js");
+      const db = await ensureBlenderDocs();
+      if (toolName === "search_blender_docs") {
+        const results = searchBlenderDocs(db, args.query as string, (args.limit as number) || 10);
+        if (results.length === 0) return { content: [{ type: "text" as const, text: `No Blender docs found for "${args.query}".` }] };
+        const formatted = results.map((r) => `[${r.kind}] ${r.class_name}.${r.symbol_name}\n  ${r.description}`).join("\n\n");
+        return { content: [{ type: "text" as const, text: `Blender API — ${results.length} results:\n\n${formatted}` }] };
+      } else {
+        const ref = getBlenderClassReference(db, args.class_name as string);
+        if (!ref) return { content: [{ type: "text" as const, text: `Blender class "${args.class_name}" not found.` }], isError: true };
+        return { content: [{ type: "text" as const, text: JSON.stringify(ref, null, 2) }] };
+      }
+    } catch (error) {
+      return { content: [{ type: "text" as const, text: `Blender docs error: ${error instanceof Error ? error.message : error}` }], isError: true };
+    }
+  }
+
   // Config tools
   if (toolName === "get_service_status") {
     const cfg = new ConfigManager(root);
