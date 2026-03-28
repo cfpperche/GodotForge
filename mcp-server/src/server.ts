@@ -1,7 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { GodotBridge } from "./bridge.js";
+import { BlenderBridge } from "./blender-bridge.js";
 import { TOOLS, EDITOR_TOOLS } from "./tools.js";
+import { BLENDER_TOOLS, blenderHandlerName } from "./blender-tools.js";
+import { blenderToGodot } from "./pipeline.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -10,13 +13,14 @@ import { readMemory, appendMemory, getMemorySize } from "./memory/store.js";
 import { ensureMemoryDb, indexMemoryEntry, searchMemory as searchMemoryDb, getMemoryStats } from "./memory/search.js";
 import { buildContext } from "./context/builder.js";
 
-export function createServer(projectRoot?: string): McpServer {
+export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge): McpServer {
   const bridge = new GodotBridge(projectRoot);
+  const blender = blenderBridge || new BlenderBridge(projectRoot);
   const root = projectRoot || process.cwd();
 
   const server = new McpServer({
     name: "godotforge",
-    version: "0.1.0",
+    version: "0.2.0",
   });
 
   // --- Editor tools (delegate to Godot plugin) ---
@@ -512,7 +516,51 @@ export function createServer(projectRoot?: string): McpServer {
     }
   );
 
+  // --- Blender tools (delegate to Blender addon via socket) ---
+
+  for (const tool of BLENDER_TOOLS) {
+    server.tool(
+      tool.name,
+      tool.description,
+      tool.schema,
+      async (args) => blenderTool(blender, blenderHandlerName(tool.name), args)
+    );
+  }
+
+  // --- Pipeline tools ---
+
+  server.tool(
+    "pipeline.blender_to_godot",
+    "Export from Blender as GLB and import into the Godot project. Handles path conversion and filesystem rescan.",
+    {
+      object_name: z.string().optional().describe("Specific object to export (default: entire scene)"),
+      target_dir: z.string().optional().describe("Target directory in project (default: 'assets/models')"),
+      file_name: z.string().optional().describe("Output filename (default: 'export.glb')"),
+    },
+    async (args) => blenderToGodot(blender, bridge, root, args)
+  );
+
   return server;
+}
+
+async function blenderTool(
+  blender: BlenderBridge,
+  handlerName: string,
+  input: Record<string, unknown>
+): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
+  try {
+    const result = await blender.executeTool(handlerName, input);
+    return {
+      content: [{ type: "text" as const, text: result.result }],
+      isError: result.is_error || false,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      content: [{ type: "text" as const, text: message }],
+      isError: true,
+    };
+  }
 }
 
 async function editorTool(

@@ -8,25 +8,30 @@ GodotForge is a hybrid AI Copilot for Godot Engine: a **native Godot editor plug
 
 - **Godot**: `"/mnt/c/Tools/Godot/Godot_v4.6.1-stable_win64.exe"` (Windows binary, called from WSL2)
 - **Launch editor**: `"/mnt/c/Tools/Godot/Godot_v4.6.1-stable_win64.exe" --editor --path "$(wslpath -w /home/goat/GodotForge)"`
+- **Blender**: `"/mnt/c/Program Files/Blender Foundation/Blender 4.2/blender-launcher.exe"`
 - **Close Godot**: `/mnt/c/Windows/System32/taskkill.exe /F /IM "Godot_v4.6.1-stable_win64.exe"` (pkill doesn't work for Windows processes)
+- **Close Blender**: `/mnt/c/Windows/System32/taskkill.exe /F /IM "blender.exe"`
 - **Always close Godot** when done testing — don't leave it running in the background
 
 ## Architecture
 
 ```
 Claude Code / Cursor ──► MCP Server (stdio) ──┐
-                                               ├──► Plugin HTTP :6970 (EditorInterface)
-Chat Panel ────────────► MCP Server (HTTP :6980) ──┘
+                                               ├──► Godot Plugin HTTP :6970 (EditorInterface)
+Chat Panel ────────────► MCP Server (HTTP :6980) ──┤
+                              │                    └──► Blender Addon TCP :8400 (bpy)
                               │
                               ├── Claude API / Claude CLI (LLM)
                               ├── Docs Engine (SQLite FTS5, 912 classes)
                               ├── Memory Engine (FTS5 + markdown)
                               ├── Context Builder (token-budgeted)
-                              └── Tool Handlers (32 tools)
+                              ├── Tool Handlers (32 Godot + 17 Blender + 1 Pipeline)
+                              └── Pipeline (Blender → Godot asset flow)
 ```
 
 - **MCP Server** (`mcp-server/`): Unified backend. Dual transport: stdio (MCP clients) + HTTP (native chat). Handles LLM, docs, memory, context, tool routing.
 - **Plugin** (`addons/godotforge/`): Thin layer. UI (chat panel, settings) + EditorInterface bridge (24 editor tools on localhost:6970). Auto-spawns MCP server.
+- **Blender Addon** (`blender-addon/godotforge/`): Python addon for Blender. TCP socket server on :8400. Receives JSON commands, executes via bpy API.
 - **Port files**: Plugin writes `.godot/godotforge.port`, MCP writes `.godotforge/mcp.port`
 
 ## Repository Structure
@@ -56,8 +61,11 @@ mcp-server/src/
   server.ts                       → MCP server (32 tools via @modelcontextprotocol/sdk)
   chat.ts                         → LLM conversation engine (API key + Claude CLI modes)
   http.ts                         → HTTP server on :6980 (/chat, /settings, /context)
-  tool-handlers.ts                → Shared tool execution logic (editor + local)
-  bridge.ts                       → HTTP client → plugin :6970
+  tool-handlers.ts                → Shared tool execution logic (editor + blender + local)
+  bridge.ts                       → HTTP client → Godot plugin :6970
+  blender-bridge.ts               → TCP socket client → Blender addon :8400
+  blender-tools.ts                → Blender tool definitions (17 tools)
+  pipeline.ts                     → Blender → Godot asset pipeline
   tools.ts                        → Tool metadata constants
   docs/                           → Docs engine (SQLite FTS5, 912 Godot classes)
     types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts
@@ -65,9 +73,14 @@ mcp-server/src/
     store.ts / search.ts
   context/                        → Context builder (token-budgeted)
     builder.ts / scanner.ts
+
+blender-addon/godotforge/
+  __init__.py                     → Blender addon entry point (register/unregister)
+  server.py                       → TCP socket server (:8400, JSON protocol)
+  handlers.py                     → 17 tool handlers (modeling, materials, export, UV, script)
 ```
 
-## 32 Tools
+## 50 Tools
 
 ### Editor Tools (24 — run in plugin via EditorInterface)
 | Tool | Description |
@@ -108,6 +121,32 @@ mcp-server/src/
 | `save_memory` | Persist fact/pattern/decision |
 | `search_memory` | FTS5 search over memory |
 | `get_project_memory` | Full memory contents |
+
+### Blender Tools (17 — run in Blender addon via bpy)
+| Tool | Description |
+|------|-------------|
+| `blender.create_mesh` | Create mesh primitive (cube, sphere, cylinder, plane, cone, torus) |
+| `blender.delete_object` | Delete object from scene |
+| `blender.duplicate_object` | Duplicate object |
+| `blender.transform` | Move/rotate/scale object |
+| `blender.modify` | Apply modifier (mirror, array, solidify, bevel, subsurf) |
+| `blender.boolean` | Boolean operation (union, difference, intersect) |
+| `blender.join_objects` | Join multiple objects into one |
+| `blender.create_material` | Create PBR material |
+| `blender.assign_material` | Assign material to object |
+| `blender.list_materials` | List all materials |
+| `blender.get_scene_objects` | List scene objects with type/location |
+| `blender.get_object_properties` | Object details (verts, faces, materials) |
+| `blender.get_blender_info` | Blender version + scene info |
+| `blender.export_gltf` | Export as GLTF/GLB |
+| `blender.export_for_godot` | Export optimized for Godot (GLB, Y-up) |
+| `blender.unwrap_uv` | UV unwrap mesh |
+| `blender.execute_python` | Run arbitrary Python/bpy code |
+
+### Pipeline Tools (1 — orchestrate Blender → Godot)
+| Tool | Description |
+|------|-------------|
+| `pipeline.blender_to_godot` | Export Blender → GLB → Godot project with filesystem rescan |
 
 ## Completed Features
 

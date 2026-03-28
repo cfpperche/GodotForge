@@ -1,4 +1,7 @@
 import { GodotBridge } from "./bridge.js";
+import { BlenderBridge } from "./blender-bridge.js";
+import { blenderHandlerName } from "./blender-tools.js";
+import { blenderToGodot } from "./pipeline.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -371,11 +374,33 @@ export async function executeTool(
   toolName: string,
   args: Record<string, unknown>,
   root: string,
-  bridge: GodotBridge
+  bridge: GodotBridge,
+  blenderBridge?: BlenderBridge
 ): Promise<ToolResult> {
   // Editor tools — delegate to Godot plugin
   if (EDITOR_TOOL_NAMES.has(toolName)) {
     return editorTool(bridge, toolName, args);
+  }
+
+  // Blender tools — delegate to Blender addon
+  if (toolName.startsWith("blender.") && blenderBridge) {
+    try {
+      const result = await blenderBridge.executeTool(blenderHandlerName(toolName), args);
+      return {
+        content: [{ type: "text" as const, text: result.result }],
+        isError: result.is_error || false,
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text" as const, text: error instanceof Error ? error.message : String(error) }],
+        isError: true,
+      };
+    }
+  }
+
+  // Pipeline tools
+  if (toolName === "pipeline.blender_to_godot" && blenderBridge) {
+    return blenderToGodot(blenderBridge, bridge, root, args);
   }
 
   // Local tools
