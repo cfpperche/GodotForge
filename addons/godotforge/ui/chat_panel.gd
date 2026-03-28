@@ -205,6 +205,10 @@ func _show_settings() -> void:
 	_settings_panel.popup_centered()
 
 
+func open_settings() -> void:
+	_settings_panel.popup_centered()
+
+
 func _on_settings_changed(settings: Dictionary) -> void:
 	# Handle API key save action
 	if settings.get("action") == "save_api_key":

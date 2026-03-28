@@ -4,6 +4,7 @@ extends Node
 
 signal server_started(port: int)
 signal server_stopped()
+signal ui_action_requested(action: String)
 
 const DEFAULT_PORT := 6970
 const MAX_PORT_TRIES := 10
@@ -163,6 +164,18 @@ func _route(peer: StreamPeerTCP, method: String, path: String, body: String) -> 
 			else:
 				_send_response(peer, 405, {"error": "Method not allowed"})
 
+		"/ui/settings":
+			if method == "POST":
+				_handle_ui_action(peer, "open_settings")
+			else:
+				_send_response(peer, 405, {"error": "Method not allowed"})
+
+		"/ui/click_bottom_panel":
+			if method == "POST":
+				_handle_ui_action(peer, "click_bottom_panel")
+			else:
+				_send_response(peer, 405, {"error": "Method not allowed"})
+
 		"/memory":
 			if method == "GET":
 				_handle_memory_get(peer)
@@ -292,6 +305,11 @@ func _send_response(peer: StreamPeerTCP, status_code: int, data: Dictionary, cor
 	response += json_body
 
 	peer.put_data(response.to_utf8_buffer())
+
+
+func _handle_ui_action(peer: StreamPeerTCP, action: String) -> void:
+	ui_action_requested.emit(action)
+	_send_response(peer, 200, {"result": "UI action triggered: %s" % action})
 
 
 func _handle_memory_get(peer: StreamPeerTCP) -> void:

@@ -20,12 +20,25 @@ func _enter_tree() -> void:
 	add_child(http_server)
 	http_server.start()
 
-	# Setup chat panel (native API key mode)
+	# Setup chat panel
 	chat_panel_instance = ChatPanel.new()
 	chat_panel_instance.set_tool_registry(tool_registry)
 	chat_panel_button = add_control_to_bottom_panel(chat_panel_instance, "GodotForge")
 
+	# Connect UI actions from HTTP server to chat panel
+	http_server.ui_action_requested.connect(_on_ui_action)
+
 	print("[GodotForge] Plugin loaded (HTTP server on port %d)." % http_server.get_port())
+
+
+func _on_ui_action(action: String) -> void:
+	match action:
+		"open_settings":
+			# Make bottom panel visible first
+			make_bottom_panel_item_visible(chat_panel_instance)
+			chat_panel_instance.open_settings()
+		"click_bottom_panel":
+			make_bottom_panel_item_visible(chat_panel_instance)
 
 
 func _exit_tree() -> void:
