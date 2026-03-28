@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
-import { join } from "path";
+import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
 
@@ -81,6 +82,11 @@ export class HttpServer {
 
     try {
       switch (url) {
+        case "/":
+        case "/dashboard":
+          this.serveDashboard(res);
+          break;
+
         case "/health":
           this.sendJson(res, 200, {
             status: "ok",
@@ -181,6 +187,29 @@ export class HttpServer {
 
     this.chatEngine.updateSettings(parsed as Record<string, string | number | boolean>);
     this.sendJson(res, 200, { result: "Settings updated" });
+  }
+
+  private serveDashboard(res: ServerResponse): void {
+    // Find dashboard.html relative to this file
+    const thisDir = dirname(fileURLToPath(import.meta.url));
+    const htmlPath = join(thisDir, "..", "src", "web", "dashboard.html");
+    const distHtmlPath = join(thisDir, "web", "dashboard.html");
+
+    let html = "";
+    if (existsSync(distHtmlPath)) {
+      html = readFileSync(distHtmlPath, "utf-8");
+    } else if (existsSync(htmlPath)) {
+      html = readFileSync(htmlPath, "utf-8");
+    } else {
+      // Inline fallback
+      html = "<html><body><h1>GodotForge Dashboard</h1><p>dashboard.html not found</p></body></html>";
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Length": Buffer.byteLength(html),
+    });
+    res.end(html);
   }
 
   private handleSetKey(res: ServerResponse, body: string): void {

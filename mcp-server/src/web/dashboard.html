@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GodotForge — Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+  .header { background: #16213e; padding: 20px 32px; border-bottom: 1px solid #0f3460; display: flex; align-items: center; gap: 16px; }
+  .header h1 { font-size: 24px; color: #e94560; }
+  .header .version { color: #888; font-size: 14px; }
+  .header .status { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .header .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.green { background: #4caf50; }
+  .dot.red { background: #f44336; }
+  .dot.yellow { background: #ff9800; }
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  .card { background: #16213e; border-radius: 12px; padding: 24px; margin-bottom: 24px; border: 1px solid #0f3460; }
+  .card h2 { font-size: 18px; color: #e94560; margin-bottom: 16px; }
+  .card h3 { font-size: 14px; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #0f3460; }
+  th { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+  .badge.configured { background: #1b5e20; color: #4caf50; }
+  .badge.missing { background: #4a1c1c; color: #f44336; }
+  .badge.optional { background: #33302a; color: #ff9800; }
+  .badge.env { background: #1a237e; color: #7986cb; }
+  .badge.config { background: #1b3a1b; color: #66bb6a; }
+  .key-input { display: flex; gap: 8px; align-items: center; }
+  .key-input input { background: #0a0a1a; border: 1px solid #0f3460; color: #e0e0e0; padding: 6px 12px; border-radius: 6px; font-size: 13px; width: 280px; }
+  .key-input input::placeholder { color: #555; }
+  .btn { padding: 6px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: all 0.2s; }
+  .btn-save { background: #e94560; color: white; }
+  .btn-save:hover { background: #c73a52; }
+  .btn-remove { background: #333; color: #f44336; }
+  .btn-remove:hover { background: #4a1c1c; }
+  .btn-small { padding: 4px 10px; font-size: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+  .stat { text-align: center; padding: 16px; background: #0a0a1a; border-radius: 8px; }
+  .stat .number { font-size: 28px; font-weight: 700; color: #e94560; }
+  .stat .label { font-size: 12px; color: #888; margin-top: 4px; }
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #1b5e20; color: #4caf50; padding: 12px 24px; border-radius: 8px; display: none; font-size: 14px; z-index: 100; }
+  .toast.error { background: #4a1c1c; color: #f44336; }
+  .section-desc { color: #888; font-size: 13px; margin-bottom: 16px; }
+  a { color: #7986cb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+  .tool-tag { background: #0a0a1a; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: monospace; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ GodotForge</h1>
+  <span class="version" id="version">v0.2.0</span>
+  <div class="status">
+    <span id="godot-status">Godot: —</span>
+    <span id="blender-status">Blender: —</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="card">
+    <h2>Overview</h2>
+    <div class="stats" id="stats">
+      <div class="stat"><div class="number">83</div><div class="label">Total Tools</div></div>
+      <div class="stat"><div class="number">32</div><div class="label">Godot</div></div>
+      <div class="stat"><div class="number">39</div><div class="label">Blender</div></div>
+      <div class="stat"><div class="number">4</div><div class="label">Pipeline</div></div>
+      <div class="stat"><div class="number">7</div><div class="label">Assets</div></div>
+      <div class="stat"><div class="number" id="keys-configured">0</div><div class="label">Keys Set</div></div>
+    </div>
+  </div>
+
+  <!-- API Keys -->
+  <div class="card">
+    <h2>API Keys</h2>
+    <p class="section-desc">
+      Configure API keys for external services. Keys are stored in <code>.godotforge/config.json</code> (gitignored).
+      Environment variables take priority.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Service</th><th>Status</th><th>Source</th><th>Action</th></tr>
+      </thead>
+      <tbody id="keys-table"></tbody>
+    </table>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <h2>Chat Settings</h2>
+    <table>
+      <tbody id="settings-table"></tbody>
+    </table>
+  </div>
+
+  <!-- Connections -->
+  <div class="card">
+    <h2>Connections</h2>
+    <table>
+      <thead><tr><th>Service</th><th>Status</th><th>Details</th></tr></thead>
+      <tbody id="connections-table"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const BASE = window.location.origin;
+
+const SERVICE_INFO = {
+  anthropic:     { label: 'Anthropic (Claude)', url: 'https://console.anthropic.com/settings/keys', required: false, note: 'Only needed for API key mode (not Claude CLI)' },
+  sketchfab:     { label: 'Sketchfab', url: 'https://sketchfab.com/settings/password', required: false, note: 'Required for model downloads' },
+  polyhaven:     { label: 'Poly Haven', url: '', required: false, note: 'Public API — no key needed' },
+  rodin:         { label: 'Rodin (3D AI)', url: '', required: false, note: 'Phase D — not yet implemented' },
+  meshy:         { label: 'Meshy (3D AI)', url: 'https://www.meshy.ai', required: false, note: 'Phase D — not yet implemented' },
+  tripo:         { label: 'Tripo (3D AI)', url: 'https://www.tripo3d.ai', required: false, note: 'Phase D — not yet implemented' },
+  stability:     { label: 'Stability AI', url: 'https://platform.stability.ai/account/keys', required: false, note: 'Phase D — textures/sprites' },
+  openai:        { label: 'OpenAI (DALL-E)', url: 'https://platform.openai.com/api-keys', required: false, note: 'Phase D — textures/sprites' },
+  elevenlabs:    { label: 'ElevenLabs', url: 'https://elevenlabs.io', required: false, note: 'Phase D — sound effects' },
+  suno:          { label: 'Suno', url: 'https://suno.com', required: false, note: 'Phase D — music generation' },
+  blockade_labs: { label: 'Blockade Labs', url: 'https://www.blockadelabs.com', required: false, note: 'Phase D — skybox generation' },
+  huggingface:   { label: 'Hugging Face', url: 'https://huggingface.co/settings/tokens', required: false, note: 'Phase D — various AI models' },
+};
+
+async function loadKeys() {
+  try {
+    const res = await fetch(`${BASE}/keys`);
+    const data = await res.json();
+    const services = data.services;
+
+    const tbody = document.getElementById('keys-table');
+    tbody.innerHTML = '';
+    let configured = 0;
+
+    for (const [key, info] of Object.entries(SERVICE_INFO)) {
+      const status = services[key] || { configured: false, source: 'none' };
+      if (status.configured) configured++;
+
+      const tr = document.createElement('tr');
+      const sInfo = info;
+
+      const statusBadge = status.configured
+        ? `<span class="badge configured">✓ Configured</span>`
+        : sInfo.note?.includes('no key needed')
+          ? `<span class="badge optional">Not needed</span>`
+          : `<span class="badge missing">Not set</span>`;
+
+      const sourceBadge = status.source === 'env'
+        ? `<span class="badge env">ENV</span>`
+        : status.source === 'config'
+          ? `<span class="badge config">Config</span>`
+          : '—';
+
+      const urlLink = sInfo.url ? `<a href="${sInfo.url}" target="_blank" title="Get API key">🔗</a>` : '';
+
+      tr.innerHTML = `
+        <td><strong>${sInfo.label}</strong> ${urlLink}<br><small style="color:#666">${sInfo.note || ''}</small></td>
+        <td>${statusBadge}</td>
+        <td>${sourceBadge}</td>
+        <td>
+          <div class="key-input">
+            <input type="password" id="key-${key}" placeholder="Enter key..." />
+            <button class="btn btn-save btn-small" onclick="saveKey('${key}')">Save</button>
+            ${status.configured && status.source === 'config' ? `<button class="btn btn-remove btn-small" onclick="removeKey('${key}')">✕</button>` : ''}
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    document.getElementById('keys-configured').textContent = configured;
+  } catch (e) {
+    showToast('Failed to load keys: ' + e.message, true);
+  }
+}
+
+async function saveKey(service) {
+  const input = document.getElementById(`key-${service}`);
+  const key = input.value.trim();
+  if (!key) { showToast('Enter a key first', true); return; }
+
+  try {
+    const res = await fetch(`${BASE}/keys`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service, key }),
+    });
+    const data = await res.json();
+    input.value = '';
+    showToast(data.result || 'Key saved!');
+    loadKeys();
+  } catch (e) {
+    showToast('Failed: ' + e.message, true);
+  }
+}
+
+async function removeKey(service) {
+  try {
+    const res = await fetch(`${BASE}/keys`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service }),
+    });
+    showToast('Key removed');
+    loadKeys();
+  } catch (e) {
+    showToast('Failed: ' + e.message, true);
+  }
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch(`${BASE}/settings`);
+    const data = await res.json();
+    const tbody = document.getElementById('settings-table');
+    tbody.innerHTML = `
+      <tr><td>Auth Mode</td><td><strong>${data.auth_mode}</strong></td></tr>
+      <tr><td>Model</td><td><code>${data.model}</code></td></tr>
+      <tr><td>Max Tokens</td><td>${data.max_tokens}</td></tr>
+      <tr><td>Memory</td><td>${data.memory_enabled ? '✓ Enabled' : '✗ Disabled'}</td></tr>
+      <tr><td>API Key</td><td>${data.has_api_key ? '<span class="badge configured">Set</span>' : '<span class="badge missing">Not set</span>'}</td></tr>
+    `;
+  } catch (e) {
+    document.getElementById('settings-table').innerHTML = '<tr><td colspan="2">Failed to load settings</td></tr>';
+  }
+}
+
+async function loadConnections() {
+  const tbody = document.getElementById('connections-table');
+  tbody.innerHTML = '';
+
+  // Check MCP
+  tbody.innerHTML += `<tr><td>MCP Server</td><td><span class="dot green"></span> Running</td><td>Port ${window.location.port || 6980}</td></tr>`;
+
+  // Check Godot
+  try {
+    const res = await fetch(`${BASE}/health`);
+    const data = await res.json();
+    tbody.innerHTML += `<tr><td>Godot Editor</td><td><span class="dot green"></span> Connected</td><td>${data.version || ''}</td></tr>`;
+  } catch {
+    tbody.innerHTML += `<tr><td>Godot Editor</td><td><span class="dot red"></span> Not connected</td><td>—</td></tr>`;
+  }
+
+  // Check Blender (via MCP context, we can't directly check :8400 from browser due to CORS)
+  tbody.innerHTML += `<tr><td>Blender</td><td><span class="dot yellow"></span> Check via CLI</td><td>Port 8400</td></tr>`;
+}
+
+function showToast(msg, isError = false) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (isError ? ' error' : '');
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+// Init
+loadKeys();
+loadSettings();
+loadConnections();
+</script>
+
+</body>
+</html>
