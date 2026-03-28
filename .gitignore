@@ -16,3 +16,5 @@ mcp-server/dist/
 # OS
 .DS_Store
 Thumbs.db
+web-client/node_modules/
+web-client/dist/
