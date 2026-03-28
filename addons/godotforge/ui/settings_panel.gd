@@ -6,16 +6,22 @@ signal settings_changed(settings: Dictionary)
 
 const MODELS := ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-haiku-4-5-20251001"]
 const MODEL_LABELS := ["Sonnet 4 (recommended)", "Opus 4", "Haiku 4.5 (fast)"]
+const AUTH_MODES := ["API Key", "Claude Code (Max/Pro plan)"]
 const SETTINGS_PATH := "res://addons/godotforge/.settings"
 
+var _auth_dropdown: OptionButton
+var _api_key_input: LineEdit
+var _api_key_container: HBoxContainer
 var _model_dropdown: OptionButton
 var _max_tokens_slider: HSlider
 var _max_tokens_label: Label
 var _memory_toggle: CheckButton
 var _version_label: Label
 var _usage_label: Label
+var _cli_status_label: Label
 
 var current_settings := {
+	"auth_mode": 0,  # 0 = API Key, 1 = Claude Code
 	"model": MODELS[0],
 	"max_tokens": 4096,
 	"memory_enabled": true,
@@ -24,14 +30,47 @@ var current_settings := {
 
 func _init() -> void:
 	title = "GodotForge Settings"
-	min_size = Vector2(420, 320)
+	min_size = Vector2(420, 380)
 
 	var vbox := VBoxContainer.new()
-	vbox.custom_minimum_size = Vector2(400, 280)
+	vbox.custom_minimum_size = Vector2(400, 340)
+
+	# Auth mode selector
+	var auth_label := Label.new()
+	auth_label.text = "Authentication"
+	vbox.add_child(auth_label)
+
+	_auth_dropdown = OptionButton.new()
+	for label in AUTH_MODES:
+		_auth_dropdown.add_item(label)
+	_auth_dropdown.item_selected.connect(_on_auth_selected)
+	vbox.add_child(_auth_dropdown)
+
+	# API key input (shown when API Key mode selected)
+	_api_key_container = HBoxContainer.new()
+	_api_key_input = LineEdit.new()
+	_api_key_input.placeholder_text = "sk-ant-..."
+	_api_key_input.secret = true
+	_api_key_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_api_key_container.add_child(_api_key_input)
+	var save_key_btn := Button.new()
+	save_key_btn.text = "Save"
+	save_key_btn.pressed.connect(_on_save_api_key)
+	_api_key_container.add_child(save_key_btn)
+	vbox.add_child(_api_key_container)
+
+	# CLI status (shown when Claude Code mode selected)
+	_cli_status_label = Label.new()
+	_cli_status_label.text = ""
+	_cli_status_label.add_theme_font_size_override("font_size", 12)
+	_cli_status_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	vbox.add_child(_cli_status_label)
+
+	vbox.add_child(HSeparator.new())
 
 	# Model selector
 	var model_label := Label.new()
-	model_label.text = "Model"
+	model_label.text = "Model (API Key mode only)"
 	vbox.add_child(model_label)
 
 	_model_dropdown = OptionButton.new()
@@ -89,6 +128,20 @@ func _init() -> void:
 	_load_settings()
 
 
+func _on_auth_selected(index: int) -> void:
+	current_settings["auth_mode"] = index
+	_model_dropdown.disabled = (index == 1)
+	_api_key_container.visible = (index == 0)
+	_cli_status_label.visible = (index == 1)
+
+
+func _on_save_api_key() -> void:
+	var key := _api_key_input.text.strip_edges()
+	if key != "":
+		current_settings["api_key_saved"] = true
+		settings_changed.emit({"action": "save_api_key", "api_key": key})
+
+
 func _on_model_selected(index: int) -> void:
 	current_settings["model"] = MODELS[index]
 
@@ -104,8 +157,21 @@ func _on_confirmed() -> void:
 	settings_changed.emit(current_settings)
 
 
+func update_cli_status(found: bool) -> void:
+	if found:
+		_cli_status_label.text = "Claude Code CLI detected"
+		_cli_status_label.add_theme_color_override("font_color", Color(0.4, 0.8, 0.4))
+	else:
+		_cli_status_label.text = "Claude Code CLI not found — install with: npm i -g @anthropic-ai/claude-code"
+		_cli_status_label.add_theme_color_override("font_color", Color(0.8, 0.5, 0.3))
+
+
 func update_usage(input_tokens: int, output_tokens: int) -> void:
 	_usage_label.text = "Last request: %d in / %d out tokens" % [input_tokens, output_tokens]
+
+
+func get_auth_mode() -> int:
+	return current_settings.get("auth_mode", 0)
 
 
 func get_model() -> String:
@@ -137,9 +203,14 @@ func _load_settings() -> void:
 		current_settings.merge(json.data, true)
 
 	# Apply loaded settings to UI
+	_auth_dropdown.select(current_settings.get("auth_mode", 0))
 	var model_idx := MODELS.find(current_settings["model"])
 	if model_idx >= 0:
 		_model_dropdown.select(model_idx)
 	_max_tokens_slider.value = current_settings["max_tokens"]
 	_max_tokens_label.text = str(current_settings["max_tokens"])
 	_memory_toggle.button_pressed = current_settings.get("memory_enabled", true)
+	var auth_mode: int = current_settings.get("auth_mode", 0)
+	_model_dropdown.disabled = (auth_mode == 1)
+	_api_key_container.visible = (auth_mode == 0)
+	_cli_status_label.visible = (auth_mode == 1)

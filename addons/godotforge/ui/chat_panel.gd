@@ -12,8 +12,6 @@ var _message_container: VBoxContainer
 var _input_field: TextEdit
 var _send_button: Button
 var _status_label: Label
-var _api_key_dialog: AcceptDialog
-var _api_key_input: LineEdit
 var _settings_panel: GodotForgeSettingsPanel
 
 
@@ -38,11 +36,6 @@ func _build_ui() -> void:
 	header.add_child(title)
 
 	header.add_spacer(false)
-
-	var apikey_btn := Button.new()
-	apikey_btn.text = "API Key"
-	apikey_btn.pressed.connect(_show_api_key_dialog)
-	header.add_child(apikey_btn)
 
 	var settings_btn := Button.new()
 	settings_btn.text = "Settings"
@@ -94,24 +87,13 @@ func _build_ui() -> void:
 
 	add_child(input_container)
 
-	# API key dialog
-	_api_key_dialog = AcceptDialog.new()
-	_api_key_dialog.title = "Set Anthropic API Key"
-	_api_key_input = LineEdit.new()
-	_api_key_input.placeholder_text = "sk-ant-..."
-	_api_key_input.secret = true
-	_api_key_input.custom_minimum_size = Vector2(400, 0)
-	_api_key_dialog.add_child(_api_key_input)
-	_api_key_dialog.confirmed.connect(_on_api_key_confirmed)
-	add_child(_api_key_dialog)
-
-	# Settings panel
+	# Settings panel (includes API key input)
 	_settings_panel = GodotForgeSettingsPanel.new()
 	_settings_panel.settings_changed.connect(_on_settings_changed)
 	add_child(_settings_panel)
 
 	# Welcome message
-	_add_bubble(MessageBubble.Role.ASSISTANT, "Welcome to GodotForge! I can help you create scenes, add nodes, write scripts, and more — all without leaving Godot.\n\nTry: \"Create a CharacterBody2D scene for a player\"")
+	_add_bubble(MessageBubble.Role.ASSISTANT, "Welcome to GodotForge! I can help you create scenes, add nodes, write scripts, and more — all without leaving Godot.\n\nGo to Settings to choose: API Key or Claude Code (Max/Pro plan).\nThen try: \"Create a CharacterBody2D scene for a player\"")
 
 
 func _setup_client() -> void:
@@ -128,6 +110,15 @@ func _setup_client() -> void:
 		+ "Be concise. When the user asks you to create something, use the appropriate tools immediately. "
 		+ "Always use GDScript (not C#). Always use Godot 4.x API."
 	)
+
+	# Update settings panel with CLI detection status
+	if _settings_panel:
+		_settings_panel.update_cli_status(_claude_client.has_claude_cli())
+
+	# Apply saved auth mode
+	var saved_mode: int = _settings_panel.get_auth_mode() if _settings_panel else 0
+	if saved_mode == 1:
+		_claude_client.set_auth_mode(GodotForgeClaudeClient.AuthMode.CLAUDE_CODE)
 
 
 func _setup_tools() -> void:
@@ -203,17 +194,6 @@ func _set_busy(busy: bool) -> void:
 	_status_label.text = "Thinking..." if busy else ""
 
 
-func _show_api_key_dialog() -> void:
-	_api_key_dialog.popup_centered()
-
-
-func _on_api_key_confirmed() -> void:
-	var key := _api_key_input.text.strip_edges()
-	if key != "":
-		_claude_client.save_api_key(key)
-		_add_bubble(MessageBubble.Role.TOOL, "API key saved.")
-
-
 func _clear_chat() -> void:
 	for child in _message_container.get_children():
 		child.queue_free()
@@ -226,9 +206,25 @@ func _show_settings() -> void:
 
 
 func _on_settings_changed(settings: Dictionary) -> void:
+	# Handle API key save action
+	if settings.get("action") == "save_api_key":
+		var key: String = settings.get("api_key", "")
+		if key != "":
+			_claude_client.save_api_key(key)
+			_add_bubble(MessageBubble.Role.TOOL, "API key saved.")
+		return
+
+	var auth_mode: int = settings.get("auth_mode", 0)
+	if auth_mode == 0:
+		_claude_client.set_auth_mode(GodotForgeClaudeClient.AuthMode.API_KEY)
+	else:
+		_claude_client.set_auth_mode(GodotForgeClaudeClient.AuthMode.CLAUDE_CODE)
+
 	_claude_client.set_model(settings.get("model", ""))
 	_claude_client.set_max_tokens(settings.get("max_tokens", 4096))
-	_add_bubble(MessageBubble.Role.TOOL, "Settings updated.")
+
+	var mode_name := "API Key" if auth_mode == 0 else "Claude Code (Max/Pro)"
+	_add_bubble(MessageBubble.Role.TOOL, "Settings updated. Auth: %s" % mode_name)
 
 
 func _input(event: InputEvent) -> void:
