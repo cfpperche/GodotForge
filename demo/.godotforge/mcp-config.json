@@ -1,0 +1,1 @@
+{"mcpServers":{"godotforge":{"command":"node","args":["/home/goat/GodotForge/demo/mcp-server/dist/index.js","--project-root","/home/goat/GodotForge/demo"]}}}

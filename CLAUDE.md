@@ -8,6 +8,7 @@ GodotForge is a hybrid AI Copilot for Godot Engine: a **native Godot editor plug
 
 - **Godot**: `"/mnt/c/Tools/Godot/Godot_v4.6.1-stable_win64.exe"` (Windows binary, called from WSL2)
 - **Launch editor**: `"/mnt/c/Tools/Godot/Godot_v4.6.1-stable_win64.exe" --editor --path "$(wslpath -w /home/goat/GodotForge)"`
+- **Close Godot**: `/mnt/c/Windows/System32/taskkill.exe /F /IM "Godot_v4.6.1-stable_win64.exe"` (pkill doesn't work for Windows processes)
 - **Always close Godot** when done testing — don't leave it running in the background
 
 ## Architecture

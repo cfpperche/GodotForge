@@ -276,10 +276,22 @@ export class ChatEngine {
       : message;
 
     try {
-      // Write MCP config for Claude CLI to use our tools
-      const mcpConfigPath = join(this.root, ".godotforge", "mcp-config.json");
-      const mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
-      mkdirSync(join(this.root, ".godotforge"), { recursive: true });
+      // Write temp files for CLI
+      const gfDir = join(this.root, ".godotforge");
+      mkdirSync(gfDir, { recursive: true });
+
+      const systemPromptPath = join(gfDir, "system-prompt.txt");
+      writeFileSync(systemPromptPath, systemPrompt);
+
+      // Write MCP config so CLI has access to GodotForge tools
+      const mcpConfigPath = join(gfDir, "mcp-cli-config.json");
+      // Find the MCP server dist — check project root and parent
+      let mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
+      if (!existsSync(mcpDistPath)) {
+        const parentRoot = join(this.root, "..");
+        mcpDistPath = join(parentRoot, "mcp-server", "dist", "index.js");
+      }
+
       writeFileSync(mcpConfigPath, JSON.stringify({
         mcpServers: {
           godotforge: {
@@ -293,15 +305,16 @@ export class ChatEngine {
         "--print",
         "--output-format", "text",
         "--model", this.settings.model,
-        "--system-prompt", systemPrompt,
+        "--system-prompt-file", systemPromptPath,
         "--mcp-config", mcpConfigPath,
-        fullPrompt,
+        "-p", "-",
       ];
 
       const output = execFileSync(this.claudeCliPath, args, {
+        input: fullPrompt,
         encoding: "utf-8",
-        timeout: 120_000,
-        maxBuffer: 1024 * 1024,
+        timeout: 300_000,
+        maxBuffer: 5 * 1024 * 1024,
         env: { ...process.env },
       });
 

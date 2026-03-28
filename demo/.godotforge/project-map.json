@@ -1,0 +1,14 @@
+{
+  "project_name": "GodotForge Demo — Platformer",
+  "godot_version": "4.6",
+  "scenes": [
+    "scenes/Main.tscn",
+    "scenes/Player.tscn"
+  ],
+  "scripts": [
+    "scripts/Player.gd"
+  ],
+  "resources": [],
+  "autoloads": {},
+  "scan_time": "2026-03-28T17:17:01.112Z"
+}
