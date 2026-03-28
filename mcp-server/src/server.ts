@@ -132,6 +132,40 @@ export function createServer(projectRoot?: string): McpServer {
     async (args) => editorTool(bridge, "edit_script", args)
   );
 
+  // --- Runtime tools (delegated to Godot plugin) ---
+
+  server.tool(
+    "run_scene",
+    "Run a scene in the Godot editor. If no path given, runs current or main scene.",
+    {
+      scene_path: z.string().optional().describe("Scene path (e.g. 'res://scenes/main.tscn')"),
+    },
+    async (args) => editorTool(bridge, "run_scene", args)
+  );
+
+  server.tool(
+    "stop_scene",
+    "Stop the currently running scene in the Godot editor.",
+    {},
+    async () => editorTool(bridge, "stop_scene", {})
+  );
+
+  server.tool(
+    "get_game_status",
+    "Check if a scene is running in Godot and which scene it is.",
+    {},
+    async () => editorTool(bridge, "get_game_status", {})
+  );
+
+  server.tool(
+    "take_screenshot",
+    "Take a screenshot of the Godot editor viewport.",
+    {
+      output_path: z.string().optional().describe("Save path (default: res://.godotforge/screenshot.png)"),
+    },
+    async (args) => editorTool(bridge, "take_screenshot", args)
+  );
+
   // --- Local tools ---
 
   server.tool(

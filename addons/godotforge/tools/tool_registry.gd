@@ -27,6 +27,12 @@ func _register_defaults() -> void:
 	register("read_script", script_tools)
 	register("edit_script", script_tools)
 
+	var runtime_tools := preload("res://addons/godotforge/tools/runtime_tools.gd").new()
+	register("run_scene", runtime_tools)
+	register("stop_scene", runtime_tools)
+	register("get_game_status", runtime_tools)
+	register("take_screenshot", runtime_tools)
+
 
 func register(tool_name: String, handler: GodotForgeToolBase) -> void:
 	_handlers[tool_name] = handler

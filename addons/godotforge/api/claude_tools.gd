@@ -208,4 +208,46 @@ static func get_tool_definitions() -> Array[Dictionary]:
 				"required": ["path"]
 			}
 		},
+		{
+			"name": "run_scene",
+			"description": "Run a scene in the Godot editor. If no path given, runs current or main scene.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"scene_path": {
+						"type": "string",
+						"description": "Scene file path (e.g. 'res://scenes/main.tscn'). Empty for current/main scene."
+					}
+				},
+			}
+		},
+		{
+			"name": "stop_scene",
+			"description": "Stop the currently running scene in the Godot editor.",
+			"input_schema": {
+				"type": "object",
+				"properties": {},
+			}
+		},
+		{
+			"name": "get_game_status",
+			"description": "Check if a scene is running and which scene it is.",
+			"input_schema": {
+				"type": "object",
+				"properties": {},
+			}
+		},
+		{
+			"name": "take_screenshot",
+			"description": "Take a screenshot of the editor viewport.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"output_path": {
+						"type": "string",
+						"description": "Path to save the screenshot (default: 'res://.godotforge/screenshot.png')"
+					}
+				},
+			}
+		},
 	]
