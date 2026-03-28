@@ -1,4 +1,5 @@
 import { GodotBridge } from "./bridge.js";
+import { BlenderBridge } from "./blender-bridge.js";
 import { executeTool, type ToolResult } from "./tool-handlers.js";
 import { buildContext } from "./context/builder.js";
 import { appendSessionLog } from "./memory/store.js";
@@ -11,12 +12,13 @@ const API_VERSION = "2023-06-01";
 const MAX_TOOL_LOOPS = 10;
 
 const BASE_SYSTEM_PROMPT =
-  "You are GodotForge, an AI assistant for the Godot game engine. " +
-  "You help developers create games without leaving the editor. " +
-  "You have tools to create scenes, add nodes, set properties, write GDScript, " +
-  "search Godot documentation, manage project memory, and run games. " +
+  "You are GodotForge, an AI game development hub that orchestrates Godot Engine and Blender. " +
+  "You help developers create games using AI — modeling in Blender, building in Godot, and piping assets between them. " +
+  "You have tools for: Godot (scenes, nodes, scripts, runtime), Blender (meshes, materials, UV, export), " +
+  "Pipeline (Blender→Godot asset flow), docs search (912 Godot classes), and project memory. " +
   "Use tools to take action — don't just describe what to do. " +
-  "Be concise. Always use GDScript (not C#). Always use Godot 4.x API.";
+  "Be concise. Always use GDScript (not C#). Always use Godot 4.x API. " +
+  "For 3D modeling, use blender.* tools. For Blender→Godot transfer, use pipeline.blender_to_godot.";
 
 interface ToolCallLog {
   name: string;
@@ -80,6 +82,26 @@ function getToolDefinitions(): Array<Record<string, unknown>> {
     { name: "save_memory", description: "Save a fact to project memory.", input_schema: { type: "object", properties: { category: { type: "string" }, content: { type: "string" } }, required: ["category", "content"] } },
     { name: "search_memory", description: "Search project memory.", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
     { name: "get_project_memory", description: "Get full project memory.", input_schema: { type: "object", properties: {} } },
+    // Blender tools
+    { name: "blender.create_mesh", description: "Create a mesh primitive in Blender (cube, sphere, cylinder, plane, cone, torus).", input_schema: { type: "object", properties: { type: { type: "string", enum: ["cube", "sphere", "uv_sphere", "ico_sphere", "cylinder", "plane", "cone", "torus"] }, name: { type: "string" }, location: { type: "array", items: { type: "number" } }, scale: { type: "array", items: { type: "number" } } }, required: ["type"] } },
+    { name: "blender.delete_object", description: "Delete an object from Blender scene.", input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },
+    { name: "blender.duplicate_object", description: "Duplicate a Blender object.", input_schema: { type: "object", properties: { name: { type: "string" }, new_name: { type: "string" } }, required: ["name"] } },
+    { name: "blender.transform", description: "Move/rotate/scale a Blender object. Rotation in degrees.", input_schema: { type: "object", properties: { name: { type: "string" }, location: { type: "array", items: { type: "number" } }, rotation: { type: "array", items: { type: "number" } }, scale: { type: "array", items: { type: "number" } } }, required: ["name"] } },
+    { name: "blender.modify", description: "Apply modifier to Blender object (MIRROR, ARRAY, SOLIDIFY, BEVEL, SUBSURF, BOOLEAN, DECIMATE).", input_schema: { type: "object", properties: { name: { type: "string" }, modifier: { type: "string" }, properties: { type: "object" } }, required: ["name", "modifier"] } },
+    { name: "blender.boolean", description: "Boolean operation between two Blender objects.", input_schema: { type: "object", properties: { name: { type: "string" }, target: { type: "string" }, operation: { type: "string", enum: ["UNION", "DIFFERENCE", "INTERSECT"] } }, required: ["name", "target"] } },
+    { name: "blender.join_objects", description: "Join multiple Blender objects into one.", input_schema: { type: "object", properties: { names: { type: "array", items: { type: "string" } } }, required: ["names"] } },
+    { name: "blender.create_material", description: "Create a PBR material in Blender.", input_schema: { type: "object", properties: { name: { type: "string" }, color: { type: "array", items: { type: "number" } }, metallic: { type: "number" }, roughness: { type: "number" } }, required: ["name"] } },
+    { name: "blender.assign_material", description: "Assign material to Blender object.", input_schema: { type: "object", properties: { object: { type: "string" }, material: { type: "string" } }, required: ["object", "material"] } },
+    { name: "blender.list_materials", description: "List all materials in Blender scene.", input_schema: { type: "object", properties: {} } },
+    { name: "blender.get_scene_objects", description: "List all objects in Blender scene.", input_schema: { type: "object", properties: {} } },
+    { name: "blender.get_object_properties", description: "Get properties of a Blender object.", input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },
+    { name: "blender.get_blender_info", description: "Get Blender version and scene info.", input_schema: { type: "object", properties: {} } },
+    { name: "blender.export_gltf", description: "Export Blender scene as GLTF/GLB.", input_schema: { type: "object", properties: { filepath: { type: "string" }, selected_only: { type: "boolean" } }, required: ["filepath"] } },
+    { name: "blender.export_for_godot", description: "Export Blender scene optimized for Godot (GLB, Y-up).", input_schema: { type: "object", properties: { filepath: { type: "string" } }, required: ["filepath"] } },
+    { name: "blender.unwrap_uv", description: "UV unwrap a Blender mesh.", input_schema: { type: "object", properties: { name: { type: "string" }, method: { type: "string", enum: ["smart", "unwrap"] } }, required: ["name"] } },
+    { name: "blender.execute_python", description: "Execute arbitrary Python/bpy code in Blender.", input_schema: { type: "object", properties: { code: { type: "string" } }, required: ["code"] } },
+    // Pipeline tools
+    { name: "pipeline.blender_to_godot", description: "Export from Blender as GLB and import into Godot project.", input_schema: { type: "object", properties: { object_name: { type: "string" }, target_dir: { type: "string" }, file_name: { type: "string" } } } },
   ];
 }
 
@@ -94,11 +116,13 @@ export class ChatEngine {
   };
   private root: string;
   private bridge: GodotBridge;
+  private blenderBridge: BlenderBridge;
   private claudeCliPath: string = "";
 
-  constructor(root: string, bridge: GodotBridge) {
+  constructor(root: string, bridge: GodotBridge, blenderBridge?: BlenderBridge) {
     this.root = root;
     this.bridge = bridge;
+    this.blenderBridge = blenderBridge || new BlenderBridge(root);
     this.claudeCliPath = this.detectClaudeCli();
 
     // Auto-detect auth mode
@@ -209,9 +233,9 @@ export class ChatEngine {
         const response = textBlocks.join("\n\n");
         appendSessionLog(this.root, "assistant", response.slice(0, 500));
 
-        // Trim session if too long
-        if (messages.length > 40) {
-          messages.splice(0, messages.length - 20);
+        // Compaction: summarize old messages when session gets long
+        if (messages.length > 20) {
+          await this.compactSession(sessionId, messages);
         }
 
         return { response, tool_calls: toolCalls };
@@ -225,7 +249,7 @@ export class ChatEngine {
         const toolInput = (block.input || {}) as Record<string, unknown>;
         const toolId = block.id as string;
 
-        const result = await executeTool(toolName, toolInput, this.root, this.bridge);
+        const result = await executeTool(toolName, toolInput, this.root, this.bridge, this.blenderBridge);
         const resultText = result.content[0]?.text || "";
         const isError = result.isError || false;
 
@@ -346,6 +370,38 @@ export class ChatEngine {
         error: `Claude CLI error: ${errMsg.slice(0, 500)}`,
       };
     }
+  }
+
+  /**
+   * Compaction: summarize old messages, keep 6 most recent.
+   * Flushes key decisions/patterns to memory before discarding.
+   */
+  private async compactSession(sessionId: string, messages: Message[]): Promise<void> {
+    const keepCount = 6;
+    if (messages.length <= keepCount) return;
+
+    const oldMessages = messages.slice(0, messages.length - keepCount);
+    const recentMessages = messages.slice(messages.length - keepCount);
+
+    // Build summary of old messages
+    const summaryParts: string[] = [];
+    for (const msg of oldMessages) {
+      if (typeof msg.content === "string" && msg.content.length > 0) {
+        summaryParts.push(`${msg.role}: ${msg.content.slice(0, 200)}`);
+      }
+    }
+
+    const summaryText = summaryParts.join("\n").slice(0, 2000);
+    const compactedMessage: Message = {
+      role: "user",
+      content: `[Previous conversation summary]\n${summaryText}\n[End summary — conversation continues below]`,
+    };
+
+    // Replace session with compacted + recent
+    messages.length = 0;
+    messages.push(compactedMessage, ...recentMessages);
+
+    console.error(`[GodotForge Chat] Compacted session '${sessionId}': ${oldMessages.length} msgs → 1 summary + ${keepCount} recent`);
   }
 
   private async callClaudeApi(

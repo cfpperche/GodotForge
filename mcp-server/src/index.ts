@@ -27,7 +27,7 @@ async function main(): Promise<void> {
   const blenderBridge = new BlenderBridge(projectRoot);
 
   // Always start the HTTP server (for native chat panel)
-  const chatEngine = new ChatEngine(root, bridge);
+  const chatEngine = new ChatEngine(root, bridge, blenderBridge);
   const httpServer = new HttpServer(chatEngine, root);
   const httpPort = await httpServer.start();
 

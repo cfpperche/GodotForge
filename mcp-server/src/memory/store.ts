@@ -78,6 +78,9 @@ export function appendMemory(
     const after = existing.slice(insertAt);
     writeFileSync(path, `${before}\n${entry}\n${after}`, "utf-8");
   }
+
+  // Enforce 50KB cap
+  enforceMemoryCap(projectRoot);
 }
 
 export function appendSessionLog(
@@ -124,4 +127,66 @@ export function getMemorySize(projectRoot: string): number {
   const path = getMemoryPath(projectRoot);
   if (!existsSync(path)) return 0;
   return readFileSync(path, "utf-8").length;
+}
+
+const MEMORY_CAP_BYTES = 50 * 1024; // 50KB
+
+/**
+ * Check if memory exceeds 50KB cap. If so, archive old content.
+ * Keeps the most recent entries in each category.
+ */
+export function enforceMemoryCap(projectRoot: string): boolean {
+  const path = getMemoryPath(projectRoot);
+  if (!existsSync(path)) return false;
+
+  const content = readFileSync(path, "utf-8");
+  if (content.length <= MEMORY_CAP_BYTES) return false;
+
+  // Archive the full file
+  const dir = join(projectRoot, GODOTFORGE_DIR);
+  const archiveDir = join(dir, "archive");
+  mkdirSync(archiveDir, { recursive: true });
+
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const archivePath = join(archiveDir, `memory-${timestamp}.md`);
+  writeFileSync(archivePath, content, "utf-8");
+
+  // Keep only the last N entries per category (trim to ~25KB)
+  const trimmed = trimMemory(content, MEMORY_CAP_BYTES / 2);
+  writeFileSync(path, trimmed, "utf-8");
+
+  return true;
+}
+
+/**
+ * Trim memory content by keeping only recent entries per section.
+ */
+function trimMemory(content: string, targetSize: number): string {
+  const sections = content.split(/(?=^## )/m);
+  const header = sections[0] || "";
+  const categorySections = sections.slice(1);
+
+  const trimmedSections: string[] = [header.trim()];
+
+  for (const section of categorySections) {
+    const lines = section.split("\n");
+    const sectionHeader = lines[0];
+    const entries = lines.slice(1).filter((l) => l.startsWith("- ["));
+
+    // Keep the last half of entries
+    const keepCount = Math.max(Math.ceil(entries.length / 2), 5);
+    const keptEntries = entries.slice(-keepCount);
+
+    trimmedSections.push(`${sectionHeader}\n\n${keptEntries.join("\n")}\n`);
+  }
+
+  let result = trimmedSections.join("\n");
+
+  // If still too large, hard truncate
+  if (result.length > targetSize) {
+    result = result.slice(-targetSize);
+    result = "# GodotForge Project Memory\n\n[Archived — older entries moved to .godotforge/archive/]\n\n" + result;
+  }
+
+  return result;
 }
