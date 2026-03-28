@@ -163,11 +163,12 @@ func _run_claude_cli() -> void:
 	# Build the prompt with conversation context
 	var prompt := _build_cli_prompt()
 
-	# Run claude --print with system prompt
+	# Run claude --print with model and system prompt
 	var args := PackedStringArray([
 		"--print",
 		"--output-format", "text",
 		"--max-turns", "1",
+		"--model", _model,
 	])
 
 	if _system_prompt != "":

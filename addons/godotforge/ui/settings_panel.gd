@@ -70,7 +70,7 @@ func _init() -> void:
 
 	# Model selector
 	var model_label := Label.new()
-	model_label.text = "Model (API Key mode only)"
+	model_label.text = "Model"
 	vbox.add_child(model_label)
 
 	_model_dropdown = OptionButton.new()
@@ -130,7 +130,7 @@ func _init() -> void:
 
 func _on_auth_selected(index: int) -> void:
 	current_settings["auth_mode"] = index
-	_model_dropdown.disabled = (index == 1)
+	# Model selector works in both modes
 	_api_key_container.visible = (index == 0)
 	_cli_status_label.visible = (index == 1)
 
