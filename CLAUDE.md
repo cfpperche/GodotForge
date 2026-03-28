@@ -2,7 +2,7 @@
 
 ## What is GodotForge
 
-GodotForge is a hybrid AI Copilot for Godot Engine: a **native Godot editor plugin** (GDScript) + a **unified MCP server backend** (TypeScript). The MCP server is the single brain — it handles LLM calls, docs, memory, context, and tool orchestration. The plugin is a thin UI + EditorInterface bridge.
+GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 83 tools, memory, and context.
 
 ## Environment
 
@@ -16,22 +16,25 @@ GodotForge is a hybrid AI Copilot for Godot Engine: a **native Godot editor plug
 ## Architecture
 
 ```
-Claude Code / Cursor ──► MCP Server (stdio) ──┐
-                                               ├──► Godot Plugin HTTP :6970 (EditorInterface)
-Chat Panel ────────────► MCP Server (HTTP :6980) ──┤
-                              │                    └──► Blender Addon TCP :8400 (bpy)
-                              │
-                              ├── Claude API / Claude CLI (LLM)
-                              ├── Docs Engine (SQLite FTS5, 912 classes)
-                              ├── Memory Engine (FTS5 + markdown)
-                              ├── Context Builder (token-budgeted)
-                              ├── Tool Handlers (32 Godot + 39 Blender + 4 Pipeline = 75)
-                              └── Pipeline (Blender → Godot asset flow)
+Web Copilot (React :5173) ──────────┐
+Claude Code / Cursor ──► MCP (stdio)──┤
+Godot Chat Panel ──► MCP (HTTP :6980)──┤──► Godot Plugin HTTP :6970
+Blender Chat Panel ──► MCP (HTTP :6980)──┤──► Blender Addon TCP :8400
+                                         │
+                                         ├── Claude API / Claude CLI (LLM)
+                                         ├── Docs Engine (SQLite FTS5, 912 classes)
+                                         ├── Memory Engine (FTS5 + markdown, 50KB cap)
+                                         ├── Context Builder (8K token budget)
+                                         ├── ConfigManager (env vars + config.json)
+                                         ├── Asset Services (Poly Haven, Sketchfab, OpenGameArt)
+                                         ├── Pipeline (Blender → Godot asset flow)
+                                         └── Web Dashboard (/dashboard)
 ```
 
-- **MCP Server** (`mcp-server/`): Unified backend. Dual transport: stdio (MCP clients) + HTTP (native chat). Handles LLM, docs, memory, context, tool routing.
+- **MCP Server** (`mcp-server/`): Unified backend. Dual transport: stdio (MCP clients) + HTTP (native chat). Handles LLM, docs, memory, context, tool routing. Web dashboard at `/dashboard`.
 - **Plugin** (`addons/godotforge/`): Thin layer. UI (chat panel, settings) + EditorInterface bridge (24 editor tools on localhost:6970). Auto-spawns MCP server.
-- **Blender Addon** (`blender-addon/godotforge/`): Python addon for Blender. TCP socket server on :8400. Receives JSON commands, executes via bpy API.
+- **Blender Addon** (`blender-addon/godotforge/`): Python addon for Blender. TCP socket server :8400 + sidebar chat panel (View3D > GodotForge).
+- **Web Copilot** (`web-client/`): React 19 + Tailwind v4 + shadcn/ui. Chat + settings sidebar + API key management.
 - **Port files**: Plugin writes `.godot/godotforge.port`, MCP writes `.godotforge/mcp.port`
 
 ## Repository Structure
@@ -64,9 +67,12 @@ mcp-server/src/
   tool-handlers.ts                → Shared tool execution logic (editor + blender + local)
   bridge.ts                       → HTTP client → Godot plugin :6970
   blender-bridge.ts               → TCP socket client → Blender addon :8400
-  blender-tools.ts                → Blender tool definitions (17 tools)
-  pipeline.ts                     → Blender → Godot asset pipeline
+  blender-tools.ts                → Blender tool definitions (39 tools)
+  pipeline.ts                     → Blender → Godot asset pipeline (4 tools)
+  config.ts                       → API key manager (env + config.json, 12 services)
   tools.ts                        → Tool metadata constants
+  assets/                         → Asset service clients
+    polyhaven.ts / sketchfab.ts / opengameart.ts / handlers.ts
   docs/                           → Docs engine (SQLite FTS5, 912 Godot classes)
     types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts
   memory/                         → Memory engine (FTS5 + markdown)
@@ -77,10 +83,18 @@ mcp-server/src/
 blender-addon/godotforge/
   __init__.py                     → Blender addon entry point (register/unregister)
   server.py                       → TCP socket server (:8400, JSON protocol)
-  handlers.py                     → 17 tool handlers (modeling, materials, export, UV, script)
+  handlers.py                     → 39 tool handlers (modeling, materials, animation, render, export)
+  panel.py                        → Sidebar chat panel (View3D > GodotForge)
+
+web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4 + shadcn/ui)
+  src/app.tsx                     → Two-column layout: chat + sidebar
+  src/hooks/                      → use-chat, use-health, use-settings, use-keys
+  src/components/chat/            → chat-panel, message, tool-call, chat-input
+  src/components/sidebar/         → sidebar, connection-status, api-keys
+  src/lib/api.ts                  → HTTP client to MCP :6980
 ```
 
-## 75 Tools
+## 83 Tools
 
 ### Editor Tools (24 — run in plugin via EditorInterface)
 | Tool | Description |
@@ -148,17 +162,45 @@ blender-addon/godotforge/
 | `pipeline.sync_collision` | Generate collision hints → export for Godot auto-detect |
 | `pipeline.batch_import` | Batch import multiple 3D files into Godot project |
 
+### Asset Tools (7 — external asset services)
+| Tool | Description |
+|------|-------------|
+| `assets.search_polyhaven` | Search 750+ free textures, models, HDRIs |
+| `assets.download_polyhaven` | Download with resolution/format + auto Godot rescan |
+| `assets.search_sketchfab` | Search downloadable 3D models |
+| `assets.download_sketchfab` | Download GLTF (requires API token) |
+| `assets.search_opengameart` | Search sprites, sounds, music, 3D |
+| `assets.download_asset` | Generic URL download + auto Godot rescan |
+| `assets.list_local` | List project assets by type/directory |
+
+### Config Tool (1)
+| Tool | Description |
+|------|-------------|
+| `get_service_status` | Check which services have API keys configured |
+
 ## Completed Features
 
-- **Phase 1**: Plugin + 6 editor tools + HTTP server + native chat
-- **Phase 2**: MCP server + bridge + stdio transport
-- **Phase 3**: Docs engine (SQLite FTS5, 912 classes, version-aware 4.1-4.6)
-- **Phase 4**: Memory + context engine (persistent memory, session logs, context builder)
-- **Phase 5**: Advanced editor tools (remove, rename, duplicate, move, edit_script)
-- **Phase 6**: Runtime tools (run, stop, screenshot, game status)
-- **Phase 7**: Polish (settings UI, README, npm packaging)
-- **Phase 8**: Critical tools (execute_editor_script, add_resource, add_scene_instance, save_scene, get_node_properties, connect_signal, set_project_setting, get_editor_errors)
-- **Refactoring**: Unified MCP backend (plugin is thin client, MCP handles LLM + tools)
+### V1 (Godot Copilot)
+- **Phase 1-8**: 32 Godot tools, docs engine (912 classes FTS5), memory engine, context builder, runtime tools, MCP server with dual transport (stdio + HTTP)
+- **Refactoring**: Unified MCP backend (plugin is thin client)
+- **Demo**: Flappy Bird game created entirely via tools (demo/)
+
+### V2 (Game Dev Hub)
+- **Phase A**: Blender addon (Python socket :8400) + BlenderBridge + 17 tools + pipeline.blender_to_godot
+- **Phase B**: +22 Blender tools (animation, armature, render, camera, light, collision) + 3 pipeline tools. Total: 39 Blender + 4 Pipeline
+- **Phase C**: Asset Services — Poly Haven (750+ textures), Sketchfab, OpenGameArt + generic download + list_local + auto-import (Godot rescan)
+- **ConfigManager**: API key management (env vars + .godotforge/config.json) for 12 services. HTTP endpoints + Web Dashboard
+- **Blender Copilot**: Sidebar chat panel (View3D > GodotForge) connected to MCP /chat
+- **Web Copilot**: React 19 + Tailwind v4 + shadcn/ui. Chat + settings + API keys at :5173
+- **Claude CLI Fix**: `--output-format json --mcp-config` for full tool execution via MCP protocol
+- **Memory cap**: 50KB limit + auto-archive to .godotforge/archive/
+- **Compaction**: Summarize old messages when session > 20, keep 6 recent
+
+### E2E Validations
+- ✅ Flappy Bird (2D game, 32 Godot tools)
+- ✅ Red metallic cube (Blender → GLB → Godot 3D scene)
+- ✅ Rigged robot character (armature + walk animation + collision → Godot)
+- ✅ Poly Haven textured scene (PBR textures + Blender rocks → Godot)
 
 ## Languages & Conventions
 
@@ -201,18 +243,27 @@ blender-addon/godotforge/
 # Build MCP server
 cd mcp-server && npm install && npm run build
 
-# Start MCP (HTTP-only, for native chat)
+# Build Web Copilot
+cd web-client && npm install && npm run build
+
+# Start MCP (HTTP-only, for native chat + web copilot)
 node mcp-server/dist/index.js --http-only --project-root /path/to/project
+
+# Start Web Copilot (dev mode)
+cd web-client && npm run dev  # → http://localhost:5173
 
 # Start MCP (stdio, for Claude Code)
 claude mcp add godotforge -- node mcp-server/dist/index.js --project-root /path/to/project
 
-# Test plugin endpoints
-curl http://localhost:6970/health
-curl -X POST http://localhost:6970/tools/create_scene -d '{"path":"res://test.tscn","root_type":"Node2D"}'
-
-# Test MCP chat
+# Test endpoints
+curl http://localhost:6970/health              # Godot plugin
+curl http://localhost:6980/health              # MCP server
+curl http://localhost:6980/dashboard           # Web dashboard
 curl -X POST http://localhost:6980/chat -d '{"message":"hello"}'
+curl http://localhost:6980/keys                # API key status
+
+# Test Blender addon
+echo '{"tool":"health","args":{}}' | nc -w 5 127.0.0.1 8400
 ```
 
 ## Common Pitfalls
