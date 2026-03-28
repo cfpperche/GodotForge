@@ -101,6 +101,7 @@ func _setup_client() -> void:
 	add_child(_claude_client)
 	_claude_client.response_received.connect(_on_response_received)
 	_claude_client.error_occurred.connect(_on_error)
+	_claude_client.get_conversation().compaction_needed.connect(_on_compaction_needed)
 
 	_claude_client.set_system_prompt(
 		"You are GodotForge, an AI assistant embedded in the Godot 4.x editor. "
@@ -192,6 +193,34 @@ func _set_busy(busy: bool) -> void:
 	_send_button.disabled = busy
 	_input_field.editable = not busy
 	_status_label.text = "Thinking..." if busy else ""
+
+
+func _on_compaction_needed(_old_messages: Array[Dictionary]) -> void:
+	# Get text summary of old messages
+	var old_text := _claude_client.get_conversation().get_old_messages_text()
+	if old_text == "":
+		return
+
+	_add_bubble(MessageBubble.Role.TOOL, "Compacting conversation... saving decisions to memory.")
+
+	# Extract key decisions from old conversation and save to memory
+	var lines := old_text.split("\n")
+	for line in lines:
+		# Heuristic: save lines that mention decisions, conventions, or important patterns
+		var lower := line.to_lower()
+		if "decision" in lower or "convention" in lower or "pattern" in lower or "always" in lower or "never" in lower:
+			if _tool_registry:
+				_tool_registry.execute("save_memory", {
+					"category": "Decisions",
+					"content": line.substr(0, 200),
+				})
+
+	# Create summary and compact
+	var msg_count := _claude_client.get_conversation().messages.size()
+	var summary := "Previous conversation (%d messages) covered: %s" % [msg_count, old_text.substr(0, 500)]
+	_claude_client.get_conversation().compact_with_summary(summary)
+
+	_add_bubble(MessageBubble.Role.TOOL, "Conversation compacted. Recent messages preserved.")
 
 
 func _clear_chat() -> void:

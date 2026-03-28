@@ -264,4 +264,111 @@ static func get_tool_definitions() -> Array[Dictionary]:
 				},
 			}
 		},
+		{
+			"name": "get_project_context",
+			"description": "Get project metadata: name, Godot version, list of scenes and scripts.",
+			"input_schema": {
+				"type": "object",
+				"properties": {},
+			}
+		},
+		{
+			"name": "read_file",
+			"description": "Read any file from the Godot project directory.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"description": "File path (e.g. 'res://project.godot', 'res://scenes/player.tscn')"
+					}
+				},
+				"required": ["path"]
+			}
+		},
+		{
+			"name": "list_files",
+			"description": "List files in a project directory with optional pattern filtering.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"directory": {
+						"type": "string",
+						"description": "Directory path (default: 'res://')"
+					},
+					"pattern": {
+						"type": "string",
+						"description": "Glob pattern (e.g. '*.gd', '*.tscn')"
+					}
+				},
+			}
+		},
+		{
+			"name": "save_memory",
+			"description": "Save a fact, convention, pattern, or decision to the project's persistent memory.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"category": {
+						"type": "string",
+						"description": "Category: Conventions, Patterns, Decisions, or Architecture"
+					},
+					"content": {
+						"type": "string",
+						"description": "What to remember"
+					}
+				},
+				"required": ["category", "content"]
+			}
+		},
+		{
+			"name": "search_memory",
+			"description": "Search the project's persistent memory.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"description": "Search query"
+					}
+				},
+				"required": ["query"]
+			}
+		},
+		{
+			"name": "get_project_memory",
+			"description": "Get the full project memory contents.",
+			"input_schema": {
+				"type": "object",
+				"properties": {},
+			}
+		},
+		{
+			"name": "search_docs",
+			"description": "Search Godot documentation for classes, methods, properties, or signals.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"query": {
+						"type": "string",
+						"description": "Search query (e.g. 'CharacterBody2D', 'move_and_slide')"
+					}
+				},
+				"required": ["query"]
+			}
+		},
+		{
+			"name": "get_class_reference",
+			"description": "Get Godot class reference with methods, properties, and signals.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"class_name": {
+						"type": "string",
+						"description": "Class name (e.g. 'Node2D', 'CharacterBody2D')"
+					}
+				},
+				"required": ["class_name"]
+			}
+		},
 	]
