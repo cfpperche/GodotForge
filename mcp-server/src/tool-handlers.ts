@@ -3,7 +3,7 @@ import { BlenderBridge } from "./blender-bridge.js";
 import { blenderHandlerName } from "./blender-tools.js";
 import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
 import { ConfigManager } from "./config.js";
-import { handleSearchPolyHaven, handleDownloadPolyHaven, handleSearchSketchfab, handleDownloadSketchfab } from "./assets/handlers.js";
+import { handleSearchPolyHaven, handleDownloadPolyHaven, handleSearchSketchfab, handleDownloadSketchfab, handleSearchOpenGameArt, handleDownloadAsset, handleListLocalAssets } from "./assets/handlers.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -427,6 +427,15 @@ export async function executeTool(
   if (toolName === "assets.download_sketchfab") {
     const cfg = new ConfigManager(root);
     return handleDownloadSketchfab(args, root, cfg);
+  }
+  if (toolName === "assets.search_opengameart") {
+    return handleSearchOpenGameArt(args);
+  }
+  if (toolName === "assets.download_asset") {
+    return handleDownloadAsset(args, root);
+  }
+  if (toolName === "assets.list_local") {
+    return handleListLocalAssets(args, root);
   }
 
   // Config tools

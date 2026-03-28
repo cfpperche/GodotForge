@@ -6,7 +6,7 @@ import { TOOLS, EDITOR_TOOLS } from "./tools.js";
 import { BLENDER_TOOLS, blenderHandlerName } from "./blender-tools.js";
 import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
 import { ConfigManager } from "./config.js";
-import { handleSearchPolyHaven, handleDownloadPolyHaven, handleSearchSketchfab, handleDownloadSketchfab } from "./assets/handlers.js";
+import { handleSearchPolyHaven, handleDownloadPolyHaven, handleSearchSketchfab, handleDownloadSketchfab, handleSearchOpenGameArt, handleDownloadAsset, handleListLocalAssets } from "./assets/handlers.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -577,6 +577,37 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       target_dir: z.string().optional().describe("Target directory (default: assets/models)"),
     },
     async (args) => handleDownloadSketchfab(args, root, config)
+  );
+
+  server.tool(
+    "assets.search_opengameart",
+    "Search OpenGameArt.org for free sprites, 3D models, sounds, and music.",
+    {
+      query: z.string().describe("Search query"),
+      type: z.enum(["2d", "3d", "music", "sound"]).optional().describe("Filter by asset type"),
+    },
+    async (args) => handleSearchOpenGameArt(args)
+  );
+
+  server.tool(
+    "assets.download_asset",
+    "Download any asset from a URL into the project. Triggers Godot filesystem rescan.",
+    {
+      url: z.string().describe("Direct download URL"),
+      target_dir: z.string().optional().describe("Target directory (default: assets/downloads)"),
+      file_name: z.string().optional().describe("Override filename"),
+    },
+    async (args) => handleDownloadAsset(args, root)
+  );
+
+  server.tool(
+    "assets.list_local",
+    "List downloaded assets in the project with type and size.",
+    {
+      directory: z.string().optional().describe("Directory to scan (default: assets)"),
+      type: z.enum(["texture", "model", "audio", "scene", "script", "material"]).optional().describe("Filter by asset type"),
+    },
+    async (args) => handleListLocalAssets(args, root)
   );
 
   // --- Blender tools (delegate to Blender addon via socket) ---
