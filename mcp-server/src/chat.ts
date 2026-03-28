@@ -2,6 +2,8 @@ import { GodotBridge } from "./bridge.js";
 import { executeTool, type ToolResult } from "./tool-handlers.js";
 import { buildContext } from "./context/builder.js";
 import { appendSessionLog } from "./memory/store.js";
+import { execSync, execFileSync } from "child_process";
+import { existsSync } from "fs";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -27,7 +29,10 @@ interface ChatResponse {
   error?: string;
 }
 
+type AuthMode = "api_key" | "claude_cli";
+
 interface ChatSettings {
+  auth_mode: AuthMode;
   api_key: string;
   model: string;
   max_tokens: number;
@@ -72,6 +77,7 @@ function getToolDefinitions(): Array<Record<string, unknown>> {
 export class ChatEngine {
   private sessions = new Map<string, Message[]>();
   private settings: ChatSettings = {
+    auth_mode: "claude_cli",
     api_key: process.env.ANTHROPIC_API_KEY || "",
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
@@ -79,10 +85,40 @@ export class ChatEngine {
   };
   private root: string;
   private bridge: GodotBridge;
+  private claudeCliPath: string = "";
 
   constructor(root: string, bridge: GodotBridge) {
     this.root = root;
     this.bridge = bridge;
+    this.claudeCliPath = this.detectClaudeCli();
+
+    // Auto-detect auth mode
+    if (this.settings.api_key) {
+      this.settings.auth_mode = "api_key";
+    } else if (this.claudeCliPath) {
+      this.settings.auth_mode = "claude_cli";
+    }
+
+    console.error(`[GodotForge Chat] Auth: ${this.settings.auth_mode}, CLI: ${this.claudeCliPath || "not found"}`);
+  }
+
+  private detectClaudeCli(): string {
+    // Try common paths
+    const candidates = [
+      "/usr/local/bin/claude",
+      "/usr/bin/claude",
+      `${process.env.HOME}/.local/bin/claude`,
+      `${process.env.HOME}/.npm-global/bin/claude`,
+    ];
+    for (const p of candidates) {
+      if (existsSync(p)) return p;
+    }
+    // Try which
+    try {
+      return execSync("which claude 2>/dev/null", { encoding: "utf-8" }).trim();
+    } catch {
+      return "";
+    }
   }
 
   updateSettings(partial: Partial<ChatSettings>): void {
@@ -98,8 +134,17 @@ export class ChatEngine {
   }
 
   async chat(message: string, sessionId: string = "default"): Promise<ChatResponse> {
+    // Route by auth mode
+    if (this.settings.auth_mode === "claude_cli") {
+      return this.chatViaCli(message, sessionId);
+    }
+
     if (!this.settings.api_key) {
-      return { response: "", tool_calls: [], error: "No API key configured. POST to /settings with {\"api_key\": \"sk-ant-...\"}" };
+      return {
+        response: "",
+        tool_calls: [],
+        error: "No API key and Claude CLI not found. Either:\n- Set ANTHROPIC_API_KEY env var\n- Install Claude Code: npm i -g @anthropic-ai/claude-code && claude login",
+      };
     }
 
     // Get or create session
@@ -193,6 +238,79 @@ export class ChatEngine {
       tool_calls: toolCalls,
       error: "Max tool loops exceeded",
     };
+  }
+
+  private async chatViaCli(message: string, sessionId: string): Promise<ChatResponse> {
+    if (!this.claudeCliPath) {
+      return {
+        response: "",
+        tool_calls: [],
+        error: "Claude CLI not found. Install: npm i -g @anthropic-ai/claude-code && claude login",
+      };
+    }
+
+    appendSessionLog(this.root, "user", message);
+
+    // Build context-enhanced prompt
+    let systemPrompt = BASE_SYSTEM_PROMPT;
+    if (this.settings.memory_enabled) {
+      try {
+        const ctx = await buildContext(this.root, this.bridge);
+        if (ctx) systemPrompt += "\n\n" + ctx;
+      } catch { /* non-critical */ }
+    }
+
+    // Build conversation context from session
+    const messages = this.sessions.get(sessionId) || [];
+    let conversationContext = "";
+    const recentMsgs = messages.slice(-6);
+    for (const msg of recentMsgs) {
+      if (typeof msg.content === "string") {
+        conversationContext += `${msg.role}: ${msg.content}\n\n`;
+      }
+    }
+
+    const fullPrompt = conversationContext
+      ? `${conversationContext}user: ${message}`
+      : message;
+
+    try {
+      const args = [
+        "--print",
+        "--output-format", "text",
+        "--model", this.settings.model,
+        "--max-turns", "1",
+        "--system-prompt", systemPrompt,
+        fullPrompt,
+      ];
+
+      const output = execFileSync(this.claudeCliPath, args, {
+        encoding: "utf-8",
+        timeout: 120_000,
+        maxBuffer: 1024 * 1024,
+        env: { ...process.env },
+      });
+
+      const response = output.trim();
+
+      // Store in session
+      if (!this.sessions.has(sessionId)) this.sessions.set(sessionId, []);
+      const sess = this.sessions.get(sessionId)!;
+      sess.push({ role: "user", content: message });
+      sess.push({ role: "assistant", content: response });
+      if (sess.length > 40) sess.splice(0, sess.length - 20);
+
+      appendSessionLog(this.root, "assistant", response.slice(0, 500));
+
+      return { response, tool_calls: [] };
+    } catch (error) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      return {
+        response: "",
+        tool_calls: [],
+        error: `Claude CLI error: ${errMsg.slice(0, 500)}`,
+      };
+    }
   }
 
   private async callClaudeApi(

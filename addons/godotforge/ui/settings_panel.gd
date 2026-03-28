@@ -6,8 +6,12 @@ signal settings_changed(settings: Dictionary)
 
 const MODELS := ["claude-sonnet-4-20250514", "claude-opus-4-20250514", "claude-haiku-4-5-20251001"]
 const MODEL_LABELS := ["Sonnet 4 (recommended)", "Opus 4", "Haiku 4.5 (fast)"]
+const AUTH_MODES := ["claude_cli", "api_key"]
+const AUTH_LABELS := ["Claude Code (Max/Pro plan — no API key needed)", "API Key (pay-per-token)"]
 
+var _auth_dropdown: OptionButton
 var _api_key_input: LineEdit
+var _api_key_container: VBoxContainer
 var _model_dropdown: OptionButton
 var _max_tokens_slider: HSlider
 var _max_tokens_label: Label
@@ -22,18 +26,30 @@ func _init() -> void:
 	var vbox := VBoxContainer.new()
 	vbox.custom_minimum_size = Vector2(400, 280)
 
-	# API Key
+	# Auth mode
+	var auth_label := Label.new()
+	auth_label.text = "Authentication"
+	vbox.add_child(auth_label)
+
+	_auth_dropdown = OptionButton.new()
+	for label in AUTH_LABELS:
+		_auth_dropdown.add_item(label)
+	_auth_dropdown.item_selected.connect(_on_auth_changed)
+	vbox.add_child(_auth_dropdown)
+
+	# API Key (only visible in api_key mode)
+	_api_key_container = VBoxContainer.new()
+	_api_key_container.visible = false
 	var key_label := Label.new()
 	key_label.text = "Anthropic API Key"
-	vbox.add_child(key_label)
-
-	var key_row := HBoxContainer.new()
+	key_label.add_theme_font_size_override("font_size", 12)
+	_api_key_container.add_child(key_label)
 	_api_key_input = LineEdit.new()
-	_api_key_input.placeholder_text = "sk-ant-... (or set ANTHROPIC_API_KEY env var)"
+	_api_key_input.placeholder_text = "sk-ant-..."
 	_api_key_input.secret = true
 	_api_key_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	key_row.add_child(_api_key_input)
-	vbox.add_child(key_row)
+	_api_key_container.add_child(_api_key_input)
+	vbox.add_child(_api_key_container)
 
 	vbox.add_child(HSeparator.new())
 
@@ -88,8 +104,13 @@ func _init() -> void:
 	confirmed.connect(_on_confirmed)
 
 
+func _on_auth_changed(index: int) -> void:
+	_api_key_container.visible = (index == 1)  # Show API key only in api_key mode
+
+
 func _on_confirmed() -> void:
 	var settings := {}
+	settings["auth_mode"] = AUTH_MODES[_auth_dropdown.selected]
 	var key := _api_key_input.text.strip_edges()
 	if key != "":
 		settings["api_key"] = key

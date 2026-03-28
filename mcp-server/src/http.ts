@@ -101,6 +101,7 @@ export class HttpServer {
           } else if (req.method === "GET") {
             const settings = this.chatEngine.getSettings();
             this.sendJson(res, 200, {
+              auth_mode: settings.auth_mode,
               model: settings.model,
               max_tokens: settings.max_tokens,
               memory_enabled: settings.memory_enabled,
