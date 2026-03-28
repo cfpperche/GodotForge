@@ -37,6 +37,16 @@ func _register_defaults() -> void:
 	register("get_game_status", runtime_tools)
 	register("take_screenshot", runtime_tools)
 
+	var editor_tools := preload("res://addons/godotforge/tools/editor_tools.gd").new()
+	register("execute_editor_script", editor_tools)
+	register("add_resource", editor_tools)
+	register("add_scene_instance", editor_tools)
+	register("save_scene", editor_tools)
+	register("get_node_properties", editor_tools)
+	register("connect_signal", editor_tools)
+	register("set_project_setting", editor_tools)
+	register("get_editor_errors", editor_tools)
+
 
 func register(tool_name: String, handler: GodotForgeToolBase) -> void:
 	_handlers[tool_name] = handler
