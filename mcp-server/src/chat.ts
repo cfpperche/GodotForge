@@ -3,7 +3,8 @@ import { executeTool, type ToolResult } from "./tool-handlers.js";
 import { buildContext } from "./context/builder.js";
 import { appendSessionLog } from "./memory/store.js";
 import { execSync, execFileSync } from "child_process";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync, mkdirSync } from "fs";
+import { join } from "path";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -275,12 +276,25 @@ export class ChatEngine {
       : message;
 
     try {
+      // Write MCP config for Claude CLI to use our tools
+      const mcpConfigPath = join(this.root, ".godotforge", "mcp-config.json");
+      const mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
+      mkdirSync(join(this.root, ".godotforge"), { recursive: true });
+      writeFileSync(mcpConfigPath, JSON.stringify({
+        mcpServers: {
+          godotforge: {
+            command: "node",
+            args: [mcpDistPath, "--project-root", this.root],
+          },
+        },
+      }));
+
       const args = [
         "--print",
         "--output-format", "text",
         "--model", this.settings.model,
-        "--max-turns", "1",
         "--system-prompt", systemPrompt,
+        "--mcp-config", mcpConfigPath,
         fullPrompt,
       ];
 
