@@ -354,9 +354,9 @@ export class ChatEngine {
       const systemPromptPath = join(gfDir, "system-prompt.txt");
       writeFileSync(systemPromptPath, systemPrompt);
 
-      // Write MCP config so CLI has access to GodotForge tools
+      // Write MCP config so CLI has access to ALL GodotForge tools
+      // Claude CLI handles the full tool_use loop internally via MCP protocol
       const mcpConfigPath = join(gfDir, "mcp-cli-config.json");
-      // Find the MCP server dist — check project root and parent
       let mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
       if (!existsSync(mcpDistPath)) {
         const parentRoot = join(this.root, "..");
@@ -372,9 +372,10 @@ export class ChatEngine {
         },
       }));
 
+      // Use JSON output format to get structured result with turn count
       const args = [
         "--print",
-        "--output-format", "text",
+        "--output-format", "json",
         "--model", this.settings.model,
         "--system-prompt-file", systemPromptPath,
         "--mcp-config", mcpConfigPath,
@@ -385,28 +386,78 @@ export class ChatEngine {
         input: fullPrompt,
         encoding: "utf-8",
         timeout: 300_000,
-        maxBuffer: 5 * 1024 * 1024,
+        maxBuffer: 10 * 1024 * 1024,
         env: { ...process.env },
       });
 
-      const response = output.trim();
+      // Parse JSON result from Claude CLI
+      const toolCalls: ToolCallLog[] = [];
+      let response = "";
+
+      try {
+        // Output may have multiple JSON lines or extra whitespace
+        const jsonStr = output.trim().split("\n").pop() || output.trim();
+        const cliResult = JSON.parse(jsonStr);
+        response = cliResult.result || "";
+        const numTurns = cliResult.num_turns || 1;
+        if (numTurns > 1) {
+          console.error(`[GodotForge Chat] CLI completed: ${numTurns} turns (tools executed via MCP)`);
+        }
+
+        // If more than 1 turn, tools were executed via MCP
+        if (numTurns > 1) {
+          const toolTurns = Math.floor((numTurns - 1) / 2); // each tool = request + response turn
+          toolCalls.push({
+            name: `(${toolTurns} tool${toolTurns > 1 ? "s" : ""} executed via MCP)`,
+            result: `Claude CLI executed ${toolTurns} tool call${toolTurns > 1 ? "s" : ""} in ${numTurns} turns`,
+            is_error: false,
+          });
+        }
+
+        if (cliResult.is_error) {
+          return {
+            response: "",
+            tool_calls: toolCalls,
+            error: response || "Claude CLI returned an error",
+          };
+        }
+      } catch {
+        // Fallback: treat output as plain text (shouldn't happen with --output-format json)
+        response = output.trim();
+      }
 
       // Store in session
       if (!this.sessions.has(sessionId)) this.sessions.set(sessionId, []);
       const sess = this.sessions.get(sessionId)!;
       sess.push({ role: "user", content: message });
       sess.push({ role: "assistant", content: response });
-      if (sess.length > 40) sess.splice(0, sess.length - 20);
+
+      // Compaction
+      if (sess.length > 20) {
+        await this.compactSession(sessionId, sess);
+      }
 
       appendSessionLog(this.root, "assistant", response.slice(0, 500));
 
-      return { response, tool_calls: [] };
+      return { response, tool_calls: toolCalls };
     } catch (error) {
       const errMsg = error instanceof Error ? error.message : String(error);
+      // Extract useful info from execFileSync errors (includes stdout/stderr)
+      const errOutput = (error as Record<string, unknown>)?.stdout as string || "";
+      let parsedError = errMsg.slice(0, 500);
+
+      // Try to parse error from JSON output
+      if (errOutput) {
+        try {
+          const errResult = JSON.parse(errOutput);
+          if (errResult.result) parsedError = errResult.result;
+        } catch { /* not JSON */ }
+      }
+
       return {
         response: "",
         tool_calls: [],
-        error: `Claude CLI error: ${errMsg.slice(0, 500)}`,
+        error: `Claude CLI error: ${parsedError}`,
       };
     }
   }
