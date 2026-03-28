@@ -4,9 +4,9 @@ description: Review a game project — analyze code quality, gameplay feel, perf
 user_invocable: true
 ---
 
-# Game Review Skill
+# /game-review
 
-When the user invokes /game-review, perform a comprehensive review:
+Perform a comprehensive review of the game project:
 
 ## 1. Code Quality
 - Read all scripts in the project using list_files + read_script

@@ -4,9 +4,9 @@ description: Polish a game scene — add juice, particles, screen shake, audio h
 user_invocable: true
 ---
 
-# Game Polish Skill
+# /game-polish
 
-When the user invokes /game-polish, analyze the current game and apply polish in these areas:
+Analyze the current game and apply polish in these areas:
 
 ## 1. Visual Juice
 - Add tween animations to score changes (scale bounce, color flash)

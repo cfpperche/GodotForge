@@ -4,9 +4,9 @@ description: Create a complete game from a description — handles project setup
 user_invocable: true
 ---
 
-# Create Game Skill
+# /create-game [description]
 
-When the user invokes /create-game [description], orchestrate the full pipeline:
+Orchestrate the full game creation pipeline:
 
 ## Phase 1: Design (ask before implementing)
 - Parse the game description
