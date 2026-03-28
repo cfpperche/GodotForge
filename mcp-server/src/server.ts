@@ -141,6 +141,86 @@ export function createServer(projectRoot?: string): McpServer {
     async (args) => editorTool(bridge, "edit_script", args)
   );
 
+  // --- Advanced editor tools ---
+
+  server.tool(
+    "execute_editor_script",
+    "Execute arbitrary GDScript in the Godot editor context. Has access to EditorInterface, ClassDB, ResourceSaver, etc. Use for operations not covered by other tools.",
+    {
+      code: z.string().describe("GDScript code to execute. Use _result = 'text' to return output."),
+    },
+    async (args) => editorTool(bridge, "execute_editor_script", args)
+  );
+
+  server.tool(
+    "add_resource",
+    "Create and assign a Resource to a node property (e.g., RectangleShape2D to CollisionShape2D.shape, CircleShape2D, etc.).",
+    {
+      node_path: z.string().describe("NodePath to target node"),
+      property: z.string().describe("Property name (e.g. 'shape', 'texture', 'material')"),
+      resource_type: z.string().describe("Resource class (e.g. 'RectangleShape2D', 'CircleShape2D', 'ImageTexture')"),
+      resource_properties: z.record(z.string(), z.any()).optional().describe("Optional properties to set on the resource"),
+    },
+    async (args) => editorTool(bridge, "add_resource", args)
+  );
+
+  server.tool(
+    "add_scene_instance",
+    "Instance an existing .tscn scene as a child node in the current scene.",
+    {
+      scene_path: z.string().describe("Path to scene file (e.g. 'res://scenes/player.tscn')"),
+      parent_path: z.string().optional().describe("Parent NodePath (default: root '.')"),
+      name: z.string().optional().describe("Name for the instance"),
+    },
+    async (args) => editorTool(bridge, "add_scene_instance", args)
+  );
+
+  server.tool(
+    "save_scene",
+    "Save the currently edited scene to disk.",
+    {},
+    async () => editorTool(bridge, "save_scene", {})
+  );
+
+  server.tool(
+    "get_node_properties",
+    "Get all properties and values of a node in the current scene.",
+    {
+      node_path: z.string().describe("NodePath to the node"),
+      filter: z.string().optional().describe("Filter property names (e.g. 'position', 'collision')"),
+    },
+    async (args) => editorTool(bridge, "get_node_properties", args)
+  );
+
+  server.tool(
+    "connect_signal",
+    "Connect a signal from one node to a method on another node.",
+    {
+      source_path: z.string().describe("NodePath to the signal source"),
+      signal_name: z.string().describe("Signal name (e.g. 'pressed', 'body_entered')"),
+      target_path: z.string().describe("NodePath to the target node"),
+      method_name: z.string().describe("Method name to call"),
+    },
+    async (args) => editorTool(bridge, "connect_signal", args)
+  );
+
+  server.tool(
+    "set_project_setting",
+    "Set a Godot project setting (window size, physics, main scene, input actions, etc.).",
+    {
+      key: z.string().describe("Setting key (e.g. 'display/window/size/viewport_width', 'application/run/main_scene')"),
+      value: z.any().describe("Setting value"),
+    },
+    async (args) => editorTool(bridge, "set_project_setting", args)
+  );
+
+  server.tool(
+    "get_editor_errors",
+    "Get recent errors and warnings from the Godot editor log.",
+    {},
+    async () => editorTool(bridge, "get_editor_errors", {})
+  );
+
   // --- Runtime tools (delegated to Godot plugin) ---
 
   server.tool(
