@@ -23,6 +23,11 @@ export interface SettingsResponse {
   max_tokens: number;
   memory_enabled: boolean;
   has_api_key: boolean;
+  temperature: number;
+  effort: "low" | "medium" | "high" | "max";
+  thinking: "disabled" | "adaptive";
+  tool_choice: "auto" | "any" | "none";
+  system_prompt_extra: string;
 }
 
 export interface KeyStatus {

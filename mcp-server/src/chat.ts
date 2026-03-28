@@ -43,6 +43,12 @@ interface ChatSettings {
   model: string;
   max_tokens: number;
   memory_enabled: boolean;
+  // Advanced LLM parameters
+  temperature: number;
+  effort: "low" | "medium" | "high" | "max";
+  thinking: "disabled" | "adaptive";
+  tool_choice: "auto" | "any" | "none";
+  system_prompt_extra: string;
 }
 
 interface Message {
@@ -157,6 +163,11 @@ export class ChatEngine {
     model: "claude-sonnet-4-20250514",
     max_tokens: 4096,
     memory_enabled: true,
+    temperature: 1.0,
+    effort: "high",
+    thinking: "disabled",
+    tool_choice: "auto",
+    system_prompt_extra: "",
   };
   private root: string;
   private bridge: GodotBridge;
@@ -238,6 +249,9 @@ export class ChatEngine {
 
     // Build system prompt with context + auto-detected docs from user message
     let systemPrompt = BASE_SYSTEM_PROMPT;
+    if (this.settings.system_prompt_extra) {
+      systemPrompt += "\n\n" + this.settings.system_prompt_extra;
+    }
     if (this.settings.memory_enabled) {
       try {
         const ctx = await buildContext(this.root, this.bridge, message);
@@ -330,6 +344,9 @@ export class ChatEngine {
 
     // Build context-enhanced prompt
     let systemPrompt = BASE_SYSTEM_PROMPT;
+    if (this.settings.system_prompt_extra) {
+      systemPrompt += "\n\n" + this.settings.system_prompt_extra;
+    }
     if (this.settings.memory_enabled) {
       try {
         const ctx = await buildContext(this.root, this.bridge, message);
@@ -384,8 +401,15 @@ export class ChatEngine {
         "--model", this.settings.model,
         "--system-prompt-file", systemPromptPath,
         "--mcp-config", mcpConfigPath,
-        "-p", "-",
       ];
+
+      // Effort level (Claude CLI supports --effort)
+      if (this.settings.effort && this.settings.effort !== "high") {
+        args.push("--effort", this.settings.effort);
+      }
+
+      // Prompt via stdin
+      args.push("-p", "-");
 
       const output = execFileSync(this.claudeCliPath, args, {
         input: fullPrompt,
@@ -503,13 +527,34 @@ export class ChatEngine {
     systemPrompt: string,
     messages: Message[]
   ): Promise<{ content: Array<Record<string, unknown>>; error?: string }> {
-    const body = {
+    // Build request body with all configured parameters
+    const body: Record<string, unknown> = {
       model: this.settings.model,
       max_tokens: this.settings.max_tokens,
       system: systemPrompt,
       messages,
       tools: getToolDefinitions(),
     };
+
+    // Temperature (only if not default)
+    if (this.settings.temperature !== 1.0) {
+      body.temperature = this.settings.temperature;
+    }
+
+    // Tool choice
+    if (this.settings.tool_choice !== "auto") {
+      body.tool_choice = { type: this.settings.tool_choice };
+    }
+
+    // Thinking (adaptive for Opus/Sonnet 4.6)
+    if (this.settings.thinking === "adaptive") {
+      body.thinking = { type: "adaptive" };
+    }
+
+    // Effort (output_config)
+    if (this.settings.effort !== "high") {
+      body.output_config = { effort: this.settings.effort };
+    }
 
     try {
       const response = await fetch(API_URL, {

@@ -115,6 +115,11 @@ export class HttpServer {
               max_tokens: settings.max_tokens,
               memory_enabled: settings.memory_enabled,
               has_api_key: settings.api_key !== "",
+              temperature: settings.temperature,
+              effort: settings.effort,
+              thinking: settings.thinking,
+              tool_choice: settings.tool_choice,
+              system_prompt_extra: settings.system_prompt_extra,
             });
           } else {
             this.sendJson(res, 405, { error: "Method not allowed" });
