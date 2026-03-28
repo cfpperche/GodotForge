@@ -27,17 +27,19 @@ MCP Clients (Claude Code / Cursor / qualquer MCP client)
         │ stdio / SSE
         ▼
 MCP Server (TypeScript, npx godotforge-mcp)
-  - 14 MCP tools (6 editor + 5 local + 2 docs + 3 memory)  [target Fase 4]
+  - 32 tools (24 editor + 8 local)
+  - Dual transport: stdio (MCP clients) + HTTP :6980 (native chat)
+  - Chat engine (LLM conversation with tool_use loop)
   - Docs engine (SQLite FTS5, 912 classes Godot 4.x)
-  - Memory engine (project memory + session logs)
-  - Context builder (project scanner + token-budgeted injection)
+  - Memory engine (FTS5 + markdown)
+  - Context builder (token-budgeted injection)
         │ HTTP localhost:6970
         ▼
 Godot Plugin (GDScript, addons/godotforge/)
-  - HTTP server (TCPServer)
-  - Tool registry (6 editor tools)
-  - Chat panel nativo (API key mode)
-  - Conversation compaction (memory flush)
+  - HTTP server bridge (TCPServer :6970, 24 editor tools)
+  - Thin chat panel (HTTP client → MCP /chat)
+  - Settings panel (→ MCP /settings)
+  - Auto-spawns MCP server in --http-only mode
 ```
 
 ### 2.2 Modos de Autenticação
@@ -254,11 +256,13 @@ GodotForge/
 |------|--------|-------|--------|
 | **1. Fundação** | Plugin 6 tools + chat + HTTP server | 6 | ✅ |
 | **2. MCP Server** | TypeScript MCP + bridge + local tools | 11 | ✅ |
-| **3. Docs Engine** | SQLite FTS5, 912 classes, version-aware | 11 | ✅ |
-| **4. Memory & Context** | Project memory, context builder, compaction | 14 | ⬜ Próximo |
-| **5. Tools Avançados** | remove_node, edit_script, rename, move, duplicate | 19 | ⬜ |
-| **6. Runtime** | run_game, stop_game, screenshot, input sim | 23 | ⬜ |
-| **7. Polish** | Streaming, command palette, settings UI, Asset Library | 23 | ⬜ |
+| **3. Docs Engine** | SQLite FTS5, 912 classes, version-aware | 13 | ✅ |
+| **4. Memory & Context** | Project memory, context builder, session logs | 16 | ✅ |
+| **5. Tools Avançados** | remove, rename, duplicate, move, edit_script | 21 | ✅ |
+| **6. Runtime** | run/stop scene, screenshot, game status | 25 | ✅ |
+| **7. Polish** | Settings UI, open_scene, README, npm packaging | 26 | ✅ |
+| **8. Refatoração** | MCP como backend unificado, dual transport | 26 | ✅ |
+| **9. Critical Tools** | add_resource, execute_editor_script, save_scene, etc. | 32 | ✅ |
 
 ### Fase 4 — Memory & Context (detalhe)
 

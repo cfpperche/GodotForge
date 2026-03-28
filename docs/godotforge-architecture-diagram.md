@@ -285,17 +285,24 @@ Usuário digita no Chat Panel do GodotForge (bottom panel):
 
 ---
 
-## 7. Lista Completa de Tools (24)
+## 7. Lista Completa de Tools (32)
 
 ```
-┌─ Editor Tools (12) ── delegados ao plugin via HTTP ────────┐
+┌─ Scene Tools (3) ── plugin via HTTP ───────────────────────┐
 │  create_scene    open_scene       get_scene_tree            │
+├─ Node Tools (6) ── plugin via HTTP ────────────────────────┤
 │  add_node        remove_node      rename_node               │
 │  duplicate_node  move_node        set_property              │
+├─ Script Tools (3) ── plugin via HTTP ──────────────────────┤
 │  create_script   read_script      edit_script               │
-├─ Runtime Tools (4) ── delegados ao plugin via HTTP ────────┤
+├─ Runtime Tools (4) ── plugin via HTTP ─────────────────────┤
 │  run_scene       stop_scene       get_game_status           │
 │  take_screenshot                                            │
+├─ Advanced Editor Tools (8) ── plugin via HTTP ─────────────┤
+│  execute_editor_script    add_resource                      │
+│  add_scene_instance       save_scene                        │
+│  get_node_properties      connect_signal                    │
+│  set_project_setting      get_editor_errors                 │
 ├─ Docs Tools (2) ── locais no MCP server ───────────────────┤
 │  search_docs     get_class_reference                        │
 ├─ Memory Tools (3) ── locais no MCP server ─────────────────┤
