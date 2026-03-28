@@ -466,8 +466,10 @@ function flattenFileTree(
     // If this node has a 'url' field, it's a downloadable file
     if (typeof record.url === "string") {
       const url = record.url as string;
-      const filename = pathParts.join("_").replace(/[^a-zA-Z0-9._-]/g, "_");
-      entries.push({ url, filename: filename || basename(url) });
+      // Derive filename from URL (preserves extension) or from path parts
+      const urlFilename = decodeURIComponent(url.split("/").pop()?.split("?")[0] || "");
+      const filename = urlFilename || (pathParts.join("_").replace(/[^a-zA-Z0-9._-]/g, "_"));
+      entries.push({ url, filename });
       return;
     }
 
