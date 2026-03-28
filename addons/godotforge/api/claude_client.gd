@@ -6,8 +6,8 @@ signal response_received(content: Array)
 signal error_occurred(message: String)
 
 const API_URL := "https://api.anthropic.com/v1/messages"
-const MODEL := "claude-sonnet-4-20250514"
-const MAX_TOKENS := 4096
+const DEFAULT_MODEL := "claude-sonnet-4-20250514"
+const DEFAULT_MAX_TOKENS := 4096
 const API_VERSION := "2023-06-01"
 
 var _http_request: HTTPRequest
@@ -15,6 +15,8 @@ var _api_key_manager: GodotForgeApiKeyManager
 var _conversation: GodotForgeConversation
 var _system_prompt: String = ""
 var _is_busy: bool = false
+var _model: String = DEFAULT_MODEL
+var _max_tokens: int = DEFAULT_MAX_TOKENS
 
 
 func _ready() -> void:
@@ -61,8 +63,8 @@ func _send_request() -> void:
 	_is_busy = true
 
 	var body := {
-		"model": MODEL,
-		"max_tokens": MAX_TOKENS,
+		"model": _model,
+		"max_tokens": _max_tokens,
 		"messages": _conversation.get_messages_for_api(),
 	}
 
@@ -113,6 +115,16 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	_conversation.add_assistant_message(content)
 
 	response_received.emit(content)
+
+
+func set_model(model: String) -> void:
+	if model != "":
+		_model = model
+
+
+func set_max_tokens(tokens: int) -> void:
+	if tokens >= 1024 and tokens <= 8192:
+		_max_tokens = tokens
 
 
 func save_api_key(key: String) -> void:

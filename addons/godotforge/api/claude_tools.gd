@@ -115,6 +115,20 @@ static func get_tool_definitions() -> Array[Dictionary]:
 			}
 		},
 		{
+			"name": "open_scene",
+			"description": "Open a scene file in the Godot editor for editing.",
+			"input_schema": {
+				"type": "object",
+				"properties": {
+					"path": {
+						"type": "string",
+						"description": "Scene file path (e.g. 'res://scenes/player.tscn')"
+					}
+				},
+				"required": ["path"]
+			}
+		},
+		{
 			"name": "remove_node",
 			"description": "Remove a node from the currently edited scene.",
 			"input_schema": {

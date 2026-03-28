@@ -82,6 +82,15 @@ export function createServer(projectRoot?: string): McpServer {
   );
 
   server.tool(
+    "open_scene",
+    "Open a scene file in the Godot editor for editing.",
+    {
+      path: z.string().describe("Scene file path (e.g. 'res://scenes/player.tscn')"),
+    },
+    async (args) => editorTool(bridge, "open_scene", args)
+  );
+
+  server.tool(
     "remove_node",
     "Remove a node from the currently edited scene in Godot.",
     {

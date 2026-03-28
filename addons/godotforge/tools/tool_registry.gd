@@ -13,6 +13,7 @@ func _register_defaults() -> void:
 	var scene_tools := preload("res://addons/godotforge/tools/scene_tools.gd").new()
 	register("create_scene", scene_tools)
 	register("get_scene_tree", scene_tools)
+	register("open_scene", scene_tools)
 
 	var node_tools := preload("res://addons/godotforge/tools/node_tools.gd").new()
 	register("add_node", node_tools)

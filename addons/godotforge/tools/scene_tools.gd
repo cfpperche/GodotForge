@@ -8,6 +8,8 @@ func execute(tool_name: String, input: Dictionary) -> Dictionary:
 			return _create_scene(input)
 		"get_scene_tree":
 			return _get_scene_tree()
+		"open_scene":
+			return _open_scene(input)
 		_:
 			return {"result": "Unknown scene tool: %s" % tool_name, "is_error": true}
 
@@ -72,3 +74,14 @@ func _build_tree_string(node: Node, depth: int) -> String:
 	for child in node.get_children():
 		result += "\n" + _build_tree_string(child, depth + 1)
 	return result
+
+
+func _open_scene(input: Dictionary) -> Dictionary:
+	var path: String = input.get("path", "")
+	if path == "":
+		return {"result": "Missing 'path' parameter.", "is_error": true}
+	if not FileAccess.file_exists(path):
+		return {"result": "Scene not found: %s" % path, "is_error": true}
+
+	EditorInterface.open_scene_from_path(path)
+	return {"result": "Opened scene: %s" % path}

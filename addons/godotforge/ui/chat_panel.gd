@@ -14,6 +14,7 @@ var _send_button: Button
 var _status_label: Label
 var _api_key_dialog: AcceptDialog
 var _api_key_input: LineEdit
+var _settings_panel: GodotForgeSettingsPanel
 
 
 func set_tool_registry(registry: GodotForgeToolRegistry) -> void:
@@ -38,9 +39,14 @@ func _build_ui() -> void:
 
 	header.add_spacer(false)
 
+	var apikey_btn := Button.new()
+	apikey_btn.text = "API Key"
+	apikey_btn.pressed.connect(_show_api_key_dialog)
+	header.add_child(apikey_btn)
+
 	var settings_btn := Button.new()
-	settings_btn.text = "API Key"
-	settings_btn.pressed.connect(_show_api_key_dialog)
+	settings_btn.text = "Settings"
+	settings_btn.pressed.connect(_show_settings)
 	header.add_child(settings_btn)
 
 	var clear_btn := Button.new()
@@ -98,6 +104,11 @@ func _build_ui() -> void:
 	_api_key_dialog.add_child(_api_key_input)
 	_api_key_dialog.confirmed.connect(_on_api_key_confirmed)
 	add_child(_api_key_dialog)
+
+	# Settings panel
+	_settings_panel = GodotForgeSettingsPanel.new()
+	_settings_panel.settings_changed.connect(_on_settings_changed)
+	add_child(_settings_panel)
 
 	# Welcome message
 	_add_bubble(MessageBubble.Role.ASSISTANT, "Welcome to GodotForge! I can help you create scenes, add nodes, write scripts, and more — all without leaving Godot.\n\nTry: \"Create a CharacterBody2D scene for a player\"")
@@ -208,6 +219,16 @@ func _clear_chat() -> void:
 		child.queue_free()
 	_claude_client.get_conversation().clear()
 	_add_bubble(MessageBubble.Role.ASSISTANT, "Chat cleared. How can I help?")
+
+
+func _show_settings() -> void:
+	_settings_panel.popup_centered()
+
+
+func _on_settings_changed(settings: Dictionary) -> void:
+	_claude_client.set_model(settings.get("model", ""))
+	_claude_client.set_max_tokens(settings.get("max_tokens", 4096))
+	_add_bubble(MessageBubble.Role.TOOL, "Settings updated.")
 
 
 func _input(event: InputEvent) -> void:

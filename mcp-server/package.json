@@ -25,5 +25,20 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "files": [
+    "dist/**/*"
+  ],
+  "keywords": [
+    "godot",
+    "mcp",
+    "ai",
+    "copilot",
+    "claude",
+    "game-development"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/godotforge/godotforge"
+  },
   "license": "MIT"
 }
