@@ -1,7 +1,7 @@
 import { GodotBridge } from "./bridge.js";
 import { BlenderBridge } from "./blender-bridge.js";
 import { blenderHandlerName } from "./blender-tools.js";
-import { blenderToGodot } from "./pipeline.js";
+import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -399,8 +399,17 @@ export async function executeTool(
   }
 
   // Pipeline tools
-  if (toolName === "pipeline.blender_to_godot" && blenderBridge) {
-    return blenderToGodot(blenderBridge, bridge, root, args);
+  if (toolName.startsWith("pipeline.") && blenderBridge) {
+    switch (toolName) {
+      case "pipeline.blender_to_godot":
+        return blenderToGodot(blenderBridge, bridge, root, args);
+      case "pipeline.blender_to_godot_animated":
+        return blenderToGodotAnimated(blenderBridge, bridge, root, args);
+      case "pipeline.sync_collision":
+        return syncCollision(blenderBridge, bridge, root, args);
+      case "pipeline.batch_import":
+        return batchImport(bridge, root, args);
+    }
   }
 
   // Local tools

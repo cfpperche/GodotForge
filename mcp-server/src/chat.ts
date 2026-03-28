@@ -98,10 +98,40 @@ function getToolDefinitions(): Array<Record<string, unknown>> {
     { name: "blender.get_blender_info", description: "Get Blender version and scene info.", input_schema: { type: "object", properties: {} } },
     { name: "blender.export_gltf", description: "Export Blender scene as GLTF/GLB.", input_schema: { type: "object", properties: { filepath: { type: "string" }, selected_only: { type: "boolean" } }, required: ["filepath"] } },
     { name: "blender.export_for_godot", description: "Export Blender scene optimized for Godot (GLB, Y-up).", input_schema: { type: "object", properties: { filepath: { type: "string" } }, required: ["filepath"] } },
+    { name: "blender.export_with_animations", description: "Export GLB with animations and armatures.", input_schema: { type: "object", properties: { filepath: { type: "string" } }, required: ["filepath"] } },
+    { name: "blender.export_fbx", description: "Export as FBX.", input_schema: { type: "object", properties: { filepath: { type: "string" }, selected_only: { type: "boolean" } }, required: ["filepath"] } },
     { name: "blender.unwrap_uv", description: "UV unwrap a Blender mesh.", input_schema: { type: "object", properties: { name: { type: "string" }, method: { type: "string", enum: ["smart", "unwrap"] } }, required: ["name"] } },
     { name: "blender.execute_python", description: "Execute arbitrary Python/bpy code in Blender.", input_schema: { type: "object", properties: { code: { type: "string" } }, required: ["code"] } },
+    // Animation tools
+    { name: "blender.create_armature", description: "Create an armature (skeleton).", input_schema: { type: "object", properties: { name: { type: "string" }, location: { type: "array", items: { type: "number" } } } } },
+    { name: "blender.add_bone", description: "Add a bone to an armature.", input_schema: { type: "object", properties: { armature: { type: "string" }, name: { type: "string" }, head: { type: "array", items: { type: "number" } }, tail: { type: "array", items: { type: "number" } }, parent: { type: "string" } }, required: ["armature", "name"] } },
+    { name: "blender.parent_to_armature", description: "Parent mesh to armature with auto weights.", input_schema: { type: "object", properties: { mesh: { type: "string" }, armature: { type: "string" } }, required: ["mesh", "armature"] } },
+    { name: "blender.insert_keyframe", description: "Insert keyframe on object.", input_schema: { type: "object", properties: { name: { type: "string" }, data_path: { type: "string", enum: ["location", "rotation_euler", "scale"] }, frame: { type: "number" }, value: { type: "array", items: { type: "number" } } }, required: ["name", "data_path", "frame"] } },
+    { name: "blender.create_animation", description: "Create animation action.", input_schema: { type: "object", properties: { object: { type: "string" }, name: { type: "string" }, frame_start: { type: "number" }, frame_end: { type: "number" } }, required: ["object", "name"] } },
+    { name: "blender.set_animation_range", description: "Set scene frame range.", input_schema: { type: "object", properties: { frame_start: { type: "number" }, frame_end: { type: "number" } }, required: ["frame_start", "frame_end"] } },
+    { name: "blender.auto_weight_paint", description: "Auto weight paint mesh to armature.", input_schema: { type: "object", properties: { mesh: { type: "string" } }, required: ["mesh"] } },
+    { name: "blender.list_animations", description: "List all animation actions.", input_schema: { type: "object", properties: {} } },
+    // Scene & Render
+    { name: "blender.set_camera", description: "Add/configure camera.", input_schema: { type: "object", properties: { name: { type: "string" }, location: { type: "array", items: { type: "number" } }, rotation: { type: "array", items: { type: "number" } }, focal_length: { type: "number" } } } },
+    { name: "blender.set_light", description: "Add/configure light.", input_schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string", enum: ["SUN", "POINT", "SPOT", "AREA"] }, location: { type: "array", items: { type: "number" } }, energy: { type: "number" }, color: { type: "array", items: { type: "number" } } } } },
+    { name: "blender.render_image", description: "Render image from camera.", input_schema: { type: "object", properties: { filepath: { type: "string" }, resolution_x: { type: "number" }, resolution_y: { type: "number" }, samples: { type: "number" } } } },
+    { name: "blender.set_render_settings", description: "Configure render engine and resolution.", input_schema: { type: "object", properties: { engine: { type: "string", enum: ["EEVEE", "CYCLES", "WORKBENCH"] }, resolution_x: { type: "number" }, resolution_y: { type: "number" }, samples: { type: "number" } } } },
+    // Extra modeling
+    { name: "blender.extrude", description: "Extrude mesh faces.", input_schema: { type: "object", properties: { name: { type: "string" }, offset: { type: "number" } }, required: ["name"] } },
+    { name: "blender.subdivide", description: "Subdivide mesh.", input_schema: { type: "object", properties: { name: { type: "string" }, cuts: { type: "number" } }, required: ["name"] } },
+    { name: "blender.set_origin", description: "Set object origin.", input_schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string" } }, required: ["name"] } },
+    { name: "blender.separate_mesh", description: "Separate mesh by loose parts or material.", input_schema: { type: "object", properties: { name: { type: "string" }, method: { type: "string", enum: ["LOOSE", "MATERIAL"] } }, required: ["name"] } },
+    // Materials extra
+    { name: "blender.set_material_texture", description: "Assign texture to material channel.", input_schema: { type: "object", properties: { material: { type: "string" }, channel: { type: "string" }, filepath: { type: "string" } }, required: ["material", "channel", "filepath"] } },
+    { name: "blender.bake_textures", description: "Bake textures for mesh.", input_schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string" }, resolution: { type: "number" }, filepath: { type: "string" } }, required: ["name"] } },
+    { name: "blender.delete_material", description: "Delete a material.", input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },
+    // Collision
+    { name: "blender.generate_collision_hints", description: "Create collision hint objects for Godot import.", input_schema: { type: "object", properties: { name: { type: "string" }, type: { type: "string", enum: ["convex", "collision_only", "convex_only", "trimesh"] } }, required: ["name"] } },
     // Pipeline tools
-    { name: "pipeline.blender_to_godot", description: "Export from Blender as GLB and import into Godot project.", input_schema: { type: "object", properties: { object_name: { type: "string" }, target_dir: { type: "string" }, file_name: { type: "string" } } } },
+    { name: "pipeline.blender_to_godot", description: "Export from Blender as GLB and import into Godot project.", input_schema: { type: "object", properties: { target_dir: { type: "string" }, file_name: { type: "string" } } } },
+    { name: "pipeline.blender_to_godot_animated", description: "Export from Blender with animations into Godot.", input_schema: { type: "object", properties: { target_dir: { type: "string" }, file_name: { type: "string" } } } },
+    { name: "pipeline.sync_collision", description: "Generate collision shapes for Godot import.", input_schema: { type: "object", properties: { object_name: { type: "string" }, collision_type: { type: "string" } }, required: ["object_name"] } },
+    { name: "pipeline.batch_import", description: "Batch import 3D files into Godot project.", input_schema: { type: "object", properties: { source_dir: { type: "string" }, target_dir: { type: "string" } }, required: ["source_dir"] } },
   ];
 }
 

@@ -4,7 +4,7 @@ import { GodotBridge } from "./bridge.js";
 import { BlenderBridge } from "./blender-bridge.js";
 import { TOOLS, EDITOR_TOOLS } from "./tools.js";
 import { BLENDER_TOOLS, blenderHandlerName } from "./blender-tools.js";
-import { blenderToGodot } from "./pipeline.js";
+import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -533,11 +533,40 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     "pipeline.blender_to_godot",
     "Export from Blender as GLB and import into the Godot project. Handles path conversion and filesystem rescan.",
     {
-      object_name: z.string().optional().describe("Specific object to export (default: entire scene)"),
       target_dir: z.string().optional().describe("Target directory in project (default: 'assets/models')"),
       file_name: z.string().optional().describe("Output filename (default: 'export.glb')"),
     },
     async (args) => blenderToGodot(blender, bridge, root, args)
+  );
+
+  server.tool(
+    "pipeline.blender_to_godot_animated",
+    "Export from Blender with animations and armatures as GLB into the Godot project.",
+    {
+      target_dir: z.string().optional().describe("Target directory in project (default: 'assets/models')"),
+      file_name: z.string().optional().describe("Output filename (default: 'export.glb')"),
+    },
+    async (args) => blenderToGodotAnimated(blender, bridge, root, args)
+  );
+
+  server.tool(
+    "pipeline.sync_collision",
+    "Generate collision shape hints in Blender for Godot import. Creates -col/-colonly/-trimesh suffixed duplicates that Godot auto-detects on GLTF import.",
+    {
+      object_name: z.string().describe("Object to create collision for"),
+      collision_type: z.enum(["convex", "collision_only", "convex_only", "trimesh"]).optional().describe("Collision type (default: convex)"),
+    },
+    async (args) => syncCollision(blender, bridge, root, args)
+  );
+
+  server.tool(
+    "pipeline.batch_import",
+    "Batch import multiple 3D asset files (GLB, GLTF, FBX, OBJ) from a directory into the Godot project.",
+    {
+      source_dir: z.string().describe("Source directory (relative to project root)"),
+      target_dir: z.string().optional().describe("Target directory (default: 'assets/models')"),
+    },
+    async (args) => batchImport(bridge, root, args)
   );
 
   return server;
