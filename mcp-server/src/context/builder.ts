@@ -1,10 +1,12 @@
 import { readMemory, getSessionLog } from "../memory/store.js";
 import { getRecentMemory, ensureMemoryDb } from "../memory/search.js";
 import { scanProject } from "./scanner.js";
+import { ensureDocsReady, detectGodotVersion } from "../docs/indexer.js";
+import { getClassReference } from "../docs/search.js";
 import type { GodotBridge } from "../bridge.js";
 
-const TOKEN_BUDGET = 8000;
-const CHARS_PER_TOKEN = 4; // rough estimate
+const TOKEN_BUDGET = 10000;
+const CHARS_PER_TOKEN = 4;
 const MAX_CHARS = TOKEN_BUDGET * CHARS_PER_TOKEN;
 
 interface ContextBudget {
@@ -12,18 +14,26 @@ interface ContextBudget {
   structure: number;
   scene: number;
   session: number;
+  docs: number;
 }
 
 const DEFAULT_BUDGET: ContextBudget = {
-  memory: 3000 * CHARS_PER_TOKEN,   // 3000 tokens
-  structure: 2000 * CHARS_PER_TOKEN, // 2000 tokens
-  scene: 1500 * CHARS_PER_TOKEN,     // 1500 tokens
-  session: 1500 * CHARS_PER_TOKEN,   // 1500 tokens
+  memory: 2500 * CHARS_PER_TOKEN,
+  structure: 1500 * CHARS_PER_TOKEN,
+  scene: 1500 * CHARS_PER_TOKEN,
+  session: 1500 * CHARS_PER_TOKEN,
+  docs: 3000 * CHARS_PER_TOKEN,
 };
 
+/**
+ * Build context with optional message for docs auto-detection.
+ * When a user message is provided, we extract Godot class names and
+ * pre-load their docs into context so the LLM doesn't need to call search_docs.
+ */
 export async function buildContext(
   projectRoot: string,
-  bridge?: GodotBridge
+  bridge?: GodotBridge,
+  userMessage?: string
 ): Promise<string> {
   const sections: string[] = [];
 
@@ -41,13 +51,16 @@ export async function buildContext(
     if (sceneSection) sections.push(sceneSection);
   }
 
-  // 4. Recent session log
+  // 4. Auto-detected Godot docs (RAG injection)
+  const docsSection = await buildDocsSection(projectRoot, userMessage, DEFAULT_BUDGET.docs);
+  if (docsSection) sections.push(docsSection);
+
+  // 5. Recent session log
   const sessionSection = buildSessionSection(projectRoot, DEFAULT_BUDGET.session);
   if (sessionSection) sections.push(sessionSection);
 
   const context = sections.join("\n\n");
 
-  // Enforce total budget
   if (context.length > MAX_CHARS) {
     return context.slice(0, MAX_CHARS) + "\n\n[Context truncated to fit token budget]";
   }
@@ -115,11 +128,187 @@ async function buildSceneSection(
   }
 }
 
+/**
+ * Auto-detect Godot class names from user message + recent session,
+ * then pre-load their docs into context.
+ */
+async function buildDocsSection(
+  projectRoot: string,
+  userMessage: string | undefined,
+  maxChars: number
+): Promise<string | null> {
+  // Collect text to scan for class names
+  const textToScan = userMessage || "";
+
+  // Also scan recent session for class context
+  const sessionLog = getSessionLog(projectRoot);
+  const recentSession = sessionLog ? sessionLog.slice(-2000) : "";
+
+  const fullText = `${textToScan}\n${recentSession}`;
+
+  // Extract Godot class names (PascalCase, known patterns)
+  const classNames = extractGodotClasses(fullText);
+
+  if (classNames.length === 0) return null;
+
+  try {
+    const ver = detectGodotVersion(projectRoot) || "4.3";
+    const db = await ensureDocsReady(ver);
+
+    const docs: string[] = [`<godot-docs hint="Auto-detected from conversation. Use these as reference.">`];
+    let totalChars = 0;
+
+    // Limit to top 5 most relevant classes to stay within budget
+    for (const className of classNames.slice(0, 5)) {
+      const ref = getClassReference(db, className);
+      if (!ref) continue;
+
+      // Build compact reference (not full dump)
+      const compactDoc = buildCompactClassDoc(ref);
+      if (totalChars + compactDoc.length > maxChars - 100) break;
+
+      docs.push(compactDoc);
+      totalChars += compactDoc.length;
+    }
+
+    if (docs.length <= 1) return null; // Only the opening tag, no docs found
+
+    docs.push(`</godot-docs>`);
+    return docs.join("\n");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract Godot class names from text using known patterns.
+ * Matches PascalCase words that look like Godot classes (Node2D, CharacterBody3D, etc.)
+ */
+function extractGodotClasses(text: string): string[] {
+  const classPattern = /\b([A-Z][a-zA-Z]*(?:2D|3D|Body|Shape|Light|Mesh|Material|Camera|Timer|Area|Sprite|Label|Button|Panel|Control|Texture|Resource|Animation|Collision|Audio|Path|Ray|Bone|Skeleton|Armature|Environment|Viewport|Canvas|Tween|Signal|Stream|Player)?(?:2D|3D)?)\b/g;
+
+  const matches = new Set<string>();
+  let match;
+
+  while ((match = classPattern.exec(text)) !== null) {
+    const name = match[1];
+    // Filter: must be >= 4 chars, start with uppercase, not common English words
+    if (name.length < 4) continue;
+    if (COMMON_WORDS.has(name)) continue;
+    // Must look like a Godot class (has 2D/3D suffix, or known prefix/suffix)
+    if (isLikelyGodotClass(name)) {
+      matches.add(name);
+    }
+  }
+
+  return Array.from(matches);
+}
+
+const COMMON_WORDS = new Set([
+  "This", "That", "With", "From", "Into", "What", "When", "Where", "Which",
+  "Create", "Delete", "Update", "Build", "Make", "Move", "Copy", "Open",
+  "Close", "Start", "Stop", "Play", "Save", "Load", "Find", "Search",
+  "Press", "Click", "Type", "Enter", "Space", "Score", "Game", "Level",
+  "Scene", "Script", "Error", "Warning", "True", "False", "Null", "None",
+  "String", "Array", "Dictionary", "Vector", "Color", "Float", "Boolean",
+]);
+
+function isLikelyGodotClass(name: string): boolean {
+  // Known suffixes
+  const godotSuffixes = [
+    "2D", "3D", "Node", "Body", "Shape", "Light", "Mesh", "Material",
+    "Camera", "Timer", "Area", "Sprite", "Label", "Button", "Panel",
+    "Control", "Texture", "Resource", "Animation", "Player", "Stream",
+    "Collision", "Audio", "Path", "Ray", "Bone", "Skeleton", "Environment",
+    "Viewport", "Canvas", "Tween", "Container", "Separator", "Slider",
+    "Shader", "Particles", "Navigation", "TileMap", "TileSet",
+  ];
+
+  // Known prefixes
+  const godotPrefixes = [
+    "Character", "Rigid", "Static", "Kinematic", "Area", "Collision",
+    "Mesh", "Multi", "Sprite", "Animated", "Camera", "Audio", "Animation",
+    "Directional", "Omni", "Spot", "World", "Sub", "Packed", "Standard",
+    "Visual", "Physical", "Ray", "Shape", "Box", "Sphere", "Capsule",
+    "Cylinder", "Plane", "Rectangle", "Circle",
+  ];
+
+  for (const suffix of godotSuffixes) {
+    if (name.endsWith(suffix) && name.length > suffix.length) return true;
+  }
+  for (const prefix of godotPrefixes) {
+    if (name.startsWith(prefix) && name.length > prefix.length) return true;
+  }
+
+  // Known exact class names
+  const knownClasses = new Set([
+    "Node", "Resource", "Object", "RefCounted", "Tween", "Timer",
+    "PackedScene", "SceneTree", "Viewport", "Window", "Theme",
+    "InputEvent", "InputMap", "ProjectSettings", "EditorInterface",
+    "ResourceLoader", "ResourceSaver", "FileAccess", "DirAccess",
+    "ClassDB", "Engine", "OS", "DisplayServer", "RenderingServer",
+    "PhysicsServer2D", "PhysicsServer3D", "NavigationServer2D", "NavigationServer3D",
+    "GDScript", "Signal",
+  ]);
+
+  return knownClasses.has(name);
+}
+
+/**
+ * Build a compact reference for a class — key methods, properties, signals.
+ * Not the full dump, just what's needed for code generation.
+ */
+function buildCompactClassDoc(ref: {
+  name: string;
+  inherits: string;
+  brief_description: string;
+  methods: Array<{ name: string; return_type: string; params: Array<{ name: string; type: string }> }>;
+  properties: Array<{ name: string; type: string; default_value: string }>;
+  signals: Array<{ name: string; params: Array<{ name: string; type: string }> }>;
+}): string {
+  const lines: string[] = [];
+
+  lines.push(`## ${ref.name} (extends ${ref.inherits})`);
+  if (ref.brief_description) {
+    lines.push(ref.brief_description.slice(0, 200));
+  }
+
+  // Properties (max 15)
+  if (ref.properties.length > 0) {
+    lines.push(`Properties:`);
+    for (const p of ref.properties.slice(0, 15)) {
+      const def = p.default_value ? ` = ${p.default_value}` : "";
+      lines.push(`  ${p.name}: ${p.type}${def}`);
+    }
+    if (ref.properties.length > 15) lines.push(`  ... +${ref.properties.length - 15} more`);
+  }
+
+  // Key methods (max 20)
+  if (ref.methods.length > 0) {
+    lines.push(`Methods:`);
+    for (const m of ref.methods.slice(0, 20)) {
+      const params = m.params.map((p) => `${p.name}: ${p.type}`).join(", ");
+      lines.push(`  ${m.name}(${params}) -> ${m.return_type}`);
+    }
+    if (ref.methods.length > 20) lines.push(`  ... +${ref.methods.length - 20} more`);
+  }
+
+  // Signals
+  if (ref.signals.length > 0) {
+    lines.push(`Signals:`);
+    for (const s of ref.signals) {
+      const params = s.params.map((p) => `${p.name}: ${p.type}`).join(", ");
+      lines.push(`  ${s.name}(${params})`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 function buildSessionSection(projectRoot: string, maxChars: number): string | null {
   const log = getSessionLog(projectRoot);
   if (!log || log.trim().length < 20) return null;
 
-  // Take the tail of the log (most recent entries)
   const truncated = log.length > maxChars ? log.slice(-maxChars) : log;
   return `<recent-session>\n${truncated}\n</recent-session>`;
 }

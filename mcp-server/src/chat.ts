@@ -18,7 +18,10 @@ const BASE_SYSTEM_PROMPT =
   "Pipeline (Blender→Godot asset flow), docs search (912 Godot classes), and project memory. " +
   "Use tools to take action — don't just describe what to do. " +
   "Be concise. Always use GDScript (not C#). Always use Godot 4.x API. " +
-  "For 3D modeling, use blender.* tools. For Blender→Godot transfer, use pipeline.blender_to_godot.";
+  "For 3D modeling, use blender.* tools. For Blender→Godot transfer, use pipeline.blender_to_godot. " +
+  "IMPORTANT: ALWAYS use search_docs or get_class_reference BEFORE writing GDScript that uses Godot classes you're not 100% sure about. " +
+  "The docs RAG has 912 classes indexed — use it to verify method signatures, property names, and signal parameters. " +
+  "Never guess API — look it up first. Relevant class docs may be pre-loaded in <godot-docs> below.";
 
 interface ToolCallLog {
   name: string;
@@ -231,11 +234,11 @@ export class ChatEngine {
     // Log session
     appendSessionLog(this.root, "user", message);
 
-    // Build system prompt with context
+    // Build system prompt with context + auto-detected docs from user message
     let systemPrompt = BASE_SYSTEM_PROMPT;
     if (this.settings.memory_enabled) {
       try {
-        const ctx = await buildContext(this.root, this.bridge);
+        const ctx = await buildContext(this.root, this.bridge, message);
         if (ctx) systemPrompt += "\n\n" + ctx;
       } catch {
         // Context build failure is non-critical
@@ -327,7 +330,7 @@ export class ChatEngine {
     let systemPrompt = BASE_SYSTEM_PROMPT;
     if (this.settings.memory_enabled) {
       try {
-        const ctx = await buildContext(this.root, this.bridge);
+        const ctx = await buildContext(this.root, this.bridge, message);
         if (ctx) systemPrompt += "\n\n" + ctx;
       } catch { /* non-critical */ }
     }
