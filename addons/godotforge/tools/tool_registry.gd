@@ -2,6 +2,9 @@
 class_name GodotForgeToolRegistry
 extends RefCounted
 
+## Registry for editor-only tools that require EditorInterface.
+## Local tools (docs, memory, files) are handled by the MCP server.
+
 var _handlers: Dictionary = {}  # tool_name -> GodotForgeToolBase
 
 
@@ -33,20 +36,6 @@ func _register_defaults() -> void:
 	register("stop_scene", runtime_tools)
 	register("get_game_status", runtime_tools)
 	register("take_screenshot", runtime_tools)
-
-	var file_tools := preload("res://addons/godotforge/tools/file_tools.gd").new()
-	register("get_project_context", file_tools)
-	register("read_file", file_tools)
-	register("list_files", file_tools)
-
-	var memory_tools := preload("res://addons/godotforge/tools/memory_tools.gd").new()
-	register("save_memory", memory_tools)
-	register("search_memory", memory_tools)
-	register("get_project_memory", memory_tools)
-
-	var docs_tools := preload("res://addons/godotforge/tools/docs_tools.gd").new()
-	register("search_docs", docs_tools)
-	register("get_class_reference", docs_tools)
 
 
 func register(tool_name: String, handler: GodotForgeToolBase) -> void:

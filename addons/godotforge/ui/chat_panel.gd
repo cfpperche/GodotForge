@@ -1,10 +1,13 @@
 @tool
 extends VBoxContainer
 
+## Thin chat panel that communicates with the MCP server's HTTP API.
+## All LLM calls, tool execution, docs, and memory are handled by the MCP server.
+
 const MessageBubble = preload("res://addons/godotforge/ui/message_bubble.gd")
 
-var _claude_client: GodotForgeClaudeClient
 var _tool_registry: GodotForgeToolRegistry
+var _settings_panel: GodotForgeSettingsPanel
 
 # UI elements
 var _scroll_container: ScrollContainer
@@ -12,7 +15,11 @@ var _message_container: VBoxContainer
 var _input_field: TextEdit
 var _send_button: Button
 var _status_label: Label
-var _settings_panel: GodotForgeSettingsPanel
+var _http_request: HTTPRequest
+
+# MCP connection
+var _mcp_port: int = 0
+var _session_id: String = ""
 
 
 func set_tool_registry(registry: GodotForgeToolRegistry) -> void:
@@ -21,10 +28,10 @@ func set_tool_registry(registry: GodotForgeToolRegistry) -> void:
 
 func _ready() -> void:
 	name = "GodotForge"
+	_session_id = str(randi())
 	_build_ui()
-	_setup_client()
-	if not _tool_registry:
-		_setup_tools()
+	_setup_http()
+	_discover_mcp()
 
 
 func _build_ui() -> void:
@@ -48,11 +55,9 @@ func _build_ui() -> void:
 	header.add_child(clear_btn)
 
 	add_child(header)
-
-	# Separator
 	add_child(HSeparator.new())
 
-	# Scroll area with messages
+	# Message area
 	_scroll_container = ScrollContainer.new()
 	_scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_scroll_container.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -63,15 +68,14 @@ func _build_ui() -> void:
 	_scroll_container.add_child(_message_container)
 	add_child(_scroll_container)
 
-	# Status label
+	# Status
 	_status_label = Label.new()
 	_status_label.text = ""
 	_status_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
 	add_child(_status_label)
 
-	# Input area
+	# Input
 	var input_container := HBoxContainer.new()
-
 	_input_field = TextEdit.new()
 	_input_field.placeholder_text = "Ask GodotForge anything..."
 	_input_field.custom_minimum_size = Vector2(0, 60)
@@ -84,47 +88,37 @@ func _build_ui() -> void:
 	_send_button.custom_minimum_size = Vector2(60, 0)
 	_send_button.pressed.connect(_on_send_pressed)
 	input_container.add_child(_send_button)
-
 	add_child(input_container)
 
-	# Settings panel (includes API key input)
+	# Settings panel
 	_settings_panel = GodotForgeSettingsPanel.new()
 	_settings_panel.settings_changed.connect(_on_settings_changed)
 	add_child(_settings_panel)
 
-	# Welcome message
-	_add_bubble(MessageBubble.Role.ASSISTANT, "Welcome to GodotForge! I can help you create scenes, add nodes, write scripts, and more — all without leaving Godot.\n\nGo to Settings to choose: API Key or Claude Code (Max/Pro plan).\nThen try: \"Create a CharacterBody2D scene for a player\"")
+	# Welcome
+	_add_bubble(MessageBubble.Role.ASSISTANT,
+		"Welcome to GodotForge! Configure your API key in Settings, then try:\n\"Create a CharacterBody2D scene for the player\"")
 
 
-func _setup_client() -> void:
-	_claude_client = GodotForgeClaudeClient.new()
-	add_child(_claude_client)
-	_claude_client.response_received.connect(_on_response_received)
-	_claude_client.error_occurred.connect(_on_error)
-	_claude_client.get_conversation().compaction_needed.connect(_on_compaction_needed)
-
-	_claude_client.set_system_prompt(
-		"You are GodotForge, an AI assistant embedded in the Godot 4.x editor. "
-		+ "You help developers create games without leaving the editor. "
-		+ "You have tools to create scenes, add nodes, set properties, and write GDScript. "
-		+ "Use tools to take action — don't just describe what to do. "
-		+ "Be concise. When the user asks you to create something, use the appropriate tools immediately. "
-		+ "Always use GDScript (not C#). Always use Godot 4.x API."
-	)
-
-	# Update settings panel with CLI detection status
-	if _settings_panel:
-		_settings_panel.update_cli_status(_claude_client.has_claude_cli())
-
-	# Apply saved auth mode
-	var saved_mode: int = _settings_panel.get_auth_mode() if _settings_panel else 0
-	if saved_mode == 1:
-		_claude_client.set_auth_mode(GodotForgeClaudeClient.AuthMode.CLAUDE_CODE)
+func _setup_http() -> void:
+	_http_request = HTTPRequest.new()
+	_http_request.timeout = 300.0  # Long timeout for tool_use loops
+	add_child(_http_request)
+	_http_request.request_completed.connect(_on_chat_response)
 
 
-func _setup_tools() -> void:
-	_tool_registry = GodotForgeToolRegistry.new()
-	_tool_registry.setup()
+func _discover_mcp() -> void:
+	# Read MCP server port from .godotforge/mcp.port
+	var port_file := "res://.godotforge/mcp.port"
+	if FileAccess.file_exists(port_file):
+		var file := FileAccess.open(port_file, FileAccess.READ)
+		if file:
+			_mcp_port = file.get_as_text().strip_edges().to_int()
+
+	if _mcp_port > 0:
+		_status_label.text = "Connected to MCP server (port %d)" % _mcp_port
+	else:
+		_status_label.text = "MCP server not detected. Start it or use Settings to configure."
 
 
 func _on_send_pressed() -> void:
@@ -132,59 +126,72 @@ func _on_send_pressed() -> void:
 	if text == "":
 		return
 
+	if _mcp_port == 0:
+		_discover_mcp()
+		if _mcp_port == 0:
+			_add_bubble(MessageBubble.Role.ERROR,
+				"MCP server not running. Start with:\n  node mcp-server/dist/index.js --http-only --project-root <path>")
+			return
+
 	_add_bubble(MessageBubble.Role.USER, text)
 	_input_field.text = ""
 	_set_busy(true)
-	_claude_client.send_message(text)
 
+	# POST to MCP /chat
+	var body := JSON.stringify({
+		"message": text,
+		"session_id": _session_id,
+	})
 
-func _on_response_received(content: Array) -> void:
-	var has_tool_use := false
-
-	for block in content:
-		if block is Dictionary:
-			match block.get("type", ""):
-				"text":
-					_add_bubble(MessageBubble.Role.ASSISTANT, block.get("text", ""))
-				"tool_use":
-					has_tool_use = true
-					var tool_name: String = block.get("name", "")
-					var tool_input: Dictionary = block.get("input", {})
-					var tool_id: String = block.get("id", "")
-
-					_add_bubble(MessageBubble.Role.TOOL, "Running: %s" % tool_name)
-
-					# Execute tool
-					var result := _tool_registry.execute(tool_name, tool_input)
-					var result_text: String = result.get("result", "")
-					var is_error: bool = result.get("is_error", false)
-
-					if is_error:
-						_add_bubble(MessageBubble.Role.ERROR, result_text)
-					else:
-						_add_bubble(MessageBubble.Role.TOOL, result_text)
-
-					# Send result back to Claude
-					_claude_client.get_conversation().add_tool_result(tool_id, result_text, is_error)
-
-	if has_tool_use:
-		# Continue the conversation so Claude can see tool results
-		_claude_client.send_tool_results()
-	else:
+	var url := "http://127.0.0.1:%d/chat" % _mcp_port
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	var err := _http_request.request(url, headers, HTTPClient.METHOD_POST, body)
+	if err != OK:
 		_set_busy(false)
+		_add_bubble(MessageBubble.Role.ERROR, "Failed to connect to MCP server.")
 
 
-func _on_error(message: String) -> void:
-	_add_bubble(MessageBubble.Role.ERROR, message)
+func _on_chat_response(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_set_busy(false)
+
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_add_bubble(MessageBubble.Role.ERROR, "MCP server request failed (result: %d)" % result)
+		return
+
+	var json := JSON.new()
+	if json.parse(body.get_string_from_utf8()) != OK:
+		_add_bubble(MessageBubble.Role.ERROR, "Failed to parse MCP response.")
+		return
+
+	var data: Dictionary = json.data
+
+	# Check for error
+	var error_msg: String = data.get("error", "")
+	if error_msg != "":
+		_add_bubble(MessageBubble.Role.ERROR, error_msg)
+
+	# Show tool calls
+	var tool_calls: Array = data.get("tool_calls", [])
+	for tc in tool_calls:
+		if tc is Dictionary:
+			var tool_name: String = tc.get("name", "")
+			var tool_result: String = tc.get("result", "")
+			var is_error: bool = tc.get("is_error", false)
+			if is_error:
+				_add_bubble(MessageBubble.Role.ERROR, "%s: %s" % [tool_name, tool_result])
+			else:
+				_add_bubble(MessageBubble.Role.TOOL, "%s: %s" % [tool_name, tool_result])
+
+	# Show response text
+	var response: String = data.get("response", "")
+	if response != "":
+		_add_bubble(MessageBubble.Role.ASSISTANT, response)
 
 
 func _add_bubble(role: MessageBubble.Role, text: String) -> void:
 	var bubble := MessageBubble.new()
 	bubble.setup(role, text)
 	_message_container.add_child(bubble)
-
-	# Auto-scroll to bottom
 	await get_tree().process_frame
 	_scroll_container.scroll_vertical = int(_scroll_container.get_v_scroll_bar().max_value)
 
@@ -192,42 +199,7 @@ func _add_bubble(role: MessageBubble.Role, text: String) -> void:
 func _set_busy(busy: bool) -> void:
 	_send_button.disabled = busy
 	_input_field.editable = not busy
-	_status_label.text = "Thinking..." if busy else ""
-
-
-func _on_compaction_needed(_old_messages: Array[Dictionary]) -> void:
-	# Get text summary of old messages
-	var old_text := _claude_client.get_conversation().get_old_messages_text()
-	if old_text == "":
-		return
-
-	_add_bubble(MessageBubble.Role.TOOL, "Compacting conversation... saving decisions to memory.")
-
-	# Extract key decisions from old conversation and save to memory
-	var lines := old_text.split("\n")
-	for line in lines:
-		# Heuristic: save lines that mention decisions, conventions, or important patterns
-		var lower := line.to_lower()
-		if "decision" in lower or "convention" in lower or "pattern" in lower or "always" in lower or "never" in lower:
-			if _tool_registry:
-				_tool_registry.execute("save_memory", {
-					"category": "Decisions",
-					"content": line.substr(0, 200),
-				})
-
-	# Create summary and compact
-	var msg_count := _claude_client.get_conversation().messages.size()
-	var summary := "Previous conversation (%d messages) covered: %s" % [msg_count, old_text.substr(0, 500)]
-	_claude_client.get_conversation().compact_with_summary(summary)
-
-	_add_bubble(MessageBubble.Role.TOOL, "Conversation compacted. Recent messages preserved.")
-
-
-func _clear_chat() -> void:
-	for child in _message_container.get_children():
-		child.queue_free()
-	_claude_client.get_conversation().clear()
-	_add_bubble(MessageBubble.Role.ASSISTANT, "Chat cleared. How can I help?")
+	_status_label.text = "Thinking..." if busy else ("MCP :% d" % _mcp_port if _mcp_port > 0 else "")
 
 
 func _show_settings() -> void:
@@ -239,29 +211,45 @@ func open_settings() -> void:
 
 
 func _on_settings_changed(settings: Dictionary) -> void:
-	# Handle API key save action
-	if settings.get("action") == "save_api_key":
-		var key: String = settings.get("api_key", "")
-		if key != "":
-			_claude_client.save_api_key(key)
-			_add_bubble(MessageBubble.Role.TOOL, "API key saved.")
+	# Forward settings to MCP server
+	if _mcp_port == 0:
+		_discover_mcp()
+	if _mcp_port == 0:
+		_add_bubble(MessageBubble.Role.ERROR, "MCP server not running. Cannot save settings.")
 		return
 
-	var auth_mode: int = settings.get("auth_mode", 0)
-	if auth_mode == 0:
-		_claude_client.set_auth_mode(GodotForgeClaudeClient.AuthMode.API_KEY)
-	else:
-		_claude_client.set_auth_mode(GodotForgeClaudeClient.AuthMode.CLAUDE_CODE)
+	# Handle API key save
+	var api_key: String = settings.get("api_key", "")
+	var payload := {}
+	if api_key != "":
+		payload["api_key"] = api_key
+	var model: String = settings.get("model", "")
+	if model != "":
+		payload["model"] = model
+	var max_tokens: int = settings.get("max_tokens", 0)
+	if max_tokens > 0:
+		payload["max_tokens"] = max_tokens
+	payload["memory_enabled"] = settings.get("memory_enabled", true)
 
-	_claude_client.set_model(settings.get("model", ""))
-	_claude_client.set_max_tokens(settings.get("max_tokens", 4096))
+	# POST to MCP /settings
+	var req := HTTPRequest.new()
+	add_child(req)
+	var url := "http://127.0.0.1:%d/settings" % _mcp_port
+	var headers := PackedStringArray(["Content-Type: application/json"])
+	req.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
+	req.request_completed.connect(func(_r, _c, _h, _b): req.queue_free())
 
-	var mode_name := "API Key" if auth_mode == 0 else "Claude Code (Max/Pro)"
-	_add_bubble(MessageBubble.Role.TOOL, "Settings updated. Auth: %s" % mode_name)
+	_add_bubble(MessageBubble.Role.TOOL, "Settings sent to MCP server.")
+
+
+func _clear_chat() -> void:
+	for child in _message_container.get_children():
+		child.queue_free()
+	_session_id = str(randi())
+	_add_bubble(MessageBubble.Role.ASSISTANT, "Chat cleared. How can I help?")
 
 
 func _input(event: InputEvent) -> void:
-	# Ctrl+Enter to send
 	if event is InputEventKey and event.pressed:
 		if event.ctrl_pressed and event.keycode == KEY_ENTER:
 			_on_send_pressed()
