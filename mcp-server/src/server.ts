@@ -6,6 +6,7 @@ import { TOOLS, EDITOR_TOOLS } from "./tools.js";
 import { BLENDER_TOOLS, blenderHandlerName } from "./blender-tools.js";
 import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
 import { ConfigManager } from "./config.js";
+import { handleSearchPolyHaven, handleDownloadPolyHaven, handleSearchSketchfab, handleDownloadSketchfab } from "./assets/handlers.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -530,6 +531,52 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
         content: [{ type: "text" as const, text: JSON.stringify(status, null, 2) }],
       };
     }
+  );
+
+  // --- Asset tools ---
+
+  server.tool(
+    "assets.search_polyhaven",
+    "Search Poly Haven for free textures, 3D models, and HDRIs. No API key needed.",
+    {
+      type: z.enum(["hdris", "textures", "models", "all"]).optional().describe("Asset type (default: all)"),
+      categories: z.string().optional().describe("Filter by categories (comma-separated)"),
+    },
+    async (args) => handleSearchPolyHaven(args)
+  );
+
+  server.tool(
+    "assets.download_polyhaven",
+    "Download a Poly Haven asset (texture, model, or HDRI) into the project.",
+    {
+      asset_id: z.string().describe("Asset ID from search results"),
+      resolution: z.string().optional().describe("Resolution (1k, 2k, 4k — default: 1k)"),
+      format: z.string().optional().describe("File format (jpg, png, exr, gltf — default: jpg)"),
+      target_dir: z.string().optional().describe("Target directory (default: assets/textures)"),
+    },
+    async (args) => handleDownloadPolyHaven(args, root)
+  );
+
+  server.tool(
+    "assets.search_sketchfab",
+    "Search Sketchfab for downloadable 3D models.",
+    {
+      query: z.string().describe("Search query"),
+      downloadable: z.boolean().optional().describe("Only downloadable models (default: true)"),
+      animated: z.boolean().optional().describe("Only animated models"),
+      count: z.number().optional().describe("Results count (default: 10)"),
+    },
+    async (args) => handleSearchSketchfab(args)
+  );
+
+  server.tool(
+    "assets.download_sketchfab",
+    "Download a Sketchfab model (GLTF) into the project. Requires Sketchfab API token.",
+    {
+      uid: z.string().describe("Model UID from search results"),
+      target_dir: z.string().optional().describe("Target directory (default: assets/models)"),
+    },
+    async (args) => handleDownloadSketchfab(args, root, config)
   );
 
   // --- Blender tools (delegate to Blender addon via socket) ---

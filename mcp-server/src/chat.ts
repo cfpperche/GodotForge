@@ -83,6 +83,11 @@ function getToolDefinitions(): Array<Record<string, unknown>> {
     { name: "search_memory", description: "Search project memory.", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
     { name: "get_project_memory", description: "Get full project memory.", input_schema: { type: "object", properties: {} } },
     { name: "get_service_status", description: "Check which external services have API keys configured.", input_schema: { type: "object", properties: {} } },
+    // Asset tools
+    { name: "assets.search_polyhaven", description: "Search Poly Haven for free textures, models, HDRIs.", input_schema: { type: "object", properties: { type: { type: "string", enum: ["hdris", "textures", "models", "all"] }, categories: { type: "string" } } } },
+    { name: "assets.download_polyhaven", description: "Download Poly Haven asset into project.", input_schema: { type: "object", properties: { asset_id: { type: "string" }, resolution: { type: "string" }, format: { type: "string" }, target_dir: { type: "string" } }, required: ["asset_id"] } },
+    { name: "assets.search_sketchfab", description: "Search Sketchfab for 3D models.", input_schema: { type: "object", properties: { query: { type: "string" }, downloadable: { type: "boolean" }, animated: { type: "boolean" }, count: { type: "number" } }, required: ["query"] } },
+    { name: "assets.download_sketchfab", description: "Download Sketchfab model (requires API token).", input_schema: { type: "object", properties: { uid: { type: "string" }, target_dir: { type: "string" } }, required: ["uid"] } },
     // Blender tools
     { name: "blender.create_mesh", description: "Create a mesh primitive in Blender (cube, sphere, cylinder, plane, cone, torus).", input_schema: { type: "object", properties: { type: { type: "string", enum: ["cube", "sphere", "uv_sphere", "ico_sphere", "cylinder", "plane", "cone", "torus"] }, name: { type: "string" }, location: { type: "array", items: { type: "number" } }, scale: { type: "array", items: { type: "number" } } }, required: ["type"] } },
     { name: "blender.delete_object", description: "Delete an object from Blender scene.", input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },
