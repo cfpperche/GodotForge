@@ -3,9 +3,10 @@ import { getRecentMemory, ensureMemoryDb } from "../memory/search.js";
 import { scanProject } from "./scanner.js";
 import { ensureDocsReady, detectGodotVersion } from "../docs/indexer.js";
 import { getClassReference } from "../docs/search.js";
+import { ensureBlenderDocs, getBlenderClassReference } from "../docs/blender-docs.js";
 import type { GodotBridge } from "../bridge.js";
 
-const TOKEN_BUDGET = 10000;
+const TOKEN_BUDGET = 12000;
 const CHARS_PER_TOKEN = 4;
 const MAX_CHARS = TOKEN_BUDGET * CHARS_PER_TOKEN;
 
@@ -14,7 +15,8 @@ interface ContextBudget {
   structure: number;
   scene: number;
   session: number;
-  docs: number;
+  godotDocs: number;
+  blenderDocs: number;
 }
 
 const DEFAULT_BUDGET: ContextBudget = {
@@ -22,7 +24,8 @@ const DEFAULT_BUDGET: ContextBudget = {
   structure: 1500 * CHARS_PER_TOKEN,
   scene: 1500 * CHARS_PER_TOKEN,
   session: 1500 * CHARS_PER_TOKEN,
-  docs: 3000 * CHARS_PER_TOKEN,
+  godotDocs: 2500 * CHARS_PER_TOKEN,
+  blenderDocs: 2500 * CHARS_PER_TOKEN,
 };
 
 /**
@@ -52,10 +55,14 @@ export async function buildContext(
   }
 
   // 4. Auto-detected Godot docs (RAG injection)
-  const docsSection = await buildDocsSection(projectRoot, userMessage, DEFAULT_BUDGET.docs);
-  if (docsSection) sections.push(docsSection);
+  const godotDocsSection = await buildGodotDocsSection(projectRoot, userMessage, DEFAULT_BUDGET.godotDocs);
+  if (godotDocsSection) sections.push(godotDocsSection);
 
-  // 5. Recent session log
+  // 5. Auto-detected Blender docs (RAG injection)
+  const blenderDocsSection = await buildBlenderDocsSection(userMessage, DEFAULT_BUDGET.blenderDocs);
+  if (blenderDocsSection) sections.push(blenderDocsSection);
+
+  // 6. Recent session log
   const sessionSection = buildSessionSection(projectRoot, DEFAULT_BUDGET.session);
   if (sessionSection) sections.push(sessionSection);
 
@@ -132,7 +139,7 @@ async function buildSceneSection(
  * Auto-detect Godot class names from user message + recent session,
  * then pre-load their docs into context.
  */
-async function buildDocsSection(
+async function buildGodotDocsSection(
   projectRoot: string,
   userMessage: string | undefined,
   maxChars: number
@@ -300,6 +307,119 @@ function buildCompactClassDoc(ref: {
       const params = s.params.map((p) => `${p.name}: ${p.type}`).join(", ");
       lines.push(`  ${s.name}(${params})`);
     }
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Auto-detect Blender/bpy class names and inject docs.
+ * Looks for bpy.types patterns (Object, Mesh, Material, etc.) and bpy.ops references.
+ */
+async function buildBlenderDocsSection(
+  userMessage: string | undefined,
+  maxChars: number
+): Promise<string | null> {
+  if (!userMessage) return null;
+
+  // Only inject if message seems Blender-related
+  const blenderKeywords = /\b(blender|bpy|mesh|material|armature|bone|sculpt|modifier|uv|unwrap|shader node|vertex|polygon|face|edge|weight paint|keyframe)\b/i;
+  if (!blenderKeywords.test(userMessage)) return null;
+
+  try {
+    const db = await ensureBlenderDocs();
+
+    // Extract bpy class names from message
+    const bpyClasses = extractBpyClasses(userMessage);
+    if (bpyClasses.length === 0) return null;
+
+    const docs: string[] = [`<blender-docs hint="Auto-detected bpy API reference.">`];
+    let totalChars = 0;
+
+    for (const className of bpyClasses.slice(0, 4)) {
+      const ref = getBlenderClassReference(db, className);
+      if (!ref) continue;
+
+      const compact = buildCompactBpyDoc(ref);
+      if (totalChars + compact.length > maxChars - 100) break;
+
+      docs.push(compact);
+      totalChars += compact.length;
+    }
+
+    if (docs.length <= 1) return null;
+    docs.push(`</blender-docs>`);
+    return docs.join("\n");
+  } catch {
+    // Blender docs not indexed yet — silently skip
+    return null;
+  }
+}
+
+/**
+ * Extract bpy type names from text.
+ */
+function extractBpyClasses(text: string): string[] {
+  const matches = new Set<string>();
+
+  // Match bpy.types.X patterns
+  const typesPattern = /bpy\.types\.(\w+)/g;
+  let m;
+  while ((m = typesPattern.exec(text)) !== null) {
+    matches.add(m[1]);
+  }
+
+  // Match known bpy class names mentioned directly
+  const knownBpyClasses = [
+    "Object", "Mesh", "MeshVertex", "MeshEdge", "MeshPolygon",
+    "Material", "ShaderNode", "NodeTree", "Image",
+    "Armature", "Bone", "EditBone", "PoseBone",
+    "Action", "FCurve", "Keyframe",
+    "Camera", "Light", "PointLight", "SunLight", "SpotLight", "AreaLight",
+    "Collection", "Scene", "World",
+    "Modifier", "MirrorModifier", "SubsurfModifier", "BooleanModifier",
+    "Particle", "ParticleSystem",
+    "Constraint", "CopyLocationConstraint",
+    "Driver", "DriverVariable",
+    "UVMap", "VertexGroup", "ShapeKey",
+  ];
+
+  const textLower = text.toLowerCase();
+  for (const cls of knownBpyClasses) {
+    if (textLower.includes(cls.toLowerCase())) {
+      matches.add(cls);
+    }
+  }
+
+  return Array.from(matches);
+}
+
+function buildCompactBpyDoc(ref: {
+  name: string;
+  inherits: string;
+  description: string;
+  properties: Array<{ name: string; type: string; description: string }>;
+  methods: Array<{ name: string; signature: string; description: string }>;
+}): string {
+  const lines: string[] = [];
+
+  lines.push(`## bpy.types.${ref.name} (extends ${ref.inherits})`);
+  if (ref.description) lines.push(ref.description.slice(0, 200));
+
+  if (ref.properties.length > 0) {
+    lines.push(`Properties:`);
+    for (const p of ref.properties.slice(0, 12)) {
+      lines.push(`  ${p.name}: ${p.type || "?"} — ${p.description.slice(0, 80)}`);
+    }
+    if (ref.properties.length > 12) lines.push(`  ... +${ref.properties.length - 12} more`);
+  }
+
+  if (ref.methods.length > 0) {
+    lines.push(`Methods:`);
+    for (const m of ref.methods.slice(0, 12)) {
+      lines.push(`  ${m.name}${m.signature || "()"} — ${m.description.slice(0, 80)}`);
+    }
+    if (ref.methods.length > 12) lines.push(`  ... +${ref.methods.length - 12} more`);
   }
 
   return lines.join("\n");

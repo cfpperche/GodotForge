@@ -838,6 +838,19 @@ def execute_python(args: dict) -> dict:
     return {"result": str(local_vars.get("_result", "Executed successfully."))}
 
 
+# ==================== API Extraction ====================
+
+def extract_api(args: dict) -> dict:
+    """Extract bpy API documentation and save as JSON for RAG indexing."""
+    filepath = args.get("filepath", "")
+    if not filepath:
+        return {"result": "filepath is required", "is_error": True}
+
+    from . import api_extractor
+    result = api_extractor.extract_and_save(filepath)
+    return {"result": result}
+
+
 # ==================== Helpers ====================
 
 def _to_vector(v) -> tuple:
