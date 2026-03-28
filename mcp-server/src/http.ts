@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { writeFileSync, mkdirSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import { ChatEngine } from "./chat.js";
+import { ConfigManager } from "./config.js";
 
 const BIND_HOST = "127.0.0.1";
 const DEFAULT_PORT = 6980;
@@ -10,13 +11,15 @@ const MAX_PORT_TRIES = 10;
 export class HttpServer {
   private server: ReturnType<typeof createServer> | null = null;
   private chatEngine: ChatEngine;
+  private config: ConfigManager;
   private port = 0;
   private portFilePath = "";
   private projectRoot: string;
 
-  constructor(chatEngine: ChatEngine, projectRoot: string) {
+  constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager) {
     this.chatEngine = chatEngine;
     this.projectRoot = projectRoot;
+    this.config = config || new ConfigManager(projectRoot);
   }
 
   async start(): Promise<number> {
@@ -122,6 +125,19 @@ export class HttpServer {
           }
           break;
 
+        case "/keys":
+          if (req.method === "GET") {
+            // Returns status only — never returns actual key values
+            this.sendJson(res, 200, { services: this.config.getStatus() });
+          } else if (req.method === "POST") {
+            this.handleSetKey(res, body);
+          } else if (req.method === "DELETE") {
+            this.handleRemoveKey(res, body);
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
         default:
           this.sendJson(res, 404, { error: `Not found: ${url}` });
       }
@@ -165,6 +181,50 @@ export class HttpServer {
 
     this.chatEngine.updateSettings(parsed as Record<string, string | number | boolean>);
     this.sendJson(res, 200, { result: "Settings updated" });
+  }
+
+  private handleSetKey(res: ServerResponse, body: string): void {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      this.sendJson(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    const service = parsed.service as string;
+    const key = parsed.key as string;
+
+    if (!service || !key) {
+      this.sendJson(res, 400, { error: "Missing 'service' and 'key' fields" });
+      return;
+    }
+
+    try {
+      this.config.setKey(service as keyof import("./config.js").ServiceKeys, key);
+      this.sendJson(res, 200, { result: `Key saved for ${service}` });
+    } catch (error) {
+      this.sendJson(res, 422, { error: `Failed to save key: ${error instanceof Error ? error.message : error}` });
+    }
+  }
+
+  private handleRemoveKey(res: ServerResponse, body: string): void {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      this.sendJson(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    const service = parsed.service as string;
+    if (!service) {
+      this.sendJson(res, 400, { error: "Missing 'service' field" });
+      return;
+    }
+
+    this.config.removeKey(service as keyof import("./config.js").ServiceKeys);
+    this.sendJson(res, 200, { result: `Key removed for ${service}` });
   }
 
   private sendJson(res: ServerResponse, status: number, data: unknown): void {

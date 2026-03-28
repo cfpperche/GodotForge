@@ -2,6 +2,7 @@ import { GodotBridge } from "./bridge.js";
 import { BlenderBridge } from "./blender-bridge.js";
 import { blenderHandlerName } from "./blender-tools.js";
 import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
+import { ConfigManager } from "./config.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -410,6 +411,14 @@ export async function executeTool(
       case "pipeline.batch_import":
         return batchImport(bridge, root, args);
     }
+  }
+
+  // Config tools
+  if (toolName === "get_service_status") {
+    const cfg = new ConfigManager(root);
+    return {
+      content: [{ type: "text" as const, text: JSON.stringify(cfg.getStatus(), null, 2) }],
+    };
   }
 
   // Local tools

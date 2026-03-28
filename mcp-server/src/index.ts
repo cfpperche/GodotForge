@@ -6,6 +6,7 @@ import { GodotBridge } from "./bridge.js";
 import { BlenderBridge } from "./blender-bridge.js";
 import { ChatEngine } from "./chat.js";
 import { HttpServer } from "./http.js";
+import { ConfigManager } from "./config.js";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -26,14 +27,17 @@ async function main(): Promise<void> {
   const bridge = new GodotBridge(projectRoot);
   const blenderBridge = new BlenderBridge(projectRoot);
 
+  // Config manager (API keys)
+  const config = new ConfigManager(root);
+
   // Always start the HTTP server (for native chat panel)
   const chatEngine = new ChatEngine(root, bridge, blenderBridge);
-  const httpServer = new HttpServer(chatEngine, root);
+  const httpServer = new HttpServer(chatEngine, root, config);
   const httpPort = await httpServer.start();
 
   // Start MCP stdio transport (unless --http-only)
   if (!httpOnly) {
-    const mcpServer = createServer(projectRoot, blenderBridge);
+    const mcpServer = createServer(projectRoot, blenderBridge, config);
     const transport = new StdioServerTransport();
     await mcpServer.connect(transport);
     console.error("[GodotForge MCP] stdio transport started");

@@ -82,6 +82,7 @@ function getToolDefinitions(): Array<Record<string, unknown>> {
     { name: "save_memory", description: "Save a fact to project memory.", input_schema: { type: "object", properties: { category: { type: "string" }, content: { type: "string" } }, required: ["category", "content"] } },
     { name: "search_memory", description: "Search project memory.", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
     { name: "get_project_memory", description: "Get full project memory.", input_schema: { type: "object", properties: {} } },
+    { name: "get_service_status", description: "Check which external services have API keys configured.", input_schema: { type: "object", properties: {} } },
     // Blender tools
     { name: "blender.create_mesh", description: "Create a mesh primitive in Blender (cube, sphere, cylinder, plane, cone, torus).", input_schema: { type: "object", properties: { type: { type: "string", enum: ["cube", "sphere", "uv_sphere", "ico_sphere", "cylinder", "plane", "cone", "torus"] }, name: { type: "string" }, location: { type: "array", items: { type: "number" } }, scale: { type: "array", items: { type: "number" } } }, required: ["type"] } },
     { name: "blender.delete_object", description: "Delete an object from Blender scene.", input_schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] } },

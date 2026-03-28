@@ -5,6 +5,7 @@ import { BlenderBridge } from "./blender-bridge.js";
 import { TOOLS, EDITOR_TOOLS } from "./tools.js";
 import { BLENDER_TOOLS, blenderHandlerName } from "./blender-tools.js";
 import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "./pipeline.js";
+import { ConfigManager } from "./config.js";
 import { readFileSync, readdirSync, statSync, existsSync } from "fs";
 import { join, resolve } from "path";
 import { ensureDocsReady, detectGodotVersion } from "./docs/indexer.js";
@@ -13,10 +14,11 @@ import { readMemory, appendMemory, getMemorySize } from "./memory/store.js";
 import { ensureMemoryDb, indexMemoryEntry, searchMemory as searchMemoryDb, getMemoryStats } from "./memory/search.js";
 import { buildContext } from "./context/builder.js";
 
-export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge): McpServer {
+export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge, configManager?: ConfigManager): McpServer {
   const bridge = new GodotBridge(projectRoot);
   const blender = blenderBridge || new BlenderBridge(projectRoot);
   const root = projectRoot || process.cwd();
+  const config = configManager || new ConfigManager(root);
 
   const server = new McpServer({
     name: "godotforge",
@@ -513,6 +515,20 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
           isError: true,
         };
       }
+    }
+  );
+
+  // --- Config tools ---
+
+  server.tool(
+    "get_service_status",
+    "Check which external services have API keys configured (Sketchfab, Stability, OpenAI, ElevenLabs, etc.). Never returns actual keys.",
+    {},
+    async () => {
+      const status = config.getStatus();
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(status, null, 2) }],
+      };
     }
   );
 
