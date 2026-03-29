@@ -139,8 +139,7 @@ export class ChatEngine {
     this.root = newRoot;
     this.sessions.clear();
     this.sdkSessionIds.clear();
-    // Save active project in global config
-    this.configManager.saveChatSettings({ active_project: newRoot } as Record<string, unknown>);
+    this.configManager.addRecentProject(newRoot);
     console.error(`[GodotForge Chat] Switched project to: ${newRoot}`);
   }
 

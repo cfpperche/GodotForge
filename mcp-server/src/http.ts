@@ -144,6 +144,7 @@ export class HttpServer {
               project_root: root,
               has_godot_project: hasGodot,
               is_valid: hasGodot,
+              recent_projects: this.config.getRecentProjects(),
             });
           } else if (req.method === "POST") {
             this.handleSwitchProject(res, body);

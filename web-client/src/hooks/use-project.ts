@@ -5,6 +5,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 interface ProjectStatus {
   project_root: string;
   has_godot_project: boolean;
+  recent_projects?: string[];
 }
 
 export function useProject() {
@@ -24,8 +25,8 @@ export function useProject() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  // A project is "valid" if it's set and is NOT the GodotForge tool repo itself
   const isValid = !!(project?.project_root && project.has_godot_project);
+  const recentProjects = project?.recent_projects || [];
 
-  return { project, isValid, loading, refresh };
+  return { project, isValid, loading, refresh, recentProjects };
 }

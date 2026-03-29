@@ -168,6 +168,23 @@ export class ConfigManager {
     this.configCache = null;
   }
 
+  /** Add a project to the recent projects list (max 10, deduped, newest first). */
+  addRecentProject(path: string): void {
+    const config = this.readConfig();
+    const recents = (config.recent_projects as string[]) || [];
+    const filtered = recents.filter((p) => p !== path);
+    filtered.unshift(path);
+    config.recent_projects = filtered.slice(0, 10);
+    this.writeConfig(config);
+    this.configCache = null;
+  }
+
+  /** Get recent projects list. */
+  getRecentProjects(): string[] {
+    const config = this.readConfig();
+    return (config.recent_projects as string[]) || [];
+  }
+
   autoDetectPath(key: keyof SystemPaths): string {
     switch (key) {
       case "windows_temp": {

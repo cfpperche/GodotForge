@@ -1,5 +1,6 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { LeftSidebar } from "@/components/nav/left-sidebar";
+import { ProjectSwitcher } from "@/components/nav/project-switcher";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { useHealth } from "@/hooks/use-health";
@@ -21,7 +22,7 @@ export const ProjectContext = createContext<{
 
 export default function App() {
   const { connected } = useHealth();
-  const { project, isValid, refresh: refreshProject } = useProject();
+  const { project, isValid, refresh: refreshProject, recentProjects } = useProject();
   const { completed: onboardingDone } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(!onboardingDone);
   const [activeView, setActiveView] = useState<View>("chat");
@@ -79,12 +80,14 @@ export default function App() {
                 <span className="font-semibold text-sm">GodotForge</span>
               </div>
 
-              {/* Project name */}
+              {/* Project switcher dropdown */}
               {projectName && (
-                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/30 text-xs text-muted-foreground">
-                  <Gamepad2 className="h-3 w-3 text-green-400" />
-                  <span className="truncate max-w-[200px]">{projectName}</span>
-                </div>
+                <ProjectSwitcher
+                  projectName={projectName}
+                  projectRoot={project?.project_root || ""}
+                  recentProjects={recentProjects}
+                  onSwitch={refreshProject}
+                />
               )}
             </div>
 
