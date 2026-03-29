@@ -81,7 +81,7 @@ export interface PersistedChatSettings {
 export class ConfigManager {
   private projectRoot: string;
   private globalConfigPath: string;
-  private cache: Partial<ServiceKeys> | null = null;
+  private configCache: Record<string, unknown> | null = null;
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
@@ -123,7 +123,7 @@ export class ConfigManager {
     if (!config.paths) config.paths = {};
     config.paths[key] = value;
     this.writeConfig(config);
-    this.cache = null;
+    this.configCache = null;
   }
 
   /**
@@ -165,7 +165,7 @@ export class ConfigManager {
     const config = this.readConfig();
     config.chat = { ...(config.chat || {}), ...settings };
     this.writeConfig(config);
-    this.cache = null;
+    this.configCache = null;
   }
 
   autoDetectPath(key: keyof SystemPaths): string {
@@ -225,7 +225,7 @@ export class ConfigManager {
     if (!config.keys) config.keys = {};
     config.keys[service] = value;
     this.writeConfig(config);
-    this.cache = null; // invalidate cache
+    this.configCache = null; // invalidate cache
   }
 
   /**
@@ -236,7 +236,7 @@ export class ConfigManager {
     if (config.keys) {
       delete config.keys[service];
       this.writeConfig(config);
-      this.cache = null;
+      this.configCache = null;
     }
   }
 
@@ -275,8 +275,8 @@ export class ConfigManager {
   }
 
   private readConfig(): { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; chat?: Partial<PersistedChatSettings>; [k: string]: unknown } {
-    if (this.cache !== null) {
-      return { keys: this.cache };
+    if (this.configCache !== null) {
+      return this.configCache as { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; chat?: Partial<PersistedChatSettings> };
     }
 
     if (!existsSync(this.globalConfigPath)) {
@@ -286,7 +286,7 @@ export class ConfigManager {
     try {
       const raw = readFileSync(this.globalConfigPath, "utf-8");
       const parsed = JSON.parse(raw);
-      this.cache = parsed.keys || null;
+      this.configCache = parsed;
       return parsed;
     } catch {
       return {};
