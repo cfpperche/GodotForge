@@ -156,9 +156,120 @@ Auto-RAG: context builder detecta classes bpy mencionadas na conversa e injeta d
 - Chat nativo (Godot/Blender/Web) usa Claude CLI como LLM com tool loop completo
 - JSON output parseado para extrair num_turns e reportar tool execution
 
+### 5.5 Auto-Provision & Version Management (✅ Completo)
+- Godot plugin auto-copied to project `addons/godotforge/` on create/switch
+- Blender addon auto-installed to `AppData/.../addons/godotforge/` on startup
+- Version comparison (semver): auto-updates when bundled > installed
+- `GET /version` endpoint: bundled vs installed versions + outdated flags
+- `GET /connections` endpoint: real-time health check (MCP :6980, Godot :6970, Blender :8400)
+
+### 5.6 Web Settings & Config (✅ Completo)
+- Config JSON editor (GET/PUT `/config`) with raw JSON editing
+- 12 services in 6 tabbed categories (LLM, Assets, 3D Gen, Image, Audio, Other)
+- Cross-component sync (config editor auto-refreshes on settings change)
+- Connection status in sidebar (green/yellow/red dots with outdated indicator)
+
 ---
 
-## 6. Roadmap V2
+## 6. Game Studio Expansion (Phases E-K)
+
+### 6.1 Phase E — Game Studio Rules
+
+Rules for game development domains not yet covered:
+
+| Rule | Domain | Key Points |
+|------|--------|------------|
+| `ai-code.md` | AI behavior | 2ms/frame budget, behavior trees, data-driven params, debug visualization |
+| `network-code.md` | Multiplayer | Server-authoritative, client prediction + rollback, bandwidth budgets |
+| `ui-code.md` | Game UI | UI never owns state, localization, dual input (KB+gamepad), accessibility |
+| `prototype-code.md` | Prototyping | Relaxed standards, mandatory README with hypothesis, no prod imports |
+| `test-standards.md` | Testing | `test_[system]_[scenario]_[expected]`, arrange/act/assert, regression tests |
+| `data-files.md` | Game data | JSON schema validation, versioned formats, migration scripts |
+| `narrative.md` | Dialogue/story | Branching structure, localization-ready, variable interpolation |
+
+### 6.2 Phase F — Game Studio Skills
+
+Skills for game development workflows:
+
+| Skill | Description |
+|-------|-------------|
+| `/balance-check` | Analyze game balance: DPS, TTK, economy faucets/sinks, progression curves, outlier detection |
+| `/brainstorm [genre]` | 6-phase concept generation: discovery → 3 concepts → core loop → pillars → player types → scope |
+| `/perf-profile [system\|full]` | Performance analysis: CPU/memory/rendering/I-O budgets, top-3 bottlenecks |
+| `/tech-debt [scan\|prioritize]` | Scan TODO/FIXME, duplication, oversized files; score by `(impact × frequency) / effort` |
+| `/sprint-plan [new\|status]` | Sprint planning: must/should/nice-to-have with 20% buffer, carryover, risks |
+| `/playtest-report [new\|analyze]` | Structured playtest template, cross-reference findings against design docs |
+| `/design-system` | Design a new game system from scratch (8-section GDD) |
+| `/reverse-document` | Generate design docs from existing code |
+
+### 6.3 Phase G — Studio Hooks
+
+Session lifecycle and validation hooks:
+
+| Hook | Trigger | Purpose |
+|------|---------|---------|
+| `session-start.sh` | SessionStart | Show branch, last commits, active sprint, TODO count, recover session state |
+| `session-stop.sh` | Stop | Archive active session, record uncommitted changes |
+| `pre-compact.sh` | PreCompact | Dump session state before context compression |
+| `detect-gaps.sh` | SessionStart | Detect missing docs, undocumented prototypes, missing ADRs |
+| `validate-assets.sh` | PostToolUse (Write) | Enforce lowercase_underscore naming, validate JSON data files |
+
+### 6.4 Phase H — Document Templates (27)
+
+Standardized templates for game development documentation:
+
+**Pre-production**: game-concept.md, game-pillars.md, pitch-document.md
+**Design**: game-design-document.md, technical-design-document.md, level-design-document.md, economy-model.md, balance-sheet.md
+**Art & Audio**: art-bible.md, sound-bible.md
+**Narrative**: narrative-character-sheet.md, faction-design.md
+**Production**: sprint-plan.md, milestone-definition.md, architecture-decision-record.md
+**QA**: test-plan.md, playtest-report.md, bug-report.md
+**Release**: changelog-template.md, release-notes.md, patch-notes.md, post-mortem.md
+**Operations**: incident-response.md, risk-register-entry.md, onboarding-guide.md
+
+### 6.5 Phase I — Specialized Agents
+
+Sub-agents with defined roles, collaboration protocols, and escalation paths:
+
+**Engineering**: godot-specialist, gdscript-specialist, shader-specialist, gdextension-specialist, gameplay-programmer, engine-programmer, tools-programmer, performance-analyst
+**Design**: economy-designer, level-designer, systems-designer, prototyper
+**Art**: technical-artist (Blender↔Godot pipeline bridge)
+**Narrative**: narrative-director, writer, world-builder
+**Audio**: sound-designer, audio-director
+**QA**: qa-lead, qa-tester, accessibility-specialist
+
+### 6.6 Phase J — Team Orchestration Skills
+
+Multi-agent pipeline skills with user approval gates:
+
+| Skill | Agents Orchestrated |
+|-------|-------------------|
+| `/team-combat` | game-designer, gameplay-programmer, ai-programmer, technical-artist, sound-designer, qa-tester |
+| `/team-narrative` | narrative-director, writer, world-builder, sound-designer |
+| `/team-ui` | systems-designer, gameplay-programmer, technical-artist, accessibility-specialist |
+| `/team-level` | level-designer, technical-artist, sound-designer, qa-tester |
+| `/team-polish` | performance-analyst, technical-artist, sound-designer, qa-tester |
+| `/team-audio` | audio-director, sound-designer, technical-artist |
+| `/team-release` | qa-lead, tools-programmer, performance-analyst |
+
+### 6.7 Phase K — Production Skills
+
+Project management and production workflow skills:
+
+| Skill | Description |
+|-------|-------------|
+| `/milestone-review` | Review milestone completion, flag blockers |
+| `/retrospective` | Sprint retrospective: what worked, what didn't, action items |
+| `/estimate` | Effort estimation for features/tasks |
+| `/gate-check` | Verify milestone gate criteria before advancing |
+| `/localize [scan\|extract\|validate]` | Detect hardcoded strings, extract for translation, validate placeholders |
+| `/map-systems` | Generate systems dependency map |
+| `/project-stage-detect` | Classify project stage (Concept→Release, 7 stages), identify gaps |
+| `/onboard` | Generate new contributor onboarding guide |
+
+---
+
+## 7. Roadmap V2
 
 | Fase | Escopo | Tools | Status |
 |------|--------|-------|--------|
@@ -169,8 +280,17 @@ Auto-RAG: context builder detecta classes bpy mencionadas na conversa e injeta d
 | **Web Copilot** | React + Tailwind + shadcn chat interface | — | ✅ |
 | **Blender Copilot** | Python sidebar chat panel | — | ✅ |
 | **CLI Fix** | Claude CLI tool execution via MCP | — | ✅ |
-| **D. AI Generators** | 3D gen, textures, sprites, audio, music | +9 | Pendente |
-| **E. Polish & Launch** | npm publish, README, Asset Library, docs | — | Pendente |
+| **Web Polish** | Config editor, connections status, service tabs, auto-provision | — | ✅ |
+| **Auto-Provision** | Godot plugin + Blender addon auto-install + version update | — | ✅ |
+| **D. AI Generators** | 3D gen, textures, sprites, audio, music, skybox | +9 | Pendente |
+| **E. Game Studio Rules** | ai-code, network-code, ui-code, prototype-code, test-standards | — | Pendente |
+| **F. Game Studio Skills** | /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report | — | Pendente |
+| **G. Studio Hooks** | session-start, session-stop, pre-compact, validate-assets | — | Pendente |
+| **H. Doc Templates** | GDD, ADR, sprint-plan, economy-model, art-bible, playtest-report (27 templates) | — | Pendente |
+| **I. Specialized Agents** | godot-specialist, economy-designer, performance-analyst, technical-artist, narrative-director | — | Pendente |
+| **J. Team Orchestration** | /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio | — | Pendente |
+| **K. Production Skills** | /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems | — | Pendente |
+| **L. Polish & Launch** | npm publish, README, Asset Library, docs | — | Pendente |
 
 ### E2E Tests Validados
 - ✅ **Phase A**: Cubo metálico Blender → GLB → Godot cena 3D
@@ -205,6 +325,11 @@ Auto-RAG: context builder detecta classes bpy mencionadas na conversa e injeta d
 |---------|--------|-------|
 | Total tools | 100+ | 85 (faltam 9 AI tools → 94) |
 | Interfaces | 4 | 4 ✅ (CLI, Godot, Blender, Web) |
+| Rules | 12+ | 5 (faltam 7 → Phase E) |
+| Skills | 20+ | 3 (faltam 17+ → Phases F, J, K) |
+| Hooks | 8 | 3 (faltam 5 → Phase G) |
+| Doc templates | 27 | 0 (Phase H) |
+| Specialized agents | 20+ | 0 (Phase I) |
 | Blender → Godot pipeline time | < 30s | ~5s ✅ |
 | Asset download → in-game | < 1 min | ~15s ✅ |
 | AI generation → in-game | < 2 min | Phase D |
@@ -226,4 +351,11 @@ Auto-RAG: context builder detecta classes bpy mencionadas na conversa e injeta d
 | Web Copilot | ✅ React + shadcn | ❌ Ninguém |
 | API Key Manager | ✅ 12 serviços + dashboard | ❌ Ninguém |
 
-**GodotForge V2 é o primeiro hub de desenvolvimento de jogos com IA que orquestra engine + DCC + assets numa pipeline unificada com 4 interfaces.**
+| Game Studio Rules | Phase E (7 rules) | Claude-Code-Game-Studios (11 rules, 0 tools) |
+| Game Studio Skills | Phase F-K (20+ skills) | Claude-Code-Game-Studios (37 skills, 0 tools) |
+| Specialized Agents | Phase I (20+ agents) | Claude-Code-Game-Studios (48 agents, 0 tools) |
+| Doc Templates | Phase H (27 templates) | Claude-Code-Game-Studios (27 templates) |
+| Session Lifecycle | Phase G (5 hooks) | Claude-Code-Game-Studios (5 hooks) |
+| Auto-Provision | ✅ Plugin + addon auto-install + version update | ❌ Ninguém |
+
+**GodotForge V2 é o primeiro hub de desenvolvimento de jogos com IA que orquestra engine + DCC + assets numa pipeline unificada com 4 interfaces. Phases E-K expandem para um game studio completo com rules, skills, agents, templates e workflows de produção.**

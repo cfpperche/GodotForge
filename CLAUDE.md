@@ -201,6 +201,12 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Auto-RAG**: Context builder detects Godot + Blender class names in messages, pre-loads docs
 - **Game dev rules**: gameplay-code, gdscript-standards, scene-architecture, shader-code, game-design-docs
 - **Game dev skills**: /create-game, /game-polish, /game-review
+- **Web Polish**: Config JSON editor, connection status (MCP/Godot/Blender health checks), service tabs (6 categories, 12 services)
+- **Auto-Provision**: Godot plugin auto-copied to project on create/switch, Blender addon auto-installed on startup, version comparison + auto-update
+- **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md
+- **Onboarding wizard**: 5-step first-time setup (Welcome → Project → Paths → Settings → Done)
+- **Project switcher**: Header dropdown with recent projects, inline Open/New forms
+- **Settings page**: Full-screen 2-column grid + tabbed API keys + config editor
 
 ### E2E Validations
 - ✅ Flappy Bird (2D game, 32 Godot tools)

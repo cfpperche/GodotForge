@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ProjectSelector } from "@/components/sidebar/project-selector";
 import { ChatSettings } from "@/components/sidebar/chat-settings";
 import { SystemPaths } from "@/components/sidebar/system-paths";
 import { ApiKeys } from "@/components/sidebar/api-keys";
@@ -43,10 +42,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left column */}
           <div className="space-y-6">
-            <SettingsCard title="Project" icon={<FolderCog className="h-3.5 w-3.5 text-primary" />}>
-              <ProjectSelector />
-            </SettingsCard>
-
             <SettingsCard title="Chat & Model" icon={<Settings className="h-3.5 w-3.5 text-primary" />}>
               <ChatSettings onSaved={onSettingsChanged} />
             </SettingsCard>
