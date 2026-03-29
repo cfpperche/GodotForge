@@ -1,5 +1,6 @@
 import { ConnectionStatus } from "./connection-status";
 import { ChatSettings } from "./chat-settings";
+import { SystemPaths } from "./system-paths";
 import { ApiKeys } from "./api-keys";
 import { Zap } from "lucide-react";
 
@@ -14,6 +15,7 @@ export function Sidebar() {
 
       <ConnectionStatus />
       <ChatSettings />
+      <SystemPaths />
       <ApiKeys />
 
       {/* Stats footer */}
