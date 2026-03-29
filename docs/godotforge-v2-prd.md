@@ -828,7 +828,7 @@ Project management and production workflow skills:
 | **D4. Game Studio Systems** | Genre Templates (10), Store/Marketing (6), Save System (4), Accessibility (5), Runtime AI NPCs (5), Playtesting (5), Multiplayer Backend (6), Monetization (4) | +53 | Pendente |
 | **D5. Game Polish & Intelligence** | VFX Presets (4), Theme System (4), Audio System Gen (4), Tutorial Gen (3), Perf Budgets (5), Cross-Project Intel (4), VCS Inteligente (4), Addon Packaging (3) | +37 | Pendente |
 | **D6. Game Systems Generator** | Inventory (4), Combat (5), State Machines (3), Camera (4), Navigation (3), Progression (5), World (4), Debug (4), Cutscene (3), Input (3), Modding (3), Replay (3) | +48 | Pendente |
-| **E. Game Studio Rules** | ai-code, network-code, ui-code, prototype-code, test-standards | — | Pendente |
+| **E. Game Studio Rules** | ai-code, network-code, ui-code, prototype-code, test-standards, data-files, narrative (7 rules) | — | ✅ |
 | **F. Game Studio Skills** | /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report | — | Pendente |
 | **G. Studio Hooks** | session-start, session-stop, pre-compact, validate-assets | — | Pendente |
 | **H. Doc Templates** | GDD, ADR, sprint-plan, economy-model, art-bible, playtest-report (27 templates) | — | Pendente |
@@ -877,7 +877,7 @@ Project management and production workflow skills:
 |---------|--------|-------|
 | Total tools | 315+ | 88 atual + 9 AI + 14 asset + 52 toolchain + 53 studio + 37 polish + 48 systems + 14 tier3 → 315 |
 | Interfaces | 4 | 4 ✅ (CLI, Godot, Blender, Web) |
-| Rules | 12+ | 5 (faltam 7 → Phase E) |
+| Rules | 24 | 24 ✅ (17 engineering + 7 game studio) |
 | Skills | 20+ | 3 (faltam 17+ → Phases F, J, K) |
 | Hooks | 8 | 3 (faltam 5 → Phase G) |
 | Doc templates | 27 | 0 (Phase H) |
