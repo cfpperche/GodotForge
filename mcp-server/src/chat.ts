@@ -58,6 +58,8 @@ interface Message {
 
 export class ChatEngine {
   private sessions = new Map<string, Message[]>();
+  /** Agent SDK session IDs for resume — keyed by chat sessionId */
+  private sdkSessionIds = new Map<string, string>();
   private settings: ChatSettings = {
     auth_mode: "agent_sdk",
     api_key: process.env.ANTHROPIC_API_KEY || "",
@@ -124,6 +126,22 @@ export class ChatEngine {
 
   clearSession(sessionId: string): void {
     this.sessions.delete(sessionId);
+    this.sdkSessionIds.delete(sessionId);
+  }
+
+  /** Get current project root. */
+  getProjectRoot(): string {
+    return this.root;
+  }
+
+  /** Switch to a different game project directory. Clears all sessions. */
+  switchProject(newRoot: string): void {
+    this.root = newRoot;
+    this.sessions.clear();
+    this.sdkSessionIds.clear();
+    // Save active project in global config
+    this.configManager.saveChatSettings({ active_project: newRoot } as Record<string, unknown>);
+    console.error(`[GodotForge Chat] Switched project to: ${newRoot}`);
   }
 
   async chat(message: string, sessionId: string = "default"): Promise<ChatResponse> {
@@ -145,7 +163,7 @@ export class ChatEngine {
       systemPrompt += "\n\n" + this.settings.system_prompt_extra;
     }
 
-    // Inject rules from .claude/rules/
+    // Inject rules from project's .claude/rules/ (not GodotForge's)
     const rules = this.loadRules();
     if (rules) {
       systemPrompt += "\n\n<rules>\n" + rules + "\n</rules>";
@@ -158,51 +176,61 @@ export class ChatEngine {
       } catch { /* non-critical */ }
     }
 
-    // Build conversation context from session
-    const sessionMsgs = this.sessions.get(sessionId) || [];
-    let conversationContext = "";
-    for (const msg of sessionMsgs.slice(-6)) {
-      if (typeof msg.content === "string") {
-        conversationContext += `${msg.role}: ${msg.content}\n\n`;
-      }
-    }
-
-    const fullPrompt = conversationContext
-      ? `${conversationContext}user: ${message}`
-      : message;
-
     const toolCalls: ToolCallLog[] = [];
 
     try {
       // Build MCP server config pointing to our own MCP server
       let mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
       if (!existsSync(mcpDistPath)) {
+        // MCP server might be installed globally or in parent
         const parentRoot = join(this.root, "..");
         mcpDistPath = join(parentRoot, "mcp-server", "dist", "index.js");
+        if (!existsSync(mcpDistPath)) {
+          // Fallback: use the one relative to this file
+          mcpDistPath = join(import.meta.dirname || ".", "..", "dist", "index.js");
+        }
       }
 
-      let response = "";
+      // Check for existing SDK session to resume
+      const existingSdkSession = this.sdkSessionIds.get(sessionId);
 
-      for await (const msg of query({
-        prompt: fullPrompt,
-        options: {
-          model: this.settings.model,
-          effort: this.settings.effort,
-          maxTurns: 30,
-          systemPrompt: systemPrompt,
-          cwd: this.root,
-          permissionMode: "bypassPermissions",
-          allowedTools: ["Read", "Glob", "Grep", "Bash", "Write", "Edit"],
-          mcpServers: {
-            godotforge: {
-              command: "node",
-              args: [mcpDistPath, "--project-root", this.root],
-            },
+      let response = "";
+      let newSdkSessionId: string | undefined;
+
+      const queryOptions: Record<string, unknown> = {
+        model: this.settings.model,
+        effort: this.settings.effort,
+        maxTurns: 30,
+        systemPrompt: systemPrompt,
+        cwd: this.root,
+        permissionMode: "bypassPermissions",
+        allowedTools: ["Read", "Glob", "Grep", "Bash", "Write", "Edit"],
+        mcpServers: {
+          godotforge: {
+            command: "node",
+            args: [mcpDistPath, "--project-root", this.root],
           },
         },
+      };
+
+      // Resume existing session if available (maintains full context)
+      if (existingSdkSession) {
+        queryOptions.resume = existingSdkSession;
+      }
+
+      for await (const msg of query({
+        prompt: message,
+        options: queryOptions as Parameters<typeof query>[0]["options"],
       })) {
+        // Capture SDK session ID for resume
+        if (msg.type === "system") {
+          const sysMsg = msg as SDKMessage & { session_id?: string; subtype?: string };
+          if (sysMsg.subtype === "init" && sysMsg.session_id) {
+            newSdkSessionId = sysMsg.session_id;
+          }
+        }
+
         if (msg.type === "assistant") {
-          // Extract tool calls from assistant messages
           const content = (msg as SDKMessage & { message: { content: Array<Record<string, unknown>> } }).message?.content;
           if (Array.isArray(content)) {
             for (const block of content) {
@@ -233,18 +261,14 @@ export class ChatEngine {
           }
 
           if (resultMsg.num_turns && resultMsg.num_turns > 1) {
-            console.error(`[GodotForge Chat] Agent SDK: ${resultMsg.num_turns} turns, $${(resultMsg.total_cost_usd || 0).toFixed(4)}`);
+            console.error(`[GodotForge Chat] Agent SDK: ${resultMsg.num_turns} turns, $${(resultMsg.total_cost_usd || 0).toFixed(4)}, session: ${newSdkSessionId || existingSdkSession || "new"}`);
           }
         }
       }
 
-      // Store in session
-      if (!this.sessions.has(sessionId)) this.sessions.set(sessionId, []);
-      const sess = this.sessions.get(sessionId)!;
-      sess.push({ role: "user", content: message });
-      sess.push({ role: "assistant", content: response });
-      if (sess.length > 20) {
-        this.compactSession(sessionId, sess);
+      // Save SDK session ID for future resume
+      if (newSdkSessionId) {
+        this.sdkSessionIds.set(sessionId, newSdkSessionId);
       }
 
       appendSessionLog(this.root, "assistant", response.slice(0, 500));

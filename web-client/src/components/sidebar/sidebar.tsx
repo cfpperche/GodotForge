@@ -1,3 +1,4 @@
+import { ProjectSelector } from "./project-selector";
 import { ConnectionStatus } from "./connection-status";
 import { ChatSettings } from "./chat-settings";
 import { SystemPaths } from "./system-paths";
@@ -13,6 +14,7 @@ export function Sidebar() {
         <span className="font-semibold">Settings</span>
       </div>
 
+      <ProjectSelector />
       <ConnectionStatus />
       <ChatSettings />
       <SystemPaths />

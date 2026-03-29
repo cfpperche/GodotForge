@@ -136,6 +136,19 @@ export class HttpServer {
           }
           break;
 
+        case "/project":
+          if (req.method === "GET") {
+            this.sendJson(res, 200, {
+              project_root: this.chatEngine.getProjectRoot(),
+              has_godot_project: existsSync(join(this.chatEngine.getProjectRoot(), "project.godot")),
+            });
+          } else if (req.method === "POST") {
+            this.handleSwitchProject(res, body);
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
         case "/paths":
           if (req.method === "GET") {
             this.sendJson(res, 200, { paths: this.config.getPathsStatus() });
@@ -225,6 +238,30 @@ export class HttpServer {
       "Content-Length": Buffer.byteLength(html),
     });
     res.end(html);
+  }
+
+  private handleSwitchProject(res: ServerResponse, body: string): void {
+    let parsed: Record<string, unknown>;
+    try { parsed = JSON.parse(body); } catch { this.sendJson(res, 400, { error: "Invalid JSON" }); return; }
+
+    const projectRoot = parsed.project_root as string;
+    if (!projectRoot) {
+      this.sendJson(res, 400, { error: "Missing 'project_root'" });
+      return;
+    }
+
+    if (!existsSync(projectRoot)) {
+      this.sendJson(res, 400, { error: `Directory not found: ${projectRoot}` });
+      return;
+    }
+
+    this.chatEngine.switchProject(projectRoot);
+    this.projectRoot = projectRoot;
+
+    this.sendJson(res, 200, {
+      result: `Switched to project: ${projectRoot}`,
+      has_godot_project: existsSync(join(projectRoot, "project.godot")),
+    });
   }
 
   private handleSetPath(res: ServerResponse, body: string): void {
