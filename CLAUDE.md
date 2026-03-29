@@ -2,7 +2,7 @@
 
 ## What is GodotForge
 
-GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 85 tools, memory, and context.
+GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 88 tools, memory, and context.
 
 ## Environment
 
@@ -123,6 +123,9 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 | `connect_signal` | Wire signal → method |
 | `set_project_setting` | Set project.godot settings |
 | `get_editor_errors` | Read editor log errors/warnings |
+| `take_game_screenshot` | Capture running game window (not editor) via debugger IPC |
+| `get_runtime_state` | Runtime scene tree: positions, visibility, text, velocities |
+| `simulate_input` | Inject input action into running game (press + release) |
 
 ### Local Tools (8 — run in MCP server, no Godot needed)
 | Tool | Description |

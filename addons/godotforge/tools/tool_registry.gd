@@ -8,11 +8,11 @@ extends RefCounted
 var _handlers: Dictionary = {}  # tool_name -> GodotForgeToolBase
 
 
-func setup() -> void:
-	_register_defaults()
+func setup(debugger: GodotForgeDebugger = null) -> void:
+	_register_defaults(debugger)
 
 
-func _register_defaults() -> void:
+func _register_defaults(debugger: GodotForgeDebugger = null) -> void:
 	var scene_tools := preload("res://addons/godotforge/tools/scene_tools.gd").new()
 	register("create_scene", scene_tools)
 	register("get_scene_tree", scene_tools)
@@ -32,12 +32,14 @@ func _register_defaults() -> void:
 	register("edit_script", script_tools)
 
 	var runtime_tools := preload("res://addons/godotforge/tools/runtime_tools.gd").new()
+	runtime_tools.set_debugger(debugger)
 	register("run_scene", runtime_tools)
 	register("stop_scene", runtime_tools)
 	register("get_game_status", runtime_tools)
 	register("take_screenshot", runtime_tools)
 	register("take_game_screenshot", runtime_tools)
 	register("get_runtime_state", runtime_tools)
+	register("simulate_input", runtime_tools)
 
 	var editor_tools := preload("res://addons/godotforge/tools/editor_tools.gd").new()
 	register("execute_editor_script", editor_tools)

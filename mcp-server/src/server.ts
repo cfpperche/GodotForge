@@ -281,6 +281,16 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => editorTool(bridge, "get_runtime_state", args)
   );
 
+  server.tool(
+    "simulate_input",
+    "Simulate an input action in the running game (press + release). Use to play-test games autonomously.",
+    {
+      action: z.string().describe("Input action name (e.g. 'flap', 'jump', 'ui_accept')"),
+      duration_ms: z.number().optional().describe("How long to hold the action in ms (default: 100)"),
+    },
+    async (args) => editorTool(bridge, "simulate_input", args)
+  );
+
   // --- Local tools ---
 
   server.tool(

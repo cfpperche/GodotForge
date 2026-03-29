@@ -7,13 +7,18 @@ var chat_panel_instance: Control
 var chat_panel_button: Button
 var http_server: GodotForgeHttpServer
 var tool_registry: GodotForgeToolRegistry
+var _debugger: GodotForgeDebugger
 var _mcp_pid: int = -1
 
 
 func _enter_tree() -> void:
+	# Setup debugger plugin (editor↔game IPC for screenshots, input, state)
+	_debugger = GodotForgeDebugger.new()
+	add_debugger_plugin(_debugger)
+
 	# Setup tool registry (editor tools only — local tools handled by MCP)
 	tool_registry = GodotForgeToolRegistry.new()
-	tool_registry.setup()
+	tool_registry.setup(_debugger)
 
 	# Start HTTP server for MCP bridge (editor tool execution)
 	http_server = GodotForgeHttpServer.new()
@@ -34,6 +39,9 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	if _debugger:
+		remove_debugger_plugin(_debugger)
+
 	if http_server:
 		http_server.stop()
 		http_server.queue_free()

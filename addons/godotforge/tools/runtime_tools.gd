@@ -10,6 +10,12 @@ const RUNTIME_STATE := "res://.godotforge/runtime_state.json"
 const POLL_INTERVAL_MS := 100
 const POLL_TIMEOUT_MS := 4000
 
+var _debugger: GodotForgeDebugger
+
+
+func set_debugger(debugger: GodotForgeDebugger) -> void:
+	_debugger = debugger
+
 
 func execute(tool_name: String, input: Dictionary) -> Dictionary:
 	match tool_name:
@@ -25,6 +31,8 @@ func execute(tool_name: String, input: Dictionary) -> Dictionary:
 			return _take_game_screenshot(input)
 		"get_runtime_state":
 			return _get_runtime_state(input)
+		"simulate_input":
+			return _simulate_input(input)
 		_:
 			return {"result": "Unknown runtime tool: %s" % tool_name, "is_error": true}
 
@@ -35,7 +43,6 @@ func _run_scene(input: Dictionary) -> Dictionary:
 	if EditorInterface.is_playing_scene():
 		return {"result": "A scene is already running. Stop it first.", "is_error": true}
 
-	# Inject capture autoload before playing
 	_inject_capture_autoload()
 
 	var scene_path: String = input.get("scene_path", "")
@@ -58,8 +65,6 @@ func _stop_scene() -> Dictionary:
 		return {"result": "No scene is currently running.", "is_error": true}
 
 	EditorInterface.stop_playing_scene()
-
-	# Clean up capture autoload
 	_remove_capture_autoload()
 	_cleanup_capture_files()
 
@@ -69,13 +74,17 @@ func _stop_scene() -> Dictionary:
 func _get_game_status() -> Dictionary:
 	var playing := EditorInterface.is_playing_scene()
 	var scene := EditorInterface.get_playing_scene()
-	return {"result": JSON.stringify({"playing": playing, "scene": scene})}
+	var debugger_connected := _debugger != null and _debugger.is_game_connected()
+	return {"result": JSON.stringify({
+		"playing": playing,
+		"scene": scene,
+		"debugger_connected": debugger_connected,
+	})}
 
 
 # --- Screenshots ---
 
 func _take_screenshot(input: Dictionary) -> Dictionary:
-	# Smart: if game is playing, capture game window; otherwise capture editor
 	if EditorInterface.is_playing_scene():
 		return _take_game_screenshot(input)
 	return _take_editor_screenshot(input)
@@ -108,32 +117,67 @@ func _take_game_screenshot(input: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return {"result": "No game is running. Use run_scene first.", "is_error": true}
 
-	# Send capture request to game process via trigger file
-	var request_result := _send_capture_request()
-	if request_result.get("is_error", false):
-		return request_result
-
-	# Poll for game screenshot file
 	var output_path: String = input.get("output_path", GAME_SCREENSHOT)
-	var start_time := Time.get_ticks_msec()
 
+	# Try debugger IPC first
+	if _debugger and _debugger.is_game_connected():
+		return _capture_via_debugger(output_path)
+
+	# Fallback to trigger file
+	return _capture_via_file(output_path)
+
+
+func _capture_via_debugger(output_path: String) -> Dictionary:
+	var received := false
+	var result_path := ""
+
+	var callback := func(path: String) -> void:
+		received = true
+		result_path = path
+
+	_debugger.capture_received.connect(callback, CONNECT_ONE_SHOT)
+	_debugger.send_capture()
+
+	# Poll for response
+	var start_time := Time.get_ticks_msec()
+	while not received and (Time.get_ticks_msec() - start_time) < POLL_TIMEOUT_MS:
+		OS.delay_msec(POLL_INTERVAL_MS)
+
+	if not received:
+		return {"result": "Timeout waiting for game screenshot via debugger.", "is_error": true}
+
+	# Read the saved image
+	if FileAccess.file_exists(GAME_SCREENSHOT):
+		var img := Image.load_from_file(GAME_SCREENSHOT)
+		if img:
+			if output_path != GAME_SCREENSHOT:
+				img.save_png(output_path)
+			return {"result": "Game screenshot saved to %s (%dx%d)" % [output_path, img.get_width(), img.get_height()]}
+
+	return {"result": "Screenshot file not found after capture.", "is_error": true}
+
+
+func _capture_via_file(output_path: String) -> Dictionary:
+	_ensure_dir(SCREENSHOT_REQUEST)
+	var file := FileAccess.open(SCREENSHOT_REQUEST, FileAccess.WRITE)
+	if not file:
+		return {"result": "Failed to create capture request.", "is_error": true}
+	file.store_string(str(Time.get_ticks_msec()))
+	file.close()
+
+	var start_time := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
 		if FileAccess.file_exists(GAME_SCREENSHOT):
 			var mod_time := FileAccess.get_modified_time(GAME_SCREENSHOT)
 			if mod_time >= (start_time / 1000) - 2:
-				# File was written after our request
-				if output_path != GAME_SCREENSHOT:
-					# Copy to requested path
-					var img := Image.load_from_file(GAME_SCREENSHOT)
-					if img:
-						img.save_png(output_path)
-
 				var img := Image.load_from_file(GAME_SCREENSHOT)
 				if img:
+					if output_path != GAME_SCREENSHOT:
+						img.save_png(output_path)
 					return {"result": "Game screenshot saved to %s (%dx%d)" % [output_path, img.get_width(), img.get_height()]}
 		OS.delay_msec(POLL_INTERVAL_MS)
 
-	return {"result": "Timeout waiting for game screenshot. Is the GodotForge capture autoload active?", "is_error": true}
+	return {"result": "Timeout waiting for game screenshot.", "is_error": true}
 
 
 # --- Runtime State ---
@@ -142,24 +186,55 @@ func _get_runtime_state(input: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return {"result": "No game is running. Use run_scene first.", "is_error": true}
 
-	# Send capture request (also writes runtime state)
-	var request_result := _send_capture_request()
-	if request_result.get("is_error", false):
-		return request_result
+	var filter_path: String = input.get("node_path", "")
 
-	# Poll for runtime state file
+	# Try debugger IPC first
+	if _debugger and _debugger.is_game_connected():
+		return _state_via_debugger(filter_path)
+
+	# Fallback to trigger file
+	return _state_via_file(filter_path)
+
+
+func _state_via_debugger(filter_path: String) -> Dictionary:
+	var received := false
+	var result_json := ""
+
+	var callback := func(json: String) -> void:
+		received = true
+		result_json = json
+
+	_debugger.state_received.connect(callback, CONNECT_ONE_SHOT)
+	_debugger.send_state_request(filter_path)
+
+	var start_time := Time.get_ticks_msec()
+	while not received and (Time.get_ticks_msec() - start_time) < POLL_TIMEOUT_MS:
+		OS.delay_msec(POLL_INTERVAL_MS)
+
+	if not received:
+		return {"result": "Timeout waiting for runtime state via debugger.", "is_error": true}
+
+	return {"result": result_json}
+
+
+func _state_via_file(filter_path: String) -> Dictionary:
+	_ensure_dir(SCREENSHOT_REQUEST)
+	var file := FileAccess.open(SCREENSHOT_REQUEST, FileAccess.WRITE)
+	if not file:
+		return {"result": "Failed to create state request.", "is_error": true}
+	file.store_string(str(Time.get_ticks_msec()))
+	file.close()
+
 	var start_time := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
 		if FileAccess.file_exists(RUNTIME_STATE):
 			var mod_time := FileAccess.get_modified_time(RUNTIME_STATE)
 			if mod_time >= (start_time / 1000) - 2:
-				var file := FileAccess.open(RUNTIME_STATE, FileAccess.READ)
-				if file:
-					var json_str := file.get_as_text()
-					file.close()
+				var state_file := FileAccess.open(RUNTIME_STATE, FileAccess.READ)
+				if state_file:
+					var json_str := state_file.get_as_text()
+					state_file.close()
 
-					# Optionally filter by node path
-					var filter_path: String = input.get("node_path", "")
 					if filter_path != "":
 						var parsed = JSON.parse_string(json_str)
 						if parsed is Dictionary:
@@ -175,7 +250,39 @@ func _get_runtime_state(input: Dictionary) -> Dictionary:
 	return {"result": "Timeout waiting for runtime state.", "is_error": true}
 
 
-# --- Capture Autoload Management ---
+# --- Input Simulation ---
+
+func _simulate_input(input: Dictionary) -> Dictionary:
+	if not EditorInterface.is_playing_scene():
+		return {"result": "No game is running. Use run_scene first.", "is_error": true}
+
+	var action: String = input.get("action", "")
+	if action == "":
+		return {"result": "Missing 'action' parameter.", "is_error": true}
+
+	var duration_ms: int = input.get("duration_ms", 100)
+
+	if _debugger and _debugger.is_game_connected():
+		_debugger.send_input(action, duration_ms)
+		# Wait for acknowledgment
+		var received := false
+		var callback := func() -> void:
+			received = true
+		_debugger.input_done.connect(callback, CONNECT_ONE_SHOT)
+
+		var start_time := Time.get_ticks_msec()
+		while not received and (Time.get_ticks_msec() - start_time) < 2000:
+			OS.delay_msec(50)
+
+		if received:
+			return {"result": "Input '%s' simulated (duration: %dms)" % [action, duration_ms]}
+		else:
+			return {"result": "Input sent but no acknowledgment received.", "is_error": false}
+	else:
+		return {"result": "Debugger not connected. Cannot simulate input without EditorDebugger IPC.", "is_error": true}
+
+
+# --- Autoload Management ---
 
 func _inject_capture_autoload() -> void:
 	if not ProjectSettings.has_setting("autoload/" + CAPTURE_AUTOLOAD):
@@ -186,7 +293,6 @@ func _inject_capture_autoload() -> void:
 func _remove_capture_autoload() -> void:
 	if ProjectSettings.has_setting("autoload/" + CAPTURE_AUTOLOAD):
 		ProjectSettings.set_setting("autoload/" + CAPTURE_AUTOLOAD, null)
-		# Re-ensure the plugin stays enabled after save
 		ProjectSettings.set_setting("editor_plugins/enabled", ProjectSettings.get_setting("editor_plugins/enabled"))
 		ProjectSettings.save()
 
@@ -195,16 +301,6 @@ func _cleanup_capture_files() -> void:
 	for path in [SCREENSHOT_REQUEST, GAME_SCREENSHOT, RUNTIME_STATE]:
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
-
-
-func _send_capture_request() -> Dictionary:
-	_ensure_dir(SCREENSHOT_REQUEST)
-	var file := FileAccess.open(SCREENSHOT_REQUEST, FileAccess.WRITE)
-	if not file:
-		return {"result": "Failed to create capture request file.", "is_error": true}
-	file.store_string(str(Time.get_ticks_msec()))
-	file.close()
-	return {}
 
 
 func _ensure_dir(file_path: String) -> void:

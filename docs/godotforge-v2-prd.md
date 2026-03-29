@@ -282,6 +282,7 @@ Project management and production workflow skills:
 | **CLI Fix** | Claude CLI tool execution via MCP | — | ✅ |
 | **Web Polish** | Config editor, connections status, service tabs, auto-provision | — | ✅ |
 | **Auto-Provision** | Godot plugin + Blender addon auto-install + version update | — | ✅ |
+| **Visual Validation** | Game screenshots, runtime state, input simulation via EditorDebuggerPlugin IPC | +3 | ✅ |
 | **D. AI Generators** | 3D gen, textures, sprites, audio, music, skybox | +9 | Pendente |
 | **E. Game Studio Rules** | ai-code, network-code, ui-code, prototype-code, test-standards | — | Pendente |
 | **F. Game Studio Skills** | /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report | — | Pendente |
@@ -323,7 +324,7 @@ Project management and production workflow skills:
 
 | Métrica | Target | Atual |
 |---------|--------|-------|
-| Total tools | 100+ | 85 (faltam 9 AI tools → 94) |
+| Total tools | 100+ | 88 (faltam 9 AI tools → 97) |
 | Interfaces | 4 | 4 ✅ (CLI, Godot, Blender, Web) |
 | Rules | 12+ | 5 (faltam 7 → Phase E) |
 | Skills | 20+ | 3 (faltam 17+ → Phases F, J, K) |
