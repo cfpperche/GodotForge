@@ -93,8 +93,8 @@ export default function App() {
             />
             <aside className={cn(
               "border-l border-border bg-card/50 overflow-y-auto z-50",
-              "md:relative md:w-72",
-              "fixed right-0 top-0 bottom-0 w-80 md:w-72"
+              "md:relative md:w-96",
+              "fixed right-0 top-0 bottom-0 w-[85vw] sm:w-96"
             )}>
               <Sidebar />
             </aside>
