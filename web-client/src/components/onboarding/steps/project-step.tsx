@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FolderOpen, Plus, Loader2, Check, Gamepad2, ArrowRight } from "lucide-react";
@@ -14,6 +14,25 @@ export function ProjectStep({ onNext }: { onNext: () => void }) {
   const [done, setDone] = useState(false);
   const [projectPath, setProjectPath] = useState("");
   const [error, setError] = useState("");
+  const pickerTargetRef = useRef<"path" | "parentDir">("path");
+  const dirRef = useRef<HTMLInputElement>(null);
+
+  const handleDirPick = (target: "path" | "parentDir") => {
+    pickerTargetRef.current = target;
+    dirRef.current?.click();
+  };
+
+  const handleDirChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dir = file.webkitRelativePath?.split("/")[0] || file.name;
+    e.target.value = "";
+    if (pickerTargetRef.current === "path") {
+      setPath(dir);
+    } else {
+      setParentDir(dir);
+    }
+  };
 
   const handleOpen = async () => {
     if (!path.trim()) return;
@@ -109,14 +128,19 @@ export function ProjectStep({ onNext }: { onNext: () => void }) {
 
       {mode === "open" ? (
         <div className="space-y-3">
-          <Input
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="/home/user/my-game"
-            className="font-mono"
-            autoFocus
-            onKeyDown={(e) => e.key === "Enter" && handleOpen()}
-          />
+          <div className="flex gap-2">
+            <Input
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder="/home/user/my-game"
+              className="font-mono flex-1"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleOpen()}
+            />
+            <Button variant="outline" size="icon" className="shrink-0" onClick={() => handleDirPick("path")} title="Browse folders">
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       ) : (
         <div className="space-y-3">
@@ -126,12 +150,17 @@ export function ProjectStep({ onNext }: { onNext: () => void }) {
             placeholder="My Awesome Game"
             autoFocus
           />
-          <Input
-            value={parentDir}
-            onChange={(e) => setParentDir(e.target.value)}
-            placeholder="Parent directory (e.g. /home/user/games)"
-            className="font-mono"
-          />
+          <div className="flex gap-2">
+            <Input
+              value={parentDir}
+              onChange={(e) => setParentDir(e.target.value)}
+              placeholder="Parent directory (e.g. /home/user/games)"
+              className="font-mono flex-1"
+            />
+            <Button variant="outline" size="icon" className="shrink-0" onClick={() => handleDirPick("parentDir")} title="Browse folders">
+              <FolderOpen className="h-4 w-4" />
+            </Button>
+          </div>
           {name && parentDir && (
             <div className="text-xs font-mono text-muted-foreground bg-muted/30 px-3 py-1.5 rounded flex items-center gap-1.5">
               <Gamepad2 className="h-3 w-3" />
@@ -153,6 +182,15 @@ export function ProjectStep({ onNext }: { onNext: () => void }) {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === "open" ? "Open" : "Create"} Project
         </Button>
       </div>
+
+      {/* Hidden directory picker */}
+      <input
+        ref={dirRef}
+        type="file"
+        className="hidden"
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+        onChange={handleDirChange}
+      />
     </div>
   );
 }

@@ -21,7 +21,23 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
   const [parentDir, setParentDir] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const pickerTargetRef = useRef<"path" | "parentDir">("path");
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const dirRef = useRef<HTMLInputElement>(null);
+
+  const handleDirPick = (target: "path" | "parentDir") => {
+    pickerTargetRef.current = target;
+    dirRef.current?.click();
+  };
+
+  const handleDirChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dir = file.webkitRelativePath?.split("/")[0] || file.name;
+    e.target.value = "";
+    if (pickerTargetRef.current === "path") setPath(dir);
+    else setParentDir(dir);
+  };
 
   // Close on outside click
   useEffect(() => {
@@ -150,14 +166,19 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
           {mode === "open" && (
             <div className="p-3 space-y-2">
               <div className="text-xs font-medium">Open Existing Project</div>
-              <Input
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-                placeholder="/path/to/game-project"
-                className="h-8 text-xs font-mono"
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && switchTo(path)}
-              />
+              <div className="flex gap-1">
+                <Input
+                  value={path}
+                  onChange={(e) => setPath(e.target.value)}
+                  placeholder="/path/to/game-project"
+                  className="h-8 text-xs font-mono flex-1"
+                  autoFocus
+                  onKeyDown={(e) => e.key === "Enter" && switchTo(path)}
+                />
+                <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={() => handleDirPick("path")} title="Browse">
+                  <FolderOpen className="h-3 w-3" />
+                </Button>
+              </div>
               {error && <p className="text-[10px] text-destructive">{error}</p>}
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setMode("list"); setError(""); }}>Cancel</Button>
@@ -178,12 +199,17 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
                 className="h-8 text-xs"
                 autoFocus
               />
-              <Input
-                value={parentDir}
-                onChange={(e) => setParentDir(e.target.value)}
-                placeholder="Parent directory"
-                className="h-8 text-xs font-mono"
-              />
+              <div className="flex gap-1">
+                <Input
+                  value={parentDir}
+                  onChange={(e) => setParentDir(e.target.value)}
+                  placeholder="Parent directory"
+                  className="h-8 text-xs font-mono flex-1"
+                />
+                <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={() => handleDirPick("parentDir")} title="Browse">
+                  <FolderOpen className="h-3 w-3" />
+                </Button>
+              </div>
               {name && parentDir && (
                 <div className="text-[9px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded truncate">
                   {parentDir.replace(/\/$/, "")}/{name.replace(/\s+/g, "-").toLowerCase()}
@@ -200,6 +226,15 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
           )}
         </div>
       )}
+
+      {/* Hidden directory picker */}
+      <input
+        ref={dirRef}
+        type="file"
+        className="hidden"
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+        onChange={handleDirChange}
+      />
     </div>
   );
 }

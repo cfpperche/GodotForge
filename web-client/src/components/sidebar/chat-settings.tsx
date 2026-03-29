@@ -20,7 +20,7 @@ const EFFORT_LEVELS = [
   { id: "max" as const, label: "Max", desc: "Opus 4.6 only", color: "text-purple-400" },
 ];
 
-export function ChatSettings() {
+export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
   const { settings, updateSettings } = useSettings();
   const [model, setModel] = useState("");
   const [maxTokens, setMaxTokens] = useState(4096);
@@ -55,6 +55,7 @@ export function ChatSettings() {
       system_prompt_extra: systemPromptExtra,
     });
     setDirty(false);
+    onSaved?.();
   };
 
   const markDirty = () => setDirty(true);

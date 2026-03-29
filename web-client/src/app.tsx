@@ -3,11 +3,10 @@ import { LeftSidebar } from "@/components/nav/left-sidebar";
 import { ProjectSwitcher } from "@/components/nav/project-switcher";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
-import { useHealth } from "@/hooks/use-health";
 import { useProject } from "@/hooks/use-project";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
-import { Zap, Gamepad2, Menu, X } from "lucide-react";
+import { Zap, Menu, X } from "lucide-react";
 import { useState, createContext, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
@@ -17,11 +16,10 @@ type View = "chat" | "settings";
 export const ProjectContext = createContext<{
   isValid: boolean;
   refresh: () => Promise<void>;
-  openSidebar: () => void;
-}>({ isValid: false, refresh: async () => {}, openSidebar: () => {} });
+  openSettings: () => void;
+}>({ isValid: false, refresh: async () => {}, openSettings: () => {} });
 
 export default function App() {
-  const { connected } = useHealth();
   const { project, isValid, refresh: refreshProject, recentProjects } = useProject();
   const { completed: onboardingDone } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(!onboardingDone);
@@ -47,7 +45,7 @@ export default function App() {
   }
 
   return (
-    <ProjectContext.Provider value={{ isValid, refresh: refreshProject, openSidebar: () => setActiveView("settings") }}>
+    <ProjectContext.Provider value={{ isValid, refresh: refreshProject, openSettings: () => setActiveView("settings") }}>
       <div className="flex h-screen overflow-hidden">
         <div className="ambient-bg" />
         <Toaster position="top-right" toastOptions={{ className: "bg-card border-border text-foreground" }} />
@@ -56,7 +54,6 @@ export default function App() {
         <LeftSidebar
           activeView={activeView}
           onNavigate={(v) => { setActiveView(v); setMobileMenuOpen(false); }}
-          projectName={projectName}
         />
 
         {/* Main area */}
@@ -91,15 +88,6 @@ export default function App() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2.5 py-1 rounded-full bg-muted/30">
-                <div className={cn(
-                  "h-2 w-2 rounded-full transition-colors",
-                  connected ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]" : "bg-red-500"
-                )} />
-                <span className="hidden sm:inline">{connected ? "Connected" : "Disconnected"}</span>
-              </div>
-            </div>
           </header>
 
           {/* Mobile navigation drawer */}
@@ -111,12 +99,6 @@ export default function App() {
                   <Zap className="h-4 w-4 text-primary" />
                   <span className="font-semibold">GodotForge</span>
                 </div>
-                {projectName && (
-                  <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
-                    <Gamepad2 className="h-4 w-4 text-green-400" />
-                    {projectName}
-                  </div>
-                )}
                 <button
                   onClick={() => { setActiveView("chat"); setMobileMenuOpen(false); }}
                   className={cn("flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm", activeView === "chat" ? "bg-primary/15 text-primary" : "text-muted-foreground")}

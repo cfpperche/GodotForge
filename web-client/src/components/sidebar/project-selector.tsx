@@ -94,17 +94,15 @@ export function ProjectSelector() {
   };
 
   const handleDirChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      // webkitdirectory gives us the directory name from the files
-      const path = files[0].webkitRelativePath?.split("/")[0] || files[0].name;
-      if (mode === "switch") {
-        setInputPath(path);
-      } else {
-        setParentDir(path);
-      }
-    }
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const path = file.webkitRelativePath?.split("/")[0] || file.name;
     e.target.value = "";
+    if (mode === "switch") {
+      setInputPath(path);
+    } else {
+      setParentDir(path);
+    }
   };
 
   return (

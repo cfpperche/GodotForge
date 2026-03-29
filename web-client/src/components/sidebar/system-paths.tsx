@@ -18,7 +18,7 @@ const PATH_DEFS = [
   { key: "windows_temp", label: "Temp Directory", placeholder: "Select temp directory...", picker: "directory" as const, accept: "" },
 ];
 
-export function SystemPaths() {
+export function SystemPaths({ onSaved }: { onSaved?: () => void } = {}) {
   const [paths, setPaths] = useState<Record<string, PathStatus>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -44,6 +44,7 @@ export function SystemPaths() {
       });
       setEdits((prev) => ({ ...prev, [key]: "" }));
       await refresh();
+      onSaved?.();
     } catch { /* ignore */ }
     setSaving(null);
   };

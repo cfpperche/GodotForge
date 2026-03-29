@@ -1,22 +1,49 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, SkipForward } from "lucide-react";
+import { Check, ArrowRight, SkipForward, FolderOpen, FileText } from "lucide-react";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
 interface PathStatus { value: string; source: "config" | "env" | "auto"; }
 
 const PATHS = [
-  { key: "godot_executable", label: "Godot Executable", placeholder: "/path/to/godot" },
-  { key: "blender_executable", label: "Blender Executable", placeholder: "/path/to/blender" },
-  { key: "windows_temp", label: "Temp Directory", placeholder: "C:\\Users\\you\\AppData\\Local\\Temp" },
+  { key: "godot_executable", label: "Godot Executable", placeholder: "/path/to/godot", type: "file" as const },
+  { key: "blender_executable", label: "Blender Executable", placeholder: "/path/to/blender", type: "file" as const },
+  { key: "windows_temp", label: "Temp Directory", placeholder: "C:\\Users\\you\\AppData\\Local\\Temp", type: "dir" as const },
 ];
 
 export function PathsStep({ onNext, onSkip }: { onNext: () => void; onSkip: () => void }) {
   const [paths, setPaths] = useState<Record<string, PathStatus>>({});
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const pickerKeyRef = useRef("");
+  const fileRef = useRef<HTMLInputElement>(null);
+  const dirRef = useRef<HTMLInputElement>(null);
+
+  const handlePick = (key: string, type: "file" | "dir") => {
+    pickerKeyRef.current = key;
+    if (type === "file") fileRef.current?.click();
+    else dirRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const key = pickerKeyRef.current;
+    const name = file.name;
+    e.target.value = "";
+    if (key) setEdits(prev => ({ ...prev, [key]: name }));
+  };
+
+  const handleDirChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const key = pickerKeyRef.current;
+    const dir = file.webkitRelativePath?.split("/")[0] || file.name;
+    e.target.value = "";
+    if (key) setEdits(prev => ({ ...prev, [key]: dir }));
+  };
 
 
   useEffect(() => {
@@ -71,9 +98,12 @@ export function PathsStep({ onNext, onSkip }: { onNext: () => void; onSkip: () =
                     value={edits[p.key] || ""}
                     onChange={e => setEdits(prev => ({ ...prev, [p.key]: e.target.value }))}
                     placeholder={p.placeholder}
-                    className="font-mono text-xs h-8"
+                    className="font-mono text-xs h-8 flex-1"
                     onKeyDown={e => e.key === "Enter" && handleSave(p.key)}
                   />
+                  <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" onClick={() => handlePick(p.key, p.type)} title="Browse">
+                    {p.type === "file" ? <FileText className="h-3.5 w-3.5" /> : <FolderOpen className="h-3.5 w-3.5" />}
+                  </Button>
                   {edits[p.key] && (
                     <Button size="sm" className="h-8" onClick={() => handleSave(p.key)}>Save</Button>
                   )}
@@ -92,6 +122,23 @@ export function PathsStep({ onNext, onSkip }: { onNext: () => void; onSkip: () =
           {allConfigured ? "Continue" : "Continue Anyway"} <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Hidden file picker (executables) */}
+      <input
+        ref={fileRef}
+        type="file"
+        className="hidden"
+        accept=".exe,.x86_64,.app"
+        onChange={handleFileChange}
+      />
+      {/* Hidden directory picker */}
+      <input
+        ref={dirRef}
+        type="file"
+        className="hidden"
+        {...({ webkitdirectory: "", directory: "" } as Record<string, string>)}
+        onChange={handleDirChange}
+      />
     </div>
   );
 }

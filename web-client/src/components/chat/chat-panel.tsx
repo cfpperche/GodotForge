@@ -16,7 +16,7 @@ const SUGGESTIONS = [
 
 export function ChatPanel() {
   const { messages, loading, sendMessage, clearMessages } = useChat();
-  const { isValid, openSidebar } = useContext(ProjectContext);
+  const { isValid, openSettings } = useContext(ProjectContext);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,13 +44,13 @@ export function ChatPanel() {
             <Button
               variant="outline"
               className="gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-              onClick={openSidebar}
+              onClick={openSettings}
             >
               <FolderOpen className="h-4 w-4" /> Open Project
             </Button>
             <Button
               className="gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
-              onClick={openSidebar}
+              onClick={openSettings}
             >
               <Plus className="h-4 w-4" /> New Project
             </Button>

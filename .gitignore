@@ -16,6 +16,9 @@ mcp-server/dist/
 # Godot XML docs cache (may leak to root during testing)
 /*.xml
 
+# Game projects (created via GodotForge, not part of the repo)
+flappy-bird-aaa/
+
 # OS
 .DS_Store
 Thumbs.db

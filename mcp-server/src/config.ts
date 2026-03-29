@@ -123,7 +123,6 @@ export class ConfigManager {
     if (!config.paths) config.paths = {};
     config.paths[key] = value;
     this.writeConfig(config);
-    this.configCache = null;
   }
 
   /**
@@ -165,7 +164,6 @@ export class ConfigManager {
     const config = this.readConfig();
     config.chat = { ...(config.chat || {}), ...settings };
     this.writeConfig(config);
-    this.configCache = null;
   }
 
   /** Add a project to the recent projects list (max 10, deduped, newest first). */
@@ -176,7 +174,6 @@ export class ConfigManager {
     filtered.unshift(path);
     config.recent_projects = filtered.slice(0, 10);
     this.writeConfig(config);
-    this.configCache = null;
   }
 
   /** Get recent projects list. */
@@ -242,7 +239,6 @@ export class ConfigManager {
     if (!config.keys) config.keys = {};
     config.keys[service] = value;
     this.writeConfig(config);
-    this.configCache = null; // invalidate cache
   }
 
   /**
@@ -253,7 +249,6 @@ export class ConfigManager {
     if (config.keys) {
       delete config.keys[service];
       this.writeConfig(config);
-      this.configCache = null;
     }
   }
 
@@ -291,6 +286,17 @@ export class ConfigManager {
     return keys;
   }
 
+  getFullConfig(): Record<string, unknown> {
+    return { ...this.readConfig() };
+  }
+
+  writeFullConfig(config: Record<string, unknown>): void {
+    if (typeof config !== "object" || config === null || Array.isArray(config)) {
+      throw new Error("Config must be a JSON object");
+    }
+    this.writeConfig(config);
+  }
+
   private readConfig(): { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; chat?: Partial<PersistedChatSettings>; [k: string]: unknown } {
     if (this.configCache !== null) {
       return this.configCache as { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; chat?: Partial<PersistedChatSettings> };
@@ -316,5 +322,6 @@ export class ConfigManager {
       mkdirSync(dir, { recursive: true });
     }
     writeFileSync(this.globalConfigPath, JSON.stringify(config, null, 2), "utf-8");
+    this.configCache = null;
   }
 }

@@ -1,13 +1,12 @@
 import { cn } from "@/lib/utils";
 import { useHealth } from "@/hooks/use-health";
-import { MessageSquare, Settings, Gamepad2, Zap } from "lucide-react";
+import { MessageSquare, Settings, Zap } from "lucide-react";
 
 type View = "chat" | "settings";
 
 interface LeftSidebarProps {
   activeView: View;
   onNavigate: (view: View) => void;
-  projectName?: string;
 }
 
 const NAV_ITEMS: { id: View; icon: typeof MessageSquare; label: string }[] = [
@@ -15,8 +14,14 @@ const NAV_ITEMS: { id: View; icon: typeof MessageSquare; label: string }[] = [
   { id: "settings", icon: Settings, label: "Settings" },
 ];
 
-export function LeftSidebar({ activeView, onNavigate, projectName }: LeftSidebarProps) {
-  const { connected } = useHealth();
+const CONNECTION_LABELS: Record<string, string> = {
+  mcp: "MCP Server",
+  godot: "Godot Editor",
+  blender: "Blender",
+};
+
+export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
+  const { connections } = useHealth();
 
   return (
     <aside className="group/sidebar hidden md:flex flex-col w-14 hover:w-56 transition-all duration-300 ease-in-out border-r border-border/50 bg-card/40 backdrop-blur-xl overflow-hidden shrink-0 z-30">
@@ -29,16 +34,6 @@ export function LeftSidebar({ activeView, onNavigate, projectName }: LeftSidebar
           GodotForge
         </span>
       </div>
-
-      {/* Project indicator */}
-      {projectName && (
-        <div className="flex items-center gap-2.5 px-3.5 py-2.5 border-b border-border/30 min-h-[42px]">
-          <Gamepad2 className="h-4 w-4 shrink-0 text-green-400" />
-          <span className="text-xs whitespace-nowrap truncate opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground">
-            {projectName}
-          </span>
-        </div>
-      )}
 
       {/* Navigation */}
       <nav className="flex-1 py-2 space-y-1 px-2">
@@ -61,15 +56,23 @@ export function LeftSidebar({ activeView, onNavigate, projectName }: LeftSidebar
         ))}
       </nav>
 
-      {/* Bottom: status */}
-      <div className="flex items-center gap-2.5 px-3.5 py-3 border-t border-border/30">
-        <div className={cn(
-          "h-2.5 w-2.5 shrink-0 rounded-full",
-          connected ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]" : "bg-red-500"
-        )} />
-        <span className="text-[10px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground font-mono">
-          {connected ? "Connected" : "Disconnected"}
-        </span>
+      {/* Bottom: connections */}
+      <div className="border-t border-border/30 px-2.5 py-2.5 space-y-1.5">
+        {(["mcp", "godot", "blender"] as const).map((key) => (
+          <div key={key} className="flex items-center gap-2.5">
+            <div className={cn(
+              "h-2 w-2 shrink-0 rounded-full",
+              connections[key].outdated
+                ? "bg-amber-400 shadow-[0_0_6px_theme(colors.amber.400)]"
+                : connections[key].connected
+                  ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]"
+                  : "bg-red-500"
+            )} />
+            <span className="text-[10px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground">
+              {CONNECTION_LABELS[key]}{connections[key].outdated ? " ⟳" : ""}
+            </span>
+          </div>
+        ))}
       </div>
     </aside>
   );
