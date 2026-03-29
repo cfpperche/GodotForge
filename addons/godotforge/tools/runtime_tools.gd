@@ -7,6 +7,7 @@ const CAPTURE_DIR := "res://.godotforge/"
 const SCREENSHOT_REQUEST := "res://.godotforge/capture_request"
 const GAME_SCREENSHOT := "res://.godotforge/game_screenshot.png"
 const RUNTIME_STATE := "res://.godotforge/runtime_state.json"
+const INPUT_REQUEST := "res://.godotforge/input_request"
 const POLL_INTERVAL_MS := 100
 const POLL_TIMEOUT_MS := 4000
 
@@ -288,11 +289,14 @@ func _simulate_input(input: Dictionary) -> Dictionary:
 
 	var duration_ms: int = input.get("duration_ms", 100)
 
-	if _debugger and _debugger.is_game_connected():
-		_debugger.send_input(action, duration_ms)
-		return {"result": "Input '%s' simulated (duration: %dms)" % [action, duration_ms]}
-	else:
-		return {"result": "Debugger not connected. Cannot simulate input.", "is_error": true}
+	# Write trigger to OS temp dir (native filesystem, no WSL latency)
+	var temp_path := OS.get_temp_dir().path_join("godotforge_input")
+	var file := FileAccess.open(temp_path, FileAccess.WRITE)
+	if not file:
+		return {"result": "Failed to create input trigger at %s" % temp_path, "is_error": true}
+	file.store_string(action)
+	file.close()
+	return {"result": "Input '%s' simulated" % action}
 
 
 # --- Autoload Management ---
