@@ -245,12 +245,49 @@ export class HttpServer {
     try { parsed = JSON.parse(body); } catch { this.sendJson(res, 400, { error: "Invalid JSON" }); return; }
 
     const projectRoot = parsed.project_root as string;
+    const create = parsed.create as boolean;
+    const projectName = (parsed.project_name as string) || "New Game";
+
     if (!projectRoot) {
       this.sendJson(res, 400, { error: "Missing 'project_root'" });
       return;
     }
 
-    if (!existsSync(projectRoot)) {
+    // Create new project if requested
+    if (create) {
+      if (existsSync(projectRoot)) {
+        this.sendJson(res, 400, { error: `Directory already exists: ${projectRoot}` });
+        return;
+      }
+
+      try {
+        mkdirSync(projectRoot, { recursive: true });
+
+        // Create minimal project.godot
+        const godotConfig = [
+          "; Engine configuration file.",
+          "",
+          "config_version=5",
+          "",
+          "[application]",
+          "",
+          `config/name="${projectName}"`,
+          `config/features=PackedStringArray("4.6")`,
+          "",
+        ].join("\n");
+        writeFileSync(join(projectRoot, "project.godot"), godotConfig);
+
+        // Create standard directories
+        for (const dir of ["scenes", "scripts", "assets"]) {
+          mkdirSync(join(projectRoot, dir), { recursive: true });
+        }
+
+        console.error(`[GodotForge] Created new project: ${projectRoot}`);
+      } catch (error) {
+        this.sendJson(res, 500, { error: `Failed to create project: ${error instanceof Error ? error.message : error}` });
+        return;
+      }
+    } else if (!existsSync(projectRoot)) {
       this.sendJson(res, 400, { error: `Directory not found: ${projectRoot}` });
       return;
     }
@@ -259,7 +296,7 @@ export class HttpServer {
     this.projectRoot = projectRoot;
 
     this.sendJson(res, 200, {
-      result: `Switched to project: ${projectRoot}`,
+      result: `${create ? "Created and switched" : "Switched"} to project: ${projectRoot}`,
       has_godot_project: existsSync(join(projectRoot, "project.godot")),
     });
   }
