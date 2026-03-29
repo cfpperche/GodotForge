@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useContext } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FolderOpen, Plus, Check, Gamepad2, Loader2 } from "lucide-react";
+import { ProjectContext } from "@/app";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
@@ -13,8 +14,9 @@ interface ProjectStatus {
 }
 
 export function ProjectSelector() {
+  const { isValid, refresh: refreshApp } = useContext(ProjectContext);
   const [project, setProject] = useState<ProjectStatus | null>(null);
-  const [mode, setMode] = useState<"idle" | "switch" | "new">("idle");
+  const [mode, setMode] = useState<"idle" | "switch" | "new">(isValid ? "idle" : "switch");
   const [inputPath, setInputPath] = useState("");
   const [projectName, setProjectName] = useState("");
   const [parentDir, setParentDir] = useState("");
@@ -49,6 +51,7 @@ export function ProjectSelector() {
         setInputPath("");
         setMode("idle");
         await refresh();
+        await refreshApp();
       }
     } catch {
       setError("Connection error");
@@ -78,6 +81,7 @@ export function ProjectSelector() {
         setParentDir("");
         setMode("idle");
         await refresh();
+        await refreshApp();
       }
     } catch {
       setError("Connection error");
@@ -104,10 +108,10 @@ export function ProjectSelector() {
   };
 
   return (
-    <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+    <div className={`space-y-2 ${!isValid ? "p-3 -m-3 rounded-xl border border-primary/30 bg-primary/5 animate-pulse-slow" : ""}`}>
+      <h3 className={`text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 ${!isValid ? "text-primary" : "text-muted-foreground"}`}>
         <Gamepad2 className="h-3 w-3" />
-        Active Project
+        {!isValid ? "Select a Project" : "Active Project"}
       </h3>
 
       {/* Current project display */}

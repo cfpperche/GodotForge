@@ -138,9 +138,12 @@ export class HttpServer {
 
         case "/project":
           if (req.method === "GET") {
+            const root = this.chatEngine.getProjectRoot();
+            const hasGodot = existsSync(join(root, "project.godot"));
             this.sendJson(res, 200, {
-              project_root: this.chatEngine.getProjectRoot(),
-              has_godot_project: existsSync(join(this.chatEngine.getProjectRoot(), "project.godot")),
+              project_root: root,
+              has_godot_project: hasGodot,
+              is_valid: hasGodot,
             });
           } else if (req.method === "POST") {
             this.handleSwitchProject(res, body);

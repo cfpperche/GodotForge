@@ -1,10 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useContext } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Message } from "./message";
 import { ChatInput } from "./chat-input";
 import { useChat } from "@/hooks/use-chat";
-import { Bot, Trash2, Gamepad2, Boxes, Paintbrush, Music } from "lucide-react";
+import { ProjectContext } from "@/app";
+import { Bot, Trash2, Gamepad2, Boxes, Paintbrush, Music, FolderOpen, Plus, AlertCircle } from "lucide-react";
 
 const SUGGESTIONS = [
   { icon: Gamepad2, text: "Create a 3D platformer scene with a player" },
@@ -15,6 +16,7 @@ const SUGGESTIONS = [
 
 export function ChatPanel() {
   const { messages, loading, sendMessage, clearMessages } = useChat();
+  const { isValid, openSidebar } = useContext(ProjectContext);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,9 +25,55 @@ export function ChatPanel() {
     }
   }, [messages, loading]);
 
+  // No project — show blocked state
+  if (!isValid) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex-1 flex flex-col items-center justify-center px-4 gap-6">
+          <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-500/5 flex items-center justify-center shadow-lg">
+            <AlertCircle className="h-10 w-10 text-orange-400" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-xl font-semibold text-foreground mb-2">No Project Selected</h3>
+            <p className="text-sm text-muted-foreground max-w-md">
+              Select an existing Godot project or create a new one to start building games with the copilot.
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              onClick={openSidebar}
+            >
+              <FolderOpen className="h-4 w-4" /> Open Project
+            </Button>
+            <Button
+              className="gap-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg"
+              onClick={openSidebar}
+            >
+              <Plus className="h-4 w-4" /> New Project
+            </Button>
+          </div>
+
+          <p className="text-[10px] text-muted-foreground/50 mt-4">
+            Projects store memory, sessions, and context separately
+          </p>
+        </div>
+
+        {/* Disabled input */}
+        <div className="flex gap-2 p-4 border-t border-border opacity-50 pointer-events-none">
+          <div className="flex-1 h-[44px] bg-muted/30 rounded-md flex items-center px-3 text-sm text-muted-foreground">
+            Select a project first...
+          </div>
+          <div className="h-[44px] w-[44px] bg-muted/30 rounded-md" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header with clear button */}
       {messages.length > 0 && (
         <div className="flex items-center justify-end px-4 py-1 border-b border-border/50">
           <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground gap-1" onClick={clearMessages}>
@@ -49,7 +97,6 @@ export function ChatPanel() {
                 </p>
               </div>
 
-              {/* Suggestion cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-lg w-full mt-2">
                 {SUGGESTIONS.map((s, i) => (
                   <button
