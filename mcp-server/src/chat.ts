@@ -1,5 +1,6 @@
 import { GodotBridge } from "./bridge.js";
 import { BlenderBridge } from "./blender-bridge.js";
+import { ConfigManager } from "./config.js";
 import { executeTool, type ToolResult } from "./tool-handlers.js";
 import { buildContext } from "./context/builder.js";
 import { appendSessionLog } from "./memory/store.js";
@@ -172,13 +173,26 @@ export class ChatEngine {
   private root: string;
   private bridge: GodotBridge;
   private blenderBridge: BlenderBridge;
+  private configManager: ConfigManager;
   private claudeCliPath: string = "";
 
   constructor(root: string, bridge: GodotBridge, blenderBridge?: BlenderBridge) {
     this.root = root;
     this.bridge = bridge;
     this.blenderBridge = blenderBridge || new BlenderBridge(root);
+    this.configManager = new ConfigManager(root);
     this.claudeCliPath = this.detectClaudeCli();
+
+    // Load persisted settings from config.json
+    const persisted = this.configManager.getChatSettings();
+    if (persisted.model) this.settings.model = persisted.model;
+    if (persisted.max_tokens) this.settings.max_tokens = persisted.max_tokens;
+    if (persisted.temperature !== undefined) this.settings.temperature = persisted.temperature;
+    if (persisted.effort) this.settings.effort = persisted.effort;
+    if (persisted.thinking) this.settings.thinking = persisted.thinking;
+    if (persisted.tool_choice) this.settings.tool_choice = persisted.tool_choice;
+    if (persisted.memory_enabled !== undefined) this.settings.memory_enabled = persisted.memory_enabled;
+    if (persisted.system_prompt_extra) this.settings.system_prompt_extra = persisted.system_prompt_extra;
 
     // Auto-detect auth mode
     if (this.settings.api_key) {
@@ -187,7 +201,7 @@ export class ChatEngine {
       this.settings.auth_mode = "claude_cli";
     }
 
-    console.error(`[GodotForge Chat] Auth: ${this.settings.auth_mode}, CLI: ${this.claudeCliPath || "not found"}`);
+    console.error(`[GodotForge Chat] Auth: ${this.settings.auth_mode}, Model: ${this.settings.model}, Effort: ${this.settings.effort}`);
   }
 
   private detectClaudeCli(): string {
@@ -211,6 +225,18 @@ export class ChatEngine {
 
   updateSettings(partial: Partial<ChatSettings>): void {
     Object.assign(this.settings, partial);
+
+    // Persist to config.json (exclude auth_mode and api_key — those are env/runtime only)
+    const toPersist: Record<string, unknown> = {};
+    const persistKeys = ["model", "max_tokens", "temperature", "effort", "thinking", "tool_choice", "memory_enabled", "system_prompt_extra"];
+    for (const key of persistKeys) {
+      if (key in partial) {
+        toPersist[key] = (partial as Record<string, unknown>)[key];
+      }
+    }
+    if (Object.keys(toPersist).length > 0) {
+      this.configManager.saveChatSettings(toPersist);
+    }
   }
 
   getSettings(): ChatSettings {

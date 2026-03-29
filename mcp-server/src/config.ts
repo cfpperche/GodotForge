@@ -43,11 +43,23 @@ const ENV_MAP: Record<keyof ServiceKeys, string> = {
   huggingface: "HUGGINGFACE_API_KEY",
 };
 
-/** System-level paths and settings. */
+/** System-level paths. */
 export interface SystemPaths {
   godot_executable: string;
   blender_executable: string;
   windows_temp: string;
+}
+
+/** Chat/LLM settings persisted in config.json. */
+export interface PersistedChatSettings {
+  model: string;
+  max_tokens: number;
+  temperature: number;
+  effort: "low" | "medium" | "high" | "max";
+  thinking: "disabled" | "adaptive";
+  tool_choice: "auto" | "any" | "none";
+  memory_enabled: boolean;
+  system_prompt_extra: string;
 }
 
 export class ConfigManager {
@@ -114,6 +126,24 @@ export class ConfigManager {
       }
     }
     return result;
+  }
+
+  /**
+   * Get persisted chat settings. Returns partial — caller merges with defaults.
+   */
+  getChatSettings(): Partial<PersistedChatSettings> {
+    const config = this.readConfig();
+    return config.chat || {};
+  }
+
+  /**
+   * Save chat settings to config.json.
+   */
+  saveChatSettings(settings: Partial<PersistedChatSettings>): void {
+    const config = this.readConfig();
+    config.chat = { ...(config.chat || {}), ...settings };
+    this.writeConfig(config);
+    this.cache = null;
   }
 
   autoDetectPath(key: keyof SystemPaths): string {
@@ -222,7 +252,7 @@ export class ConfigManager {
     return keys;
   }
 
-  private readConfig(): { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; [k: string]: unknown } {
+  private readConfig(): { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; chat?: Partial<PersistedChatSettings>; [k: string]: unknown } {
     if (this.cache !== null) {
       return { keys: this.cache };
     }
