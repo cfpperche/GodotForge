@@ -1,14 +1,17 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
-import { Sidebar } from "@/components/sidebar/sidebar";
+import { LeftSidebar } from "@/components/nav/left-sidebar";
+import { SettingsPage } from "@/components/settings/settings-page";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { useHealth } from "@/hooks/use-health";
 import { useProject } from "@/hooks/use-project";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
-import { Zap, PanelRightClose, PanelRight } from "lucide-react";
-import { useState, useEffect, createContext, useCallback } from "react";
+import { Zap, Gamepad2, Menu, X } from "lucide-react";
+import { useState, createContext, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
+
+type View = "chat" | "settings";
 
 export const ProjectContext = createContext<{
   isValid: boolean;
@@ -18,38 +21,19 @@ export const ProjectContext = createContext<{
 
 export default function App() {
   const { connected } = useHealth();
-  const { isValid, refresh: refreshProject } = useProject();
+  const { project, isValid, refresh: refreshProject } = useProject();
   const { completed: onboardingDone } = useOnboarding();
   const [showOnboarding, setShowOnboarding] = useState(!onboardingDone);
-  const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 1024);
+  const [activeView, setActiveView] = useState<View>("chat");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleOnboardingComplete = useCallback(async () => {
     await refreshProject();
     setShowOnboarding(false);
   }, [refreshProject]);
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "b") {
-        e.preventDefault();
-        setSidebarOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 768) setSidebarOpen(false);
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (!isValid && !showOnboarding) setSidebarOpen(true);
-  }, [isValid, showOnboarding]);
+  // Derive project name from path
+  const projectName = project?.project_root?.split("/").pop() || "";
 
   // Show onboarding wizard
   if (showOnboarding) {
@@ -62,65 +46,95 @@ export default function App() {
   }
 
   return (
-    <ProjectContext.Provider value={{ isValid, refresh: refreshProject, openSidebar: () => setSidebarOpen(true) }}>
-      <div className="flex flex-col h-screen overflow-hidden">
+    <ProjectContext.Provider value={{ isValid, refresh: refreshProject, openSidebar: () => setActiveView("settings") }}>
+      <div className="flex h-screen overflow-hidden">
         <div className="ambient-bg" />
         <Toaster position="top-right" toastOptions={{ className: "bg-card border-border text-foreground" }} />
 
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/60 backdrop-blur-xl shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg glow-primary">
-              <Zap className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="font-semibold text-base tracking-tight">GodotForge</span>
-              <span className="text-[10px] text-muted-foreground ml-1.5 font-mono">v0.2</span>
-            </div>
-          </div>
+        {/* Left sidebar — desktop only */}
+        <LeftSidebar
+          activeView={activeView}
+          onNavigate={(v) => { setActiveView(v); setMobileMenuOpen(false); }}
+          projectName={projectName}
+        />
 
-          <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 text-xs text-muted-foreground mr-1 px-2.5 py-1 rounded-full bg-muted/30">
-              <div className={cn(
-                "h-2 w-2 rounded-full transition-colors",
-                connected ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]" : "bg-red-500"
-              )} />
-              {connected ? "Connected" : "Disconnected"}
+        {/* Main area */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <header className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/60 backdrop-blur-xl shrink-0">
+            {/* Mobile hamburger */}
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 md:hidden"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              </Button>
+
+              {/* Logo (mobile only — desktop has it in sidebar) */}
+              <div className="flex md:hidden items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
+                <span className="font-semibold text-sm">GodotForge</span>
+              </div>
+
+              {/* Project name */}
+              {projectName && (
+                <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/30 text-xs text-muted-foreground">
+                  <Gamepad2 className="h-3 w-3 text-green-400" />
+                  <span className="truncate max-w-[200px]">{projectName}</span>
+                </div>
+              )}
             </div>
-            <div className={cn("sm:hidden h-2.5 w-2.5 rounded-full", connected ? "bg-green-500" : "bg-red-500")} />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 hover:bg-muted/50 transition-all"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title="Toggle sidebar (Ctrl+B)"
-            >
-              {sidebarOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
-            </Button>
-          </div>
-        </header>
 
-        {/* Main content */}
-        <div className="flex flex-1 overflow-hidden">
-          <main className="flex-1 overflow-hidden">
-            <ChatPanel />
-          </main>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-2.5 py-1 rounded-full bg-muted/30">
+                <div className={cn(
+                  "h-2 w-2 rounded-full transition-colors",
+                  connected ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]" : "bg-red-500"
+                )} />
+                <span className="hidden sm:inline">{connected ? "Connected" : "Disconnected"}</span>
+              </div>
+            </div>
+          </header>
 
-          {sidebarOpen && (
+          {/* Mobile navigation drawer */}
+          {mobileMenuOpen && (
             <>
-              <div
-                className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
-                onClick={() => setSidebarOpen(false)}
-              />
-              <aside className={cn(
-                "border-l border-border/50 bg-card/60 backdrop-blur-xl overflow-y-auto z-50 transition-all",
-                "md:relative md:w-96",
-                "fixed right-0 top-0 bottom-0 w-[85vw] sm:w-96"
-              )}>
-                <Sidebar />
-              </aside>
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden" onClick={() => setMobileMenuOpen(false)} />
+              <div className="fixed left-0 top-0 bottom-0 w-64 bg-card/95 backdrop-blur-xl border-r border-border z-50 p-4 space-y-2 md:hidden">
+                <div className="flex items-center gap-2 pb-3 border-b border-border/50">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <span className="font-semibold">GodotForge</span>
+                </div>
+                {projectName && (
+                  <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                    <Gamepad2 className="h-4 w-4 text-green-400" />
+                    {projectName}
+                  </div>
+                )}
+                <button
+                  onClick={() => { setActiveView("chat"); setMobileMenuOpen(false); }}
+                  className={cn("flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm", activeView === "chat" ? "bg-primary/15 text-primary" : "text-muted-foreground")}
+                >
+                  Chat
+                </button>
+                <button
+                  onClick={() => { setActiveView("settings"); setMobileMenuOpen(false); }}
+                  className={cn("flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm", activeView === "settings" ? "bg-primary/15 text-primary" : "text-muted-foreground")}
+                >
+                  Settings
+                </button>
+              </div>
             </>
           )}
+
+          {/* Main content */}
+          <main className="flex-1 overflow-hidden">
+            {activeView === "chat" && <ChatPanel />}
+            {activeView === "settings" && <SettingsPage onBack={() => setActiveView("chat")} />}
+          </main>
         </div>
       </div>
     </ProjectContext.Provider>
