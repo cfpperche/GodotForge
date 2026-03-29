@@ -78,7 +78,7 @@ export function ChatSettings() {
         {/* Auth mode */}
         <Row label="Auth">
           <Badge variant="secondary" className="text-[10px]">
-            {settings.auth_mode === "claude_cli" ? "Claude CLI" : "API Key"}
+            {settings.auth_mode === "agent_sdk" ? "Agent SDK" : settings.auth_mode === "claude_cli" ? "Claude CLI" : "API Key"}
           </Badge>
         </Row>
 

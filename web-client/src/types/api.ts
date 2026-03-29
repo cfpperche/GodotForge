@@ -18,7 +18,7 @@ export interface HealthResponse {
 }
 
 export interface SettingsResponse {
-  auth_mode: "api_key" | "claude_cli";
+  auth_mode: "api_key" | "claude_cli" | "agent_sdk";
   model: string;
   max_tokens: number;
   memory_enabled: boolean;
