@@ -206,6 +206,7 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Game dev rules**: gameplay-code, gdscript-standards, scene-architecture, shader-code, game-design-docs
 - **Phase E rules**: ai-code, network-code, ui-code, prototype-code, test-standards, data-files, narrative
 - **Game dev skills**: /create-game, /game-polish, /game-review
+- **Phase F skills**: /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report, /design-system, /reverse-document
 - **Web Polish**: Config JSON editor, connection status (MCP/Godot/Blender health checks), service tabs (6 categories, 12 services)
 - **Auto-Provision**: Godot plugin auto-copied to project on create/switch, Blender addon auto-installed on startup, version comparison + auto-update
 - **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md
