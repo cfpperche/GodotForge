@@ -75,14 +75,23 @@ func _do_input(action: String, duration_ms: int) -> void:
 	if action == "":
 		return
 
-	Input.action_press(action)
+	# Use parse_input_event for full input pipeline (_input callbacks + polling)
+	var press := InputEventAction.new()
+	press.action = action
+	press.pressed = true
+	press.strength = 1.0
+	Input.parse_input_event(press)
 
 	if duration_ms > 0:
 		await get_tree().create_timer(duration_ms / 1000.0).timeout
 	else:
 		await get_tree().process_frame
 
-	Input.action_release(action)
+	var release := InputEventAction.new()
+	release.action = action
+	release.pressed = false
+	release.strength = 0.0
+	Input.parse_input_event(release)
 
 	if _use_debugger:
 		EngineDebugger.send_message("godotforge:input_done", [action])

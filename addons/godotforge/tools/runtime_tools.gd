@@ -119,12 +119,40 @@ func _take_game_screenshot(input: Dictionary) -> Dictionary:
 
 	var output_path: String = input.get("output_path", GAME_SCREENSHOT)
 
-	# Try debugger IPC first
+	# Send capture command via debugger, then poll for file output
 	if _debugger and _debugger.is_game_connected():
-		return _capture_via_debugger(output_path)
+		_debugger.send_capture()
+	return _poll_for_screenshot(output_path)
 
-	# Fallback to trigger file
-	return _capture_via_file(output_path)
+
+func _poll_for_screenshot(output_path: String) -> Dictionary:
+	var start_time := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
+		if FileAccess.file_exists(GAME_SCREENSHOT):
+			var mod_time := FileAccess.get_modified_time(GAME_SCREENSHOT)
+			if mod_time >= (start_time / 1000) - 2:
+				var img := Image.load_from_file(GAME_SCREENSHOT)
+				if img:
+					if output_path != GAME_SCREENSHOT:
+						img.save_png(output_path)
+					return {"result": "Game screenshot saved to %s (%dx%d)" % [output_path, img.get_width(), img.get_height()]}
+		OS.delay_msec(POLL_INTERVAL_MS)
+	return {"result": "Timeout waiting for game screenshot.", "is_error": true}
+
+
+func _poll_for_state(filter_path: String) -> Dictionary:
+	var start_time := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
+		if FileAccess.file_exists(RUNTIME_STATE):
+			var mod_time := FileAccess.get_modified_time(RUNTIME_STATE)
+			if mod_time >= (start_time / 1000) - 2:
+				var state_file := FileAccess.open(RUNTIME_STATE, FileAccess.READ)
+				if state_file:
+					var json_str := state_file.get_as_text()
+					state_file.close()
+					return {"result": json_str}
+		OS.delay_msec(POLL_INTERVAL_MS)
+	return {"result": "Timeout waiting for runtime state.", "is_error": true}
 
 
 func _capture_via_debugger(output_path: String) -> Dictionary:
@@ -188,12 +216,10 @@ func _get_runtime_state(input: Dictionary) -> Dictionary:
 
 	var filter_path: String = input.get("node_path", "")
 
-	# Try debugger IPC first
+	# Send state command via debugger, then poll for file output
 	if _debugger and _debugger.is_game_connected():
-		return _state_via_debugger(filter_path)
-
-	# Fallback to trigger file
-	return _state_via_file(filter_path)
+		_debugger.send_state_request(filter_path)
+	return _poll_for_state(filter_path)
 
 
 func _state_via_debugger(filter_path: String) -> Dictionary:
@@ -264,29 +290,16 @@ func _simulate_input(input: Dictionary) -> Dictionary:
 
 	if _debugger and _debugger.is_game_connected():
 		_debugger.send_input(action, duration_ms)
-		# Wait for acknowledgment
-		var received := false
-		var callback := func() -> void:
-			received = true
-		_debugger.input_done.connect(callback, CONNECT_ONE_SHOT)
-
-		var start_time := Time.get_ticks_msec()
-		while not received and (Time.get_ticks_msec() - start_time) < 2000:
-			OS.delay_msec(50)
-
-		if received:
-			return {"result": "Input '%s' simulated (duration: %dms)" % [action, duration_ms]}
-		else:
-			return {"result": "Input sent but no acknowledgment received.", "is_error": false}
+		return {"result": "Input '%s' simulated (duration: %dms)" % [action, duration_ms]}
 	else:
-		return {"result": "Debugger not connected. Cannot simulate input without EditorDebugger IPC.", "is_error": true}
+		return {"result": "Debugger not connected. Cannot simulate input.", "is_error": true}
 
 
 # --- Autoload Management ---
 
 func _inject_capture_autoload() -> void:
 	if not ProjectSettings.has_setting("autoload/" + CAPTURE_AUTOLOAD):
-		ProjectSettings.set_setting("autoload/" + CAPTURE_AUTOLOAD, CAPTURE_SCRIPT)
+		ProjectSettings.set_setting("autoload/" + CAPTURE_AUTOLOAD, "*" + CAPTURE_SCRIPT)
 		ProjectSettings.save()
 
 
