@@ -36,6 +36,8 @@ func _register_defaults() -> void:
 	register("stop_scene", runtime_tools)
 	register("get_game_status", runtime_tools)
 	register("take_screenshot", runtime_tools)
+	register("take_game_screenshot", runtime_tools)
+	register("get_runtime_state", runtime_tools)
 
 	var editor_tools := preload("res://addons/godotforge/tools/editor_tools.gd").new()
 	register("execute_editor_script", editor_tools)

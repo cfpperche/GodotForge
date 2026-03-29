@@ -256,11 +256,29 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   server.tool(
     "take_screenshot",
-    "Take a screenshot of the Godot editor viewport.",
+    "Take a screenshot. If a game is running, captures the game window; otherwise captures the editor viewport.",
     {
       output_path: z.string().optional().describe("Save path (default: res://.godotforge/screenshot.png)"),
     },
     async (args) => editorTool(bridge, "take_screenshot", args)
+  );
+
+  server.tool(
+    "take_game_screenshot",
+    "Take a screenshot of the RUNNING game window (not editor). Requires a scene to be playing via run_scene.",
+    {
+      output_path: z.string().optional().describe("Save path (default: res://.godotforge/game_screenshot.png)"),
+    },
+    async (args) => editorTool(bridge, "take_game_screenshot", args)
+  );
+
+  server.tool(
+    "get_runtime_state",
+    "Get runtime scene tree state of the running game: node types, positions, visibility, text values, velocities.",
+    {
+      node_path: z.string().optional().describe("Filter results to nodes matching this path substring"),
+    },
+    async (args) => editorTool(bridge, "get_runtime_state", args)
   );
 
   // --- Local tools ---
