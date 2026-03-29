@@ -1,14 +1,13 @@
 # Godot
 .godot/
 *.import
+*.uid
 
-# GodotForge secrets & generated data
+# GodotForge project runtime data (memory, sessions, cache, port files)
+.godotforge/
+
+# GodotForge plugin secrets
 addons/godotforge/.api_key
-.godotforge/config.json
-.godotforge/*.db
-.godotforge/sessions/
-.godotforge/archive/
-.godotforge/blender-api.json
 
 # MCP Server
 mcp-server/node_modules/
