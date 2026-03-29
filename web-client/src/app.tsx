@@ -1,10 +1,12 @@
 import { ChatPanel } from "@/components/chat/chat-panel";
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
 import { useHealth } from "@/hooks/use-health";
 import { useProject } from "@/hooks/use-project";
+import { useOnboarding } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
 import { Zap, PanelRightClose, PanelRight } from "lucide-react";
-import { useState, useEffect, createContext } from "react";
+import { useState, useEffect, createContext, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 
@@ -17,7 +19,14 @@ export const ProjectContext = createContext<{
 export default function App() {
   const { connected } = useHealth();
   const { isValid, refresh: refreshProject } = useProject();
+  const { completed: onboardingDone } = useOnboarding();
+  const [showOnboarding, setShowOnboarding] = useState(!onboardingDone);
   const [sidebarOpen, setSidebarOpen] = useState(() => window.innerWidth > 1024);
+
+  const handleOnboardingComplete = useCallback(async () => {
+    await refreshProject();
+    setShowOnboarding(false);
+  }, [refreshProject]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -38,19 +47,25 @@ export default function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Auto-open sidebar when no project is set
   useEffect(() => {
-    if (!isValid) setSidebarOpen(true);
-  }, [isValid]);
+    if (!isValid && !showOnboarding) setSidebarOpen(true);
+  }, [isValid, showOnboarding]);
+
+  // Show onboarding wizard
+  if (showOnboarding) {
+    return (
+      <>
+        <Toaster position="top-right" toastOptions={{ className: "bg-card border-border text-foreground" }} />
+        <OnboardingWizard onComplete={handleOnboardingComplete} />
+      </>
+    );
+  }
 
   return (
     <ProjectContext.Provider value={{ isValid, refresh: refreshProject, openSidebar: () => setSidebarOpen(true) }}>
       <div className="flex flex-col h-screen overflow-hidden">
         <div className="ambient-bg" />
-        <Toaster
-          position="top-right"
-          toastOptions={{ className: "bg-card border-border text-foreground" }}
-        />
+        <Toaster position="top-right" toastOptions={{ className: "bg-card border-border text-foreground" }} />
 
         {/* Header */}
         <header className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-card/60 backdrop-blur-xl shrink-0">
@@ -72,9 +87,7 @@ export default function App() {
               )} />
               {connected ? "Connected" : "Disconnected"}
             </div>
-
             <div className={cn("sm:hidden h-2.5 w-2.5 rounded-full", connected ? "bg-green-500" : "bg-red-500")} />
-
             <Button
               variant="ghost"
               size="icon"
