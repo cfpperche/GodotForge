@@ -7,6 +7,7 @@ import Database from "better-sqlite3";
 import { existsSync, readFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { BlenderBridge } from "../blender-bridge.js";
+import { ConfigManager } from "../config.js";
 
 const BLENDER_DB_DIR = join(
   process.env.HOME || process.env.USERPROFILE || "/tmp",
@@ -59,8 +60,11 @@ export async function ensureBlenderDocs(
       throw new Error("Blender docs not indexed and no Blender connection available. Start Blender with GodotForge addon.");
     }
 
-    // Extract via addon
-    const winJsonPath = `C:\\Users\\cfpp\\AppData\\Local\\Temp\\godotforge_blender_api.json`;
+    // Extract via addon — use ConfigManager for temp path
+    const config = new ConfigManager(process.cwd());
+    const winTemp = config.getPath("windows_temp");
+    const winJsonPath = `${winTemp}\\godotforge_blender_api.json`;
+
     const result = await blenderBridge.executeTool("extract_api", {
       filepath: winJsonPath,
     });
@@ -69,11 +73,14 @@ export async function ensureBlenderDocs(
       throw new Error(`Failed to extract Blender API: ${result.result}`);
     }
 
-    // Copy from Windows temp to WSL
-    const wslTempPath = "/mnt/c/Users/cfpp/AppData/Local/Temp/godotforge_blender_api.json";
-    if (existsSync(wslTempPath)) {
-      const { copyFileSync } = await import("fs");
-      copyFileSync(wslTempPath, jsonPath);
+    // Convert Windows temp to WSL path and copy
+    const match = winTemp.match(/^([A-Z]):\\(.+)$/i);
+    if (match) {
+      const wslTempPath = `/mnt/${match[1].toLowerCase()}/${match[2].replace(/\\/g, "/")}/godotforge_blender_api.json`;
+      if (existsSync(wslTempPath)) {
+        const { copyFileSync } = await import("fs");
+        copyFileSync(wslTempPath, jsonPath);
+      }
     }
   }
 

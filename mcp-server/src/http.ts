@@ -136,6 +136,16 @@ export class HttpServer {
           }
           break;
 
+        case "/paths":
+          if (req.method === "GET") {
+            this.sendJson(res, 200, { paths: this.config.getPathsStatus() });
+          } else if (req.method === "POST") {
+            this.handleSetPath(res, body);
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
         case "/keys":
           if (req.method === "GET") {
             // Returns status only — never returns actual key values
@@ -215,6 +225,18 @@ export class HttpServer {
       "Content-Length": Buffer.byteLength(html),
     });
     res.end(html);
+  }
+
+  private handleSetPath(res: ServerResponse, body: string): void {
+    let parsed: Record<string, unknown>;
+    try { parsed = JSON.parse(body); } catch { this.sendJson(res, 400, { error: "Invalid JSON" }); return; }
+
+    const key = parsed.key as string;
+    const value = parsed.value as string;
+    if (!key || !value) { this.sendJson(res, 400, { error: "Missing 'key' and 'value'" }); return; }
+
+    this.config.setPath(key as keyof import("./config.js").SystemPaths, value);
+    this.sendJson(res, 200, { result: `Path saved: ${key} = ${value}` });
   }
 
   private handleSetKey(res: ServerResponse, body: string): void {

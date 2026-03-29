@@ -5,6 +5,7 @@
 
 import { BlenderBridge } from "./blender-bridge.js";
 import { GodotBridge } from "./bridge.js";
+import { ConfigManager } from "./config.js";
 import { existsSync, mkdirSync, copyFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { execSync } from "child_process";
@@ -14,9 +15,6 @@ export interface PipelineResult {
   content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
 }
-
-/** Windows temp directory accessible from both WSL and Blender. */
-const WIN_TEMP_WSL = "/mnt/c/Users/cfpp/AppData/Local/Temp";
 
 /**
  * Export from Blender as GLB → copy into Godot project → trigger reimport.
@@ -29,6 +27,7 @@ export async function blenderToGodot(
 ): Promise<PipelineResult> {
   const targetDir = (args.target_dir as string) || "assets/models";
   const fileName = (args.file_name as string) || "export.glb";
+  const config = new ConfigManager(projectRoot);
 
   try {
     // 1. Ensure target directory exists in Godot project
@@ -39,8 +38,8 @@ export async function blenderToGodot(
 
     // 2. Export to Windows temp (Blender can't write to WSL paths directly)
     const tempFileName = `godotforge_${Date.now()}_${fileName}`;
-    const winTempPath = getWindowsTempPath(tempFileName);
-    const wslTempPath = join(WIN_TEMP_WSL, tempFileName);
+    const winTempPath = getWindowsTempPath(tempFileName, config);
+    const wslTempPath = winToWsl(winTempPath, tempFileName);
 
     const exportResult = await blenderBridge.executeTool("export_for_godot", {
       filepath: winTempPath,
@@ -107,6 +106,7 @@ export async function blenderToGodotAnimated(
 ): Promise<PipelineResult> {
   const targetDir = (args.target_dir as string) || "assets/models";
   const fileName = (args.file_name as string) || "export.glb";
+  const config = new ConfigManager(projectRoot);
 
   try {
     const fullTargetDir = join(projectRoot, targetDir);
@@ -115,8 +115,8 @@ export async function blenderToGodotAnimated(
     }
 
     const tempFileName = `godotforge_${Date.now()}_${fileName}`;
-    const winTempPath = getWindowsTempPath(tempFileName);
-    const wslTempPath = join(WIN_TEMP_WSL, tempFileName);
+    const winTempPath = getWindowsTempPath(tempFileName, config);
+    const wslTempPath = winToWsl(winTempPath, tempFileName);
 
     // Export with animations
     const exportResult = await blenderBridge.executeTool("export_with_animations", {
@@ -272,13 +272,24 @@ export async function batchImport(
 
 /**
  * Get a Windows-native temp path for Blender to write to.
- * Detects the Windows temp directory dynamically.
+ * Uses ConfigManager for user-configured paths, falls back to auto-detection.
  */
-function getWindowsTempPath(filename: string): string {
-  try {
-    const winTemp = execSync("cmd.exe /C echo %TEMP%", { encoding: "utf-8" }).trim();
-    return `${winTemp}\\${filename}`;
-  } catch {
-    return `C:\\Users\\cfpp\\AppData\\Local\\Temp\\${filename}`;
+function getWindowsTempPath(filename: string, config: ConfigManager): string {
+  const winTemp = config.getPath("windows_temp");
+  return `${winTemp}\\${filename}`;
+}
+
+/**
+ * Convert a Windows temp path to its WSL equivalent for file operations.
+ */
+function winToWsl(winPath: string, filename: string): string {
+  // Extract drive letter and path from Windows path
+  const match = winPath.match(/^([A-Z]):\\(.+)$/i);
+  if (match) {
+    const drive = match[1].toLowerCase();
+    const rest = match[2].replace(/\\/g, "/");
+    return `/mnt/${drive}/${rest}`;
   }
+  // Fallback: try common location
+  return `/tmp/${filename}`;
 }

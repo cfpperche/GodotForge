@@ -6,6 +6,7 @@
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
+import { execSync as execSyncFn } from "child_process";
 
 const CONFIG_DIR = ".godotforge";
 const CONFIG_FILE = "config.json";
@@ -42,6 +43,13 @@ const ENV_MAP: Record<keyof ServiceKeys, string> = {
   huggingface: "HUGGINGFACE_API_KEY",
 };
 
+/** System-level paths and settings. */
+export interface SystemPaths {
+  godot_executable: string;
+  blender_executable: string;
+  windows_temp: string;
+}
+
 export class ConfigManager {
   private projectRoot: string;
   private configPath: string;
@@ -50,6 +58,87 @@ export class ConfigManager {
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
     this.configPath = join(projectRoot, CONFIG_DIR, CONFIG_FILE);
+  }
+
+  /**
+   * Get a system path. Priority: config.json → env var → auto-detect.
+   */
+  getPath(key: keyof SystemPaths): string {
+    const config = this.readConfig();
+    const val = config.paths?.[key];
+    if (val) return val;
+
+    // Env var fallbacks
+    const envMap: Record<keyof SystemPaths, string> = {
+      godot_executable: "GODOT_EXECUTABLE",
+      blender_executable: "BLENDER_EXECUTABLE",
+      windows_temp: "GODOTFORGE_TEMP",
+    };
+    const envVal = process.env[envMap[key]];
+    if (envVal) return envVal;
+
+    // Auto-detect
+    return this.autoDetectPath(key);
+  }
+
+  /**
+   * Set a system path in config.
+   */
+  setPath(key: keyof SystemPaths, value: string): void {
+    const config = this.readConfig();
+    if (!config.paths) config.paths = {};
+    config.paths[key] = value;
+    this.writeConfig(config);
+    this.cache = null;
+  }
+
+  /**
+   * Get all paths with their sources.
+   */
+  getPathsStatus(): Record<string, { value: string; source: "config" | "env" | "auto" }> {
+    const result: Record<string, { value: string; source: "config" | "env" | "auto" }> = {};
+    const config = this.readConfig();
+    const envMap: Record<string, string> = {
+      godot_executable: "GODOT_EXECUTABLE",
+      blender_executable: "BLENDER_EXECUTABLE",
+      windows_temp: "GODOTFORGE_TEMP",
+    };
+
+    for (const key of ["godot_executable", "blender_executable", "windows_temp"] as const) {
+      if (config.paths?.[key]) {
+        result[key] = { value: config.paths[key], source: "config" };
+      } else if (process.env[envMap[key]]) {
+        result[key] = { value: process.env[envMap[key]]!, source: "env" };
+      } else {
+        result[key] = { value: this.autoDetectPath(key), source: "auto" };
+      }
+    }
+    return result;
+  }
+
+  autoDetectPath(key: keyof SystemPaths): string {
+    switch (key) {
+      case "windows_temp": {
+        // Try to detect Windows temp via cmd.exe
+        try {
+          const winTemp = execSyncFn("cmd.exe /C echo %TEMP% 2>/dev/null", { encoding: "utf-8" }).trim();
+          if (winTemp && !winTemp.includes("%TEMP%")) return winTemp;
+        } catch { /* not on Windows/WSL */ }
+        // Fallback: derive from HOME
+        const home = process.env.HOME || "/tmp";
+        const wslUser = home.split("/").pop() || "";
+        const candidate = `/mnt/c/Users/${wslUser}/AppData/Local/Temp`;
+        if (existsSync(candidate)) {
+          const drive = "C";
+          return `${drive}:\\Users\\${wslUser}\\AppData\\Local\\Temp`;
+        }
+        return "C:\\Windows\\Temp";
+      }
+      case "godot_executable":
+        return "";
+      case "blender_executable":
+        return "";
+    }
   }
 
   /**
@@ -133,7 +222,7 @@ export class ConfigManager {
     return keys;
   }
 
-  private readConfig(): { keys?: Partial<ServiceKeys>; [k: string]: unknown } {
+  private readConfig(): { keys?: Partial<ServiceKeys>; paths?: Partial<SystemPaths>; [k: string]: unknown } {
     if (this.cache !== null) {
       return { keys: this.cache };
     }
