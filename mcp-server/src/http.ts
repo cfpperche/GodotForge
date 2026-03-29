@@ -165,6 +165,24 @@ export class HttpServer {
           }
           break;
 
+        case "/update/godot-plugin":
+          if (req.method === "POST") {
+            this.provisionGodotPlugin(this.projectRoot, true);
+            this.sendJson(res, 200, { result: "Godot plugin updated", ...this.getVersionStatus() });
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
+        case "/update/blender-addon":
+          if (req.method === "POST") {
+            this.provisionBlenderAddon(true);
+            this.sendJson(res, 200, { result: "Blender addon updated", ...this.getVersionStatus() });
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
         case "/project":
           if (req.method === "GET") {
             const root = this.chatEngine.getProjectRoot();
@@ -475,7 +493,7 @@ export class HttpServer {
     return `/mnt/c/Users/${winUser}/AppData/Roaming/Blender Foundation/Blender/${vMatch[1]}/scripts/addons/godotforge`;
   }
 
-  private provisionBlenderAddon(): void {
+  private provisionBlenderAddon(force: boolean = false): void {
     const destDir = this.getBlenderAddonDir();
     if (!destDir) {
       console.error("[GodotForge] Cannot determine Blender addon directory, skipping provision");
@@ -497,7 +515,7 @@ export class HttpServer {
     const srcVersion = this.readBlenderAddonVersion(srcAddon);
     const destVersion = this.readBlenderAddonVersion(destDir);
 
-    if (existsSync(join(destDir, "__init__.py")) && !this.isNewer(srcVersion, destVersion)) {
+    if (!force && existsSync(join(destDir, "__init__.py")) && !this.isNewer(srcVersion, destVersion)) {
       console.error(`[GodotForge] Blender addon up to date (v${destVersion})`);
       return;
     }
@@ -534,7 +552,7 @@ export class HttpServer {
     }
   }
 
-  private provisionGodotPlugin(projectRoot: string): void {
+  private provisionGodotPlugin(projectRoot: string, force: boolean = false): void {
     const destPlugin = join(projectRoot, "addons", "godotforge");
     const repoRoot = this.getRepoRoot();
     const srcPlugin = join(repoRoot, "addons", "godotforge");
@@ -547,7 +565,7 @@ export class HttpServer {
     const srcVersion = this.readGodotPluginVersion(srcPlugin);
     const destVersion = this.readGodotPluginVersion(destPlugin);
 
-    if (existsSync(join(destPlugin, "plugin.cfg")) && !this.isNewer(srcVersion, destVersion)) {
+    if (!force && existsSync(join(destPlugin, "plugin.cfg")) && !this.isNewer(srcVersion, destVersion)) {
       console.error(`[GodotForge] Godot plugin up to date (v${destVersion})`);
       return;
     }

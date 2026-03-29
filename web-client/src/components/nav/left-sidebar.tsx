@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
 import { useHealth } from "@/hooks/use-health";
-import { MessageSquare, Settings, Zap } from "lucide-react";
+import { MessageSquare, Settings, Zap, RefreshCw } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 type View = "chat" | "settings";
 
@@ -20,8 +22,34 @@ const CONNECTION_LABELS: Record<string, string> = {
   blender: "Blender",
 };
 
+const UPDATE_ENDPOINTS: Record<string, string> = {
+  godot: "/update/godot-plugin",
+  blender: "/update/blender-addon",
+};
+
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
+
 export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
   const { connections } = useHealth();
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const handleUpdate = async (key: string) => {
+    const endpoint = UPDATE_ENDPOINTS[key];
+    if (!endpoint) return;
+    setUpdating(key);
+    try {
+      const res = await fetch(`${BASE_URL}${endpoint}`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success(`${CONNECTION_LABELS[key]} plugin updated`);
+      } else {
+        toast.error(data.error || "Update failed");
+      }
+    } catch {
+      toast.error("Connection error");
+    }
+    setUpdating(null);
+  };
 
   return (
     <aside className="group/sidebar hidden md:flex flex-col w-14 hover:w-56 transition-all duration-300 ease-in-out border-r border-border/50 bg-card/40 backdrop-blur-xl overflow-hidden shrink-0 z-30">
@@ -68,8 +96,18 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
                   ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]"
                   : "bg-red-500"
             )} />
-            <span className="text-[10px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground">
-              {CONNECTION_LABELS[key]}{connections[key].outdated ? " ⟳" : ""}
+            <span className="text-[10px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground flex items-center gap-1">
+              {CONNECTION_LABELS[key]}
+              {connections[key].outdated && UPDATE_ENDPOINTS[key] && (
+                <button
+                  onClick={() => handleUpdate(key)}
+                  disabled={updating === key}
+                  className="text-amber-400 hover:text-amber-300 transition-colors"
+                  title="Update plugin"
+                >
+                  <RefreshCw className={cn("h-2.5 w-2.5", updating === key && "animate-spin")} />
+                </button>
+              )}
             </span>
           </div>
         ))}
