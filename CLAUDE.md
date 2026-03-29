@@ -9,6 +9,7 @@ GodotForge is an **AI game development hub** that orchestrates Godot Engine, Ble
 - **Godot**: `"/mnt/c/Tools/Godot/Godot_v4.6.1-stable_win64.exe"` (Windows binary, called from WSL2)
 - **Launch editor**: `"/mnt/c/Tools/Godot/Godot_v4.6.1-stable_win64.exe" --editor --path "$(wslpath -w /home/goat/GodotForge)"`
 - **Blender**: `"/mnt/c/Program Files/Blender Foundation/Blender 4.2/blender-launcher.exe"`
+- **Blender (clean)**: `"/mnt/c/Program Files/Blender Foundation/Blender 4.2/blender-launcher.exe" --python "$(wslpath -w /home/goat/GodotForge/blender-addon/clean_startup.py)"`
 - **Close Godot**: `/mnt/c/Windows/System32/taskkill.exe /F /IM "Godot_v4.6.1-stable_win64.exe"` (pkill doesn't work for Windows processes)
 - **Close Blender**: `/mnt/c/Windows/System32/taskkill.exe /F /IM "blender.exe"`
 - **Always close Godot** when done testing — don't leave it running in the background

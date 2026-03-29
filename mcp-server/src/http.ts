@@ -436,15 +436,10 @@ export class HttpServer {
     const installedGodot = this.readGodotPluginVersion(join(this.projectRoot, "addons", "godotforge"));
 
     // Find installed Blender addon
-    const blenderPath = this.config.getPath("blender_executable");
+    const blenderAddonDir = this.getBlenderAddonDir();
     let installedBlender = "0.0.0";
-    if (blenderPath) {
-      const vMatch = blenderPath.match(/Blender\s+(\d+\.\d+)/i);
-      const uMatch = blenderPath.match(/\/mnt\/c\/(?:Users|users)\/([^/]+)/);
-      if (vMatch && uMatch) {
-        const dest = `/mnt/c/Users/${uMatch[1]}/AppData/Roaming/Blender Foundation/Blender/${vMatch[1]}/scripts/addons/godotforge`;
-        installedBlender = this.readBlenderAddonVersion(dest);
-      }
+    if (blenderAddonDir) {
+      installedBlender = this.readBlenderAddonVersion(blenderAddonDir);
     }
 
     return {
@@ -457,27 +452,37 @@ export class HttpServer {
     };
   }
 
-  private provisionBlenderAddon(): void {
+  /** Resolve the Blender addon install directory from config paths. */
+  private getBlenderAddonDir(): string | null {
     const blenderPath = this.config.getPath("blender_executable");
-    if (!blenderPath) return;
+    if (!blenderPath) return null;
 
-    // Derive Blender version from path (e.g., "Blender 4.2" → "4.2")
-    const versionMatch = blenderPath.match(/Blender\s+(\d+\.\d+)/i);
-    if (!versionMatch) {
-      console.error("[GodotForge] Cannot detect Blender version from path, skipping addon provision");
-      return;
+    const vMatch = blenderPath.match(/Blender\s+(\d+\.\d+)/i);
+    if (!vMatch) return null;
+
+    // Try to get Windows user from blender path, temp path, or env
+    let winUser: string | null = null;
+    const paths = [blenderPath, this.config.getPath("windows_temp")];
+    for (const p of paths) {
+      const m = p.match(/\/mnt\/c\/(?:Users|users)\/([^/]+)/);
+      if (m) { winUser = m[1]; break; }
     }
-    const version = versionMatch[1];
-
-    // Derive Windows user from blender path or temp path
-    const userMatch = blenderPath.match(/\/mnt\/c\/(?:Users|users)\/([^/]+)/);
-    const winUser = userMatch?.[1];
     if (!winUser) {
-      console.error("[GodotForge] Cannot detect Windows user from Blender path, skipping addon provision");
+      try { winUser = execSync("cmd.exe /C echo %USERNAME%", { stdio: "pipe" }).toString().trim(); } catch { /* */ }
+    }
+    if (!winUser) return null;
+
+    return `/mnt/c/Users/${winUser}/AppData/Roaming/Blender Foundation/Blender/${vMatch[1]}/scripts/addons/godotforge`;
+  }
+
+  private provisionBlenderAddon(): void {
+    const destDir = this.getBlenderAddonDir();
+    if (!destDir) {
+      console.error("[GodotForge] Cannot determine Blender addon directory, skipping provision");
       return;
     }
 
-    const destDir = `/mnt/c/Users/${winUser}/AppData/Roaming/Blender Foundation/Blender/${version}/scripts/addons/godotforge`;
+    const blenderPath = this.config.getPath("blender_executable");
 
     // Find source addon
     const __filename = fileURLToPath(import.meta.url);
