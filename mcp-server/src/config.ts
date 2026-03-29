@@ -1,7 +1,13 @@
 /**
- * Centralized API key / config manager.
- * Priority: env vars → .godotforge/config.json → empty.
- * Never logs or exposes keys in responses.
+ * Centralized config manager with two scopes:
+ *
+ * GLOBAL (~/.godotforge/config.json):
+ *   - API keys, system paths, chat/LLM settings
+ *   - Shared across all projects for this user
+ *
+ * PROJECT ({project}/.godotforge/):
+ *   - memory.md, sessions/, memory.db, project-map.json
+ *   - Per-project, lives in the game repo
  */
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -10,6 +16,16 @@ import { execSync as execSyncFn } from "child_process";
 
 const CONFIG_DIR = ".godotforge";
 const CONFIG_FILE = "config.json";
+
+/** Global config directory — user home. */
+function getGlobalConfigDir(): string {
+  const home = process.env.HOME || process.env.USERPROFILE || "/tmp";
+  return join(home, CONFIG_DIR);
+}
+
+function getGlobalConfigPath(): string {
+  return join(getGlobalConfigDir(), CONFIG_FILE);
+}
 
 /** All supported service keys. */
 export interface ServiceKeys {
@@ -64,13 +80,19 @@ export interface PersistedChatSettings {
 
 export class ConfigManager {
   private projectRoot: string;
-  private configPath: string;
+  private globalConfigPath: string;
   private cache: Partial<ServiceKeys> | null = null;
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
-    this.configPath = join(projectRoot, CONFIG_DIR, CONFIG_FILE);
+    this.globalConfigPath = getGlobalConfigPath();
   }
+
+  /** Global config dir (~/.godotforge/) */
+  getGlobalDir(): string { return getGlobalConfigDir(); }
+
+  /** Project config dir ({project}/.godotforge/) */
+  getProjectDir(): string { return join(this.projectRoot, CONFIG_DIR); }
 
   /**
    * Get a system path. Priority: config.json → env var → auto-detect.
@@ -257,12 +279,12 @@ export class ConfigManager {
       return { keys: this.cache };
     }
 
-    if (!existsSync(this.configPath)) {
+    if (!existsSync(this.globalConfigPath)) {
       return {};
     }
 
     try {
-      const raw = readFileSync(this.configPath, "utf-8");
+      const raw = readFileSync(this.globalConfigPath, "utf-8");
       const parsed = JSON.parse(raw);
       this.cache = parsed.keys || null;
       return parsed;
@@ -272,10 +294,10 @@ export class ConfigManager {
   }
 
   private writeConfig(config: Record<string, unknown>): void {
-    const dir = join(this.projectRoot, CONFIG_DIR);
+    const dir = getGlobalConfigDir();
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
-    writeFileSync(this.configPath, JSON.stringify(config, null, 2), "utf-8");
+    writeFileSync(this.globalConfigPath, JSON.stringify(config, null, 2), "utf-8");
   }
 }
