@@ -1,0 +1,89 @@
+[gd_scene format=3 uid="uid://c4dow2tyw7vf5"]
+
+[ext_resource type="Script" uid="uid://yg70xvn0aobo" path="res://demo-v2/scripts/game_manager_3d.gd" id="1_838rk"]
+[ext_resource type="Texture2D" uid="uid://b3e3jba3eiw3b" path="res://demo-v2/textures/grass/aerial_grass_rock_diff_1k.jpg" id="1_sjkh4"]
+[ext_resource type="Texture2D" uid="uid://csswwq8qvqjny" path="res://demo-v2/textures/grass/aerial_grass_rock_nor_gl_1k.jpg" id="2_y5krd"]
+[ext_resource type="PackedScene" uid="uid://ccyl6ir0adg8w" path="res://demo-v2/models/bird.glb" id="3_838rk"]
+[ext_resource type="Script" uid="uid://b6c5jl14ps5cb" path="res://demo-v2/scripts/bird_3d.gd" id="4_1j2sg"]
+
+[sub_resource type="Environment" id="Environment_1j2sg"]
+background_mode = 1
+background_color = Color(0.4, 0.7, 1, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.8, 0.85, 1, 1)
+ambient_light_energy = 0.4
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_anow8"]
+albedo_texture = ExtResource("1_sjkh4")
+normal_enabled = true
+normal_texture = ExtResource("2_y5krd")
+uv1_scale = Vector3(10, 10, 1)
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_5s0ux"]
+size = Vector2(100, 20)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_5a4jc"]
+size = Vector3(100, 0.1, 20)
+
+[sub_resource type="SphereShape3D" id="SphereShape3D_6d7vv"]
+radius = 0.35
+
+[node name="FlappyBird3D" type="Node3D" unique_id=1190652625]
+script = ExtResource("1_838rk")
+
+[node name="Camera" type="Camera3D" parent="." unique_id=220383042]
+transform = Transform3D(1, 0, 0, 0, 0.9961947, 0.08715574, 0, -0.08715574, 0.9961947, 0, 2, 10)
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1440930364]
+transform = Transform3D(0.8660254, -0.38302222, 0.32139382, 0, 0.64278764, 0.76604444, -0.5, -0.66341394, 0.5566704, 0, 0, 0)
+
+[node name="Env" type="WorldEnvironment" parent="." unique_id=1892807829]
+environment = SubResource("Environment_1j2sg")
+
+[node name="Ground" type="StaticBody3D" parent="." unique_id=508601655]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0)
+
+[node name="GroundMesh" type="MeshInstance3D" parent="Ground" unique_id=1913926863]
+material_override = SubResource("StandardMaterial3D_anow8")
+mesh = SubResource("PlaneMesh_5s0ux")
+
+[node name="GroundCol" type="CollisionShape3D" parent="Ground" unique_id=396301940]
+shape = SubResource("BoxShape3D_5a4jc")
+
+[node name="Bird" type="RigidBody3D" parent="." unique_id=975583276]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3, 0)
+gravity_scale = 2.0
+contact_monitor = true
+max_contacts_reported = 4
+script = ExtResource("4_1j2sg")
+
+[node name="BirdModel" type="Node3D" parent="Bird" unique_id=726860619 instance=ExtResource("3_838rk")]
+
+[node name="BirdCol" type="CollisionShape3D" parent="Bird" unique_id=963645267]
+shape = SubResource("SphereShape3D_6d7vv")
+
+[node name="Pipes" type="Node3D" parent="." unique_id=1143803457]
+
+[node name="UI" type="CanvasLayer" parent="." unique_id=1253769686]
+
+[node name="ScoreLabel" type="Label" parent="UI" unique_id=1537819339]
+offset_left = 20.0
+offset_top = 20.0
+offset_right = 81.0
+offset_bottom = 43.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 32
+text = "Score: 0"
+
+[node name="MessageLabel" type="Label" parent="UI" unique_id=1492792563]
+offset_left = 150.0
+offset_top = 300.0
+offset_right = 303.0
+offset_bottom = 323.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Press Space to Start"
+horizontal_alignment = 1
+
+[node name="PipeTimer" type="Timer" parent="." unique_id=85535240]
+wait_time = 2.0

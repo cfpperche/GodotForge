@@ -22,3 +22,5 @@ mcp-server/dist/
 Thumbs.db
 web-client/node_modules/
 web-client/dist/
+__pycache__/
+*.pyc
