@@ -8,10 +8,9 @@ import { Settings, Check, Brain, Zap, Thermometer, Wrench } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const MODELS = [
-  { id: "claude-opus-4-6-20250414", label: "Opus 4.6", desc: "Most capable" },
-  { id: "claude-sonnet-4-6-20250414", label: "Sonnet 4.6", desc: "Balanced" },
-  { id: "claude-sonnet-4-20250514", label: "Sonnet 4", desc: "Fast" },
-  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5", desc: "Fastest" },
+  { id: "opus", label: "Opus", desc: "Most capable" },
+  { id: "sonnet", label: "Sonnet", desc: "Balanced (default)" },
+  { id: "haiku", label: "Haiku", desc: "Fastest" },
 ];
 
 const EFFORT_LEVELS = [
