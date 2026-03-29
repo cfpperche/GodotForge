@@ -38,7 +38,7 @@ export function ChatPanel() {
         <div className="flex flex-col">
           {messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-[calc(100vh-180px)] text-muted-foreground gap-6 px-4">
-              <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center shadow-lg glow-primary">
                 <Bot className="h-10 w-10 text-primary" />
               </div>
               <div className="text-center">
@@ -55,7 +55,7 @@ export function ChatPanel() {
                   <button
                     key={i}
                     onClick={() => sendMessage(s.text)}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card/50 hover:bg-card hover:border-primary/30 transition-all text-left text-sm group"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-card/30 backdrop-blur-sm hover:bg-card/60 hover:border-primary/30 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300 text-left text-sm group"
                   >
                     <s.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
                     <span className="text-muted-foreground group-hover:text-foreground transition-colors">{s.text}</span>
