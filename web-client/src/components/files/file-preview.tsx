@@ -17,7 +17,7 @@ const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg", ".bmp", ".
 const AUDIO_EXTS = new Set([".mp3", ".wav", ".ogg", ".flac", ".aac"]);
 const VIDEO_EXTS = new Set([".mp4", ".webm", ".avi", ".mov"]);
 const MODEL_EXTS = new Set([".glb", ".gltf", ".fbx", ".obj", ".blend"]);
-const CODE_EXTS = new Set([".gd", ".gdshader", ".tscn", ".tres", ".json", ".cfg", ".ts", ".tsx", ".js", ".py", ".txt", ".rst", ".yaml", ".yml", ".toml", ".ini"]);
+const CODE_EXTS = new Set([".gd", ".gdshader", ".tscn", ".tres", ".json", ".cfg", ".ts", ".tsx", ".js", ".py", ".txt", ".rst", ".yaml", ".yml", ".toml", ".ini", ".uid", ".import", ".godot", ".csv", ".log"]);
 const MARKDOWN_EXTS = new Set([".md", ".mdx"]);
 
 interface TextPreviewProps {
@@ -82,7 +82,7 @@ interface FilePreviewProps {
 export function FilePreview({ entry, parentPath }: FilePreviewProps) {
   const fullPath = parentPath === "" ? entry.name : `${parentPath}/${entry.name}`;
   const url = api.getFileUrl(fullPath);
-  const ext = entry.extension.toLowerCase();
+  const ext = entry.extension.startsWith(".") ? entry.extension.toLowerCase() : `.${entry.extension.toLowerCase()}`;
 
   const renderPreview = () => {
     if (IMAGE_EXTS.has(ext)) {

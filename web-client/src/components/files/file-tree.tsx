@@ -18,7 +18,7 @@ import {
 
 function fileIcon(entry: FileEntry) {
   if (entry.isDir) return null; // handled inline
-  const ext = entry.extension.toLowerCase();
+  const ext = entry.extension.startsWith(".") ? entry.extension.toLowerCase() : `.${entry.extension.toLowerCase()}`;
   if ([".png", ".jpg", ".jpeg", ".webp", ".svg", ".bmp", ".ico"].includes(ext))
     return <FileImage className="h-3.5 w-3.5 shrink-0 text-blue-400" />;
   if ([".mp3", ".wav", ".ogg", ".flac", ".aac"].includes(ext))

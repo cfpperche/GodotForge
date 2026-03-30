@@ -23,7 +23,7 @@ const IMAGE_EXTS = new Set([".png", ".jpg", ".jpeg", ".webp", ".svg", ".bmp"]);
 const AUDIO_EXTS = new Set([".mp3", ".wav", ".ogg", ".flac", ".aac"]);
 const VIDEO_EXTS = new Set([".mp4", ".webm", ".avi", ".mov"]);
 const MODEL_EXTS = new Set([".glb", ".gltf", ".fbx", ".obj", ".blend"]);
-const CODE_EXTS = new Set([".gd", ".gdshader", ".tscn", ".tres", ".json", ".cfg", ".ts", ".tsx", ".js", ".py", ".md", ".txt"]);
+const CODE_EXTS = new Set([".gd", ".gdshader", ".tscn", ".tres", ".json", ".cfg", ".ts", ".tsx", ".js", ".py", ".md", ".txt", ".uid", ".import", ".godot", ".csv", ".log"]);
 
 interface FileCardProps {
   entry: FileEntry;
@@ -34,7 +34,7 @@ interface FileCardProps {
 }
 
 function FileCard({ entry, parentPath, onClick, onDoubleClick, selected }: FileCardProps) {
-  const ext = entry.extension.toLowerCase();
+  const ext = entry.extension.startsWith(".") ? entry.extension.toLowerCase() : `.${entry.extension.toLowerCase()}`;
   const fullPath = parentPath === "" ? entry.name : `${parentPath}/${entry.name}`;
   const isImage = IMAGE_EXTS.has(ext);
 
@@ -110,7 +110,7 @@ interface FileListRowProps {
 }
 
 function FileListRow({ entry, parentPath, onClick, onDoubleClick, selected }: FileListRowProps) {
-  const ext = entry.extension.toLowerCase();
+  const ext = entry.extension.startsWith(".") ? entry.extension.toLowerCase() : `.${entry.extension.toLowerCase()}`;
   const fullPath = parentPath === "" ? entry.name : `${parentPath}/${entry.name}`;
   const isImage = IMAGE_EXTS.has(ext);
 
