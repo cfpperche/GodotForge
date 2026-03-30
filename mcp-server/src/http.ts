@@ -6,6 +6,9 @@ import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
+import { EventLog } from "./events.js";
+import { WebhookDispatcher } from "./webhooks.js";
+import { setEventLog, setWebhookDispatcher } from "./tool-handlers.js";
 
 const BIND_HOST = "127.0.0.1";
 const DEFAULT_PORT = 6980;
@@ -15,6 +18,8 @@ export class HttpServer {
   private server: ReturnType<typeof createServer> | null = null;
   private chatEngine: ChatEngine;
   private config: ConfigManager;
+  private eventLog: EventLog;
+  private webhooks: WebhookDispatcher;
   private port = 0;
   private portFilePath = "";
   private projectRoot: string;
@@ -23,6 +28,12 @@ export class HttpServer {
     this.chatEngine = chatEngine;
     this.projectRoot = projectRoot;
     this.config = config || new ConfigManager(projectRoot);
+    this.eventLog = new EventLog(projectRoot);
+    this.webhooks = new WebhookDispatcher(this.config);
+
+    // Wire into tool handlers
+    setEventLog(this.eventLog);
+    setWebhookDispatcher(this.webhooks);
   }
 
   async start(): Promise<number> {
@@ -255,6 +266,41 @@ export class HttpServer {
           this.sendJson(res, 200, this.chatEngine.getTemplates().map(
             ({ name }) => ({ name })
           ));
+          break;
+
+        case "/events": {
+          const params = new URL(req.url || "/", "http://localhost").searchParams;
+          const events = this.eventLog.query({
+            limit: parseInt(params.get("limit") || "100"),
+            type: params.get("type") || undefined,
+            since: params.get("since") || undefined,
+          });
+          this.sendJson(res, 200, events);
+          break;
+        }
+
+        case "/events/stats":
+          this.sendJson(res, 200, this.eventLog.stats());
+          break;
+
+        case "/webhooks":
+          if (req.method === "GET") {
+            this.sendJson(res, 200, this.webhooks.getWebhooks().map(
+              ({ name, events, format }) => ({ name, events, format })
+            ));
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
+        case "/webhooks/test":
+          if (req.method === "POST") {
+            const parsed = JSON.parse(body || "{}") as Record<string, string>;
+            const result = await this.webhooks.sendTest(parsed.name || "");
+            this.sendJson(res, result.success ? 200 : 422, result);
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
           break;
 
         default:

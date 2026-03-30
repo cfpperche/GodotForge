@@ -839,6 +839,9 @@ Project management and production workflow skills:
 | **Studio Integration** | MCP reads .claude/ (rules, skills, agents, templates) — parity with CLI | +3 endpoints | ✅ Concluído |
 | **SSE Streaming** | POST /chat/stream — token-by-token streaming via Server-Sent Events | +1 endpoint | ✅ Concluído |
 | **Agent Isolation** | POST /chat/agent — isolated LLM calls per agent with dedicated system prompt | +1 endpoint | ✅ Concluído |
+| **Event Log** | JSONL audit log (.godotforge/events.jsonl) — chat, tool_call, tool_result, guardrail, error. Rotation 10MB×3. GET /events, /events/stats | +2 endpoints | ✅ Concluído |
+| **Guardrails** | Server-side tool validation — risk levels (safe/moderate/destructive/critical), content scanning, confirmation flow for destructive tools | — | ✅ Concluído |
+| **Webhooks** | Async notifications to external systems — Telegram + Custom (raw JSON). Configurable per event type. Retry with backoff. GET /webhooks, POST /webhooks/test | +2 endpoints | ✅ Concluído |
 
 ### E2E Tests Validados
 - ✅ **Phase A**: Cubo metálico Blender → GLB → Godot cena 3D
