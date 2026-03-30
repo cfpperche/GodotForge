@@ -1,3 +1,8 @@
+---
+description: Game UI Architecture
+audience: game-dev
+---
+
 # Game UI Architecture
 
 - UI NEVER owns game state. Read state via signals or direct reference, never modify game logic from UI scripts.

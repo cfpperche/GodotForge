@@ -1,3 +1,8 @@
+---
+description: Scene Architecture
+audience: game-dev
+---
+
 # Scene Architecture
 
 - Every scene is self-contained and reusable. No external dependencies that aren't injected.

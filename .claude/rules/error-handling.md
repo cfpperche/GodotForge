@@ -1,6 +1,7 @@
 ---
 description: Consistent error handling patterns across plugin and MCP
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # Error Handling

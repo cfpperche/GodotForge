@@ -92,12 +92,14 @@ export class ChatEngine {
     system_prompt_extra: "",
   };
   private root: string;
+  private repoRoot: string;
   private bridge: GodotBridge;
   private blenderBridge: BlenderBridge;
   private configManager: ConfigManager;
 
-  constructor(root: string, bridge: GodotBridge, blenderBridge?: BlenderBridge) {
+  constructor(root: string, bridge: GodotBridge, blenderBridge?: BlenderBridge, repoRoot?: string) {
     this.root = root;
+    this.repoRoot = repoRoot || root;
     this.bridge = bridge;
     this.blenderBridge = blenderBridge || new BlenderBridge(root);
     this.configManager = new ConfigManager(root);
@@ -196,7 +198,7 @@ export class ChatEngine {
    */
   async chatAsAgent(agentName: string, task: string, sessionId: string): Promise<ChatResponse> {
     const claudeDir = join(this.root, ".claude");
-    const agents = loadAgents(claudeDir);
+    const agents = loadAgents(claudeDir, this.getBundledClaudeDir());
     const agent = resolveAgent(agents, agentName);
 
     if (!agent) {
@@ -683,26 +685,41 @@ export class ChatEngine {
   }
 
   /**
-   * Load rules from .claude/rules/*.md and inject into system prompt.
+   * Load rules from bundled game-dev kit + user's project .claude/rules/.
+   * Bundled rules with audience: internal are excluded.
+   * User rules always included (override bundled by filename).
    */
   private loadRules(): string | null {
-    const rulesDir = join(this.root, ".claude", "rules");
-    if (!existsSync(rulesDir)) return null;
+    const bundledDir = join(this.repoRoot, ".claude", "rules");
+    const userDir = join(this.root, ".claude", "rules");
+    const isSameProject = bundledDir === userDir;
+
+    const ruleMap = new Map<string, string>();
 
     try {
-      const files = readdirSync(rulesDir).filter((f) => f.endsWith(".md"));
-      if (files.length === 0) return null;
-
-      const rules: string[] = [];
-      for (const file of files) {
-        const content = readFileSync(join(rulesDir, file), "utf-8").trim();
-        if (content) rules.push(content);
+      // Load bundled game-dev rules first (skip internal-only rules)
+      if (!isSameProject && existsSync(bundledDir)) {
+        for (const file of readdirSync(bundledDir).filter((f) => f.endsWith(".md"))) {
+          const raw = readFileSync(join(bundledDir, file), "utf-8").trim();
+          if (!raw) continue;
+          if (parseAudience(raw) === "internal") continue;
+          ruleMap.set(file, raw);
+        }
       }
 
-      return rules.join("\n\n---\n\n");
+      // Load user's project rules (always included, override by filename)
+      if (existsSync(userDir)) {
+        for (const file of readdirSync(userDir).filter((f) => f.endsWith(".md"))) {
+          const raw = readFileSync(join(userDir, file), "utf-8").trim();
+          if (raw) ruleMap.set(file, raw);
+        }
+      }
     } catch {
       return null;
     }
+
+    if (ruleMap.size === 0) return null;
+    return Array.from(ruleMap.values()).join("\n\n---\n\n");
   }
 
   /**
@@ -711,12 +728,13 @@ export class ChatEngine {
    */
   private resolveStudioContext(message: string): string {
     const claudeDir = join(this.root, ".claude");
+    const bundledDir = claudeDir !== join(this.repoRoot, ".claude") ? join(this.repoRoot, ".claude") : undefined;
     const parts: string[] = [];
 
     // 1. Skill routing: detect /command messages
     const skillMatch = message.match(/^\/([a-z][\w-]*)/);
     if (skillMatch) {
-      const skills = loadSkills(claudeDir);
+      const skills = loadSkills(claudeDir, bundledDir);
       const skill = resolveSkill(skills, skillMatch[1]);
       if (skill) {
         parts.push(`<active-skill name="${skill.name}">\n${skill.content}\n</active-skill>`);
@@ -724,7 +742,7 @@ export class ChatEngine {
         // If skill references agents (@agent-name), inject their profiles
         const agentRefs = skill.content.match(/@([a-z][\w-]+)/g);
         if (agentRefs) {
-          const agents = loadAgents(claudeDir);
+          const agents = loadAgents(claudeDir, bundledDir);
           const injected = new Set<string>();
           for (const ref of agentRefs) {
             const agentName = ref.slice(1); // remove @
@@ -739,7 +757,7 @@ export class ChatEngine {
         // If skill references templates, inject them
         const templateRefs = skill.content.match(/`([a-z][\w-]+\.md)`/g);
         if (templateRefs) {
-          const templates = loadTemplates(claudeDir);
+          const templates = loadTemplates(claudeDir, bundledDir);
           for (const ref of templateRefs) {
             const tplName = ref.replace(/`/g, "").replace(".md", "");
             const tpl = resolveTemplate(templates, tplName);
@@ -753,7 +771,7 @@ export class ChatEngine {
 
     // 2. Available skills list (always inject so LLM knows what's available)
     if (!skillMatch) {
-      const skills = loadSkills(claudeDir);
+      const skills = loadSkills(claudeDir, bundledDir);
       if (skills.length > 0) {
         const list = skills.map((s) => `- /${s.name}: ${s.description}`).join("\n");
         parts.push(`<available-skills>\nUsers can invoke these skills by typing the command:\n${list}\n</available-skills>`);
@@ -765,17 +783,26 @@ export class ChatEngine {
 
   /** List available skills for HTTP API */
   getSkills(): SkillInfo[] {
-    return loadSkills(join(this.root, ".claude"));
+    const bundledDir = this.getBundledClaudeDir();
+    return loadSkills(join(this.root, ".claude"), bundledDir);
   }
 
   /** List available agents for HTTP API */
   getAgents(): AgentInfo[] {
-    return loadAgents(join(this.root, ".claude"));
+    const bundledDir = this.getBundledClaudeDir();
+    return loadAgents(join(this.root, ".claude"), bundledDir);
   }
 
   /** List available templates for HTTP API */
   getTemplates(): TemplateInfo[] {
-    return loadTemplates(join(this.root, ".claude"));
+    const bundledDir = this.getBundledClaudeDir();
+    return loadTemplates(join(this.root, ".claude"), bundledDir);
+  }
+
+  /** Get bundled .claude dir from GodotForge install (undefined if same as project) */
+  private getBundledClaudeDir(): string | undefined {
+    const bundled = join(this.repoRoot, ".claude");
+    return bundled !== join(this.root, ".claude") ? bundled : undefined;
   }
 
   /**
@@ -858,6 +885,12 @@ export class ChatEngine {
       };
     }
   }
+}
+
+/** Extract audience field from rule frontmatter. */
+function parseAudience(raw: string): string | null {
+  const match = raw.match(/^---\n[\s\S]*?audience:\s*(\S+)[\s\S]*?\n---/);
+  return match ? match[1] : null;
 }
 
 // Tool definitions for direct API mode — derived from the shared tool-registry.

@@ -1,3 +1,8 @@
+---
+description: Narrative & Dialogue
+audience: game-dev
+---
+
 # Narrative & Dialogue
 
 - Dialogue in external data files (JSON, CSV, or Yarn Spinner format). NEVER write dialogue strings in GDScript.

@@ -1,6 +1,7 @@
 ---
 description: SOLID principles applied to GodotForge architecture
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # SOLID

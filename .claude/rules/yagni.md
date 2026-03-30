@@ -1,6 +1,7 @@
 ---
 description: You Aren't Gonna Need It — build only what's needed now
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # YAGNI (You Aren't Gonna Need It)

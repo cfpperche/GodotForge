@@ -1,6 +1,7 @@
 ---
 description: Security by default — protect API keys, enforce boundaries
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # Security by Default

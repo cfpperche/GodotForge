@@ -1,3 +1,8 @@
+---
+description: Multiplayer & Networking
+audience: game-dev
+---
+
 # Multiplayer & Networking
 
 - Server-authoritative: the server validates ALL game state changes. Clients propose, server decides.

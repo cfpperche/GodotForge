@@ -7,6 +7,8 @@ import { BlenderBridge } from "./blender-bridge.js";
 import { ChatEngine } from "./chat.js";
 import { HttpServer } from "./http.js";
 import { ConfigManager } from "./config.js";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
@@ -30,8 +32,12 @@ async function main(): Promise<void> {
   // Config manager (API keys)
   const config = new ConfigManager(root);
 
+  // GodotForge repo root (where bundled game-dev assets live)
+  const __filename = fileURLToPath(import.meta.url);
+  const repoRoot = join(dirname(__filename), "..", "..");
+
   // Always start the HTTP server (for native chat panel)
-  const chatEngine = new ChatEngine(root, bridge, blenderBridge);
+  const chatEngine = new ChatEngine(root, bridge, blenderBridge, repoRoot);
   const httpServer = new HttpServer(chatEngine, root, config);
   const httpPort = await httpServer.start();
 

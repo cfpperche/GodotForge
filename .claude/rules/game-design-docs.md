@@ -1,3 +1,8 @@
+---
+description: Game Design Document Standards
+audience: game-dev
+---
+
 # Game Design Document Standards
 
 Every gameplay system MUST have these 8 sections:

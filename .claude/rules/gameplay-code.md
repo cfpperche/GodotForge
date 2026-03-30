@@ -1,3 +1,8 @@
+---
+description: Gameplay Code Standards
+audience: game-dev
+---
+
 # Gameplay Code Standards
 
 - ALL gameplay values from external config or @export, NEVER hardcoded. Gravity, speed, jump force, spawn rates — all tunable.

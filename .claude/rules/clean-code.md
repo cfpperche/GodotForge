@@ -1,6 +1,7 @@
 ---
 description: Clean Code standards for readability and maintainability
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # Clean Code

@@ -1,6 +1,7 @@
 ---
 description: DRY principle — avoid unnecessary duplication
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # DRY (Don't Repeat Yourself)

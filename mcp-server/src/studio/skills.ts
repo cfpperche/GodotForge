@@ -7,9 +7,26 @@ export interface SkillInfo {
   content: string;
 }
 
-/** Load all skills from .claude/skills/{name}/SKILL.md */
-export function loadSkills(claudeDir: string): SkillInfo[] {
-  const skillsDir = join(claudeDir, "skills");
+/** Load all skills from .claude/skills/{name}/SKILL.md, with optional bundled defaults */
+export function loadSkills(claudeDir: string, defaultsClaudeDir?: string): SkillInfo[] {
+  const map = new Map<string, SkillInfo>();
+
+  // Load bundled defaults first (skip audience: internal)
+  if (defaultsClaudeDir) {
+    for (const s of loadSkillsFromDir(join(defaultsClaudeDir, "skills"), true)) {
+      map.set(s.name, s);
+    }
+  }
+
+  // User overrides
+  for (const s of loadSkillsFromDir(join(claudeDir, "skills"), false)) {
+    map.set(s.name, s);
+  }
+
+  return Array.from(map.values());
+}
+
+function loadSkillsFromDir(skillsDir: string, filterInternal: boolean): SkillInfo[] {
   if (!existsSync(skillsDir)) return [];
 
   try {
@@ -24,6 +41,7 @@ export function loadSkills(claudeDir: string): SkillInfo[] {
       const raw = readFileSync(skillFile, "utf-8");
       const parsed = parseFrontmatter(raw);
       if (!parsed.frontmatter.user_invocable) continue;
+      if (filterInternal && parsed.frontmatter.audience === "internal") continue;
 
       skills.push({
         name: (parsed.frontmatter.name as string) || dir.name,

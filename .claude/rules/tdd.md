@@ -1,6 +1,7 @@
 ---
 description: Test-Driven Development rules for all code changes
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # TDD (Test-Driven Development)

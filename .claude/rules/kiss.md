@@ -1,6 +1,7 @@
 ---
 description: Keep It Simple — avoid unnecessary complexity
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # KISS (Keep It Simple, Stupid)

@@ -1,6 +1,7 @@
 ---
 description: Conventional Commits standard for git history
 paths: ["**"]
+audience: internal
 ---
 
 # Conventional Commits

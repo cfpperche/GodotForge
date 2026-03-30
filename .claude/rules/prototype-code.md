@@ -1,3 +1,8 @@
+---
+description: Prototyping Standards
+audience: game-dev
+---
+
 # Prototyping Standards
 
 - Prototypes live in `prototypes/` directory. Never in `scenes/` or `scripts/` — keep production clean.

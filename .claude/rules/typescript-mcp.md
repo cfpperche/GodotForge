@@ -1,6 +1,7 @@
 ---
 description: TypeScript-specific coding standards for the MCP server
 paths: ["mcp-server/src/**"]
+audience: internal
 ---
 
 # TypeScript MCP Server Rules
@@ -14,3 +15,15 @@ paths: ["mcp-server/src/**"]
 - Handle bridge errors (Godot not running) gracefully — return actionable error messages.
 - No `any` type — use `unknown` and narrow.
 - Keep tool handlers thin — delegate to bridge, don't add business logic in server.ts.
+
+## File Size Limits
+- Max 300 lines per file. Extract into focused modules when approaching limit.
+- Max 20 lines per function. Extract helpers for longer logic.
+- Max 5 parameters per function. Use options objects for more.
+
+## Module Organization
+- Tool schemas: dedicated files per category, not all in server.ts.
+- HTTP routes: one file per route group, not all in http.ts.
+- One responsibility per file — if description needs "and", split.
+- All tool definitions via regTool() wrapper (populates tool-registry for API-key mode).
+- Never duplicate tool schemas between files.

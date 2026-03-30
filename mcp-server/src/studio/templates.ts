@@ -7,10 +7,27 @@ export interface TemplateInfo {
 }
 
 /**
- * Load all templates from .claude/templates/*.md
+ * Load all templates from .claude/templates/*.md, with optional bundled defaults.
  */
-export function loadTemplates(claudeDir: string): TemplateInfo[] {
-  const templatesDir = join(claudeDir, "templates");
+export function loadTemplates(claudeDir: string, defaultsClaudeDir?: string): TemplateInfo[] {
+  const map = new Map<string, TemplateInfo>();
+
+  // Load bundled defaults first
+  if (defaultsClaudeDir) {
+    for (const t of loadTemplatesFromDir(join(defaultsClaudeDir, "templates"))) {
+      map.set(t.name, t);
+    }
+  }
+
+  // User overrides
+  for (const t of loadTemplatesFromDir(join(claudeDir, "templates"))) {
+    map.set(t.name, t);
+  }
+
+  return Array.from(map.values());
+}
+
+function loadTemplatesFromDir(templatesDir: string): TemplateInfo[] {
   if (!existsSync(templatesDir)) return [];
 
   try {

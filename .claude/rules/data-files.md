@@ -1,3 +1,8 @@
+---
+description: Game Data & Configuration
+audience: game-dev
+---
+
 # Game Data & Configuration
 
 - Game data in JSON files or Godot Resources (.tres). NEVER hardcode values in GDScript.

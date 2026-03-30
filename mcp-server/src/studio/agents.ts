@@ -8,10 +8,27 @@ export interface AgentInfo {
 }
 
 /**
- * Load all agents from .claude/agents/*.md
+ * Load all agents from .claude/agents/*.md, with optional bundled defaults.
  */
-export function loadAgents(claudeDir: string): AgentInfo[] {
-  const agentsDir = join(claudeDir, "agents");
+export function loadAgents(claudeDir: string, defaultsClaudeDir?: string): AgentInfo[] {
+  const map = new Map<string, AgentInfo>();
+
+  // Load bundled defaults first
+  if (defaultsClaudeDir) {
+    for (const a of loadAgentsFromDir(join(defaultsClaudeDir, "agents"))) {
+      map.set(a.name, a);
+    }
+  }
+
+  // User overrides
+  for (const a of loadAgentsFromDir(join(claudeDir, "agents"))) {
+    map.set(a.name, a);
+  }
+
+  return Array.from(map.values());
+}
+
+function loadAgentsFromDir(agentsDir: string): AgentInfo[] {
   if (!existsSync(agentsDir)) return [];
 
   try {

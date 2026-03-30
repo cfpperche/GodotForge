@@ -1,3 +1,8 @@
+---
+description: GDScript Standards
+audience: game-dev
+---
+
 # GDScript Standards
 
 ## File Structure (this order)

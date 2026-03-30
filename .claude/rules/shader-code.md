@@ -1,3 +1,8 @@
+---
+description: Shader Code Standards
+audience: game-dev
+---
+
 # Shader Code Standards
 
 - Naming: `[type]_[category]_[name].gdshader` (spatial_env_water.gdshader, canvas_fx_blur.gdshader)

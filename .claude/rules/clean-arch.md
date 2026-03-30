@@ -1,6 +1,7 @@
 ---
 description: Clean Architecture layer boundaries and dependency rules
 paths: ["addons/godotforge/**", "mcp-server/src/**"]
+audience: internal
 ---
 
 # Clean Architecture

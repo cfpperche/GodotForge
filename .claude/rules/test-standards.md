@@ -1,3 +1,8 @@
+---
+description: Testing Standards
+audience: internal
+---
+
 # Testing Standards
 
 - Test naming: `test_[system]_[scenario]_[expected_result]` — e.g., `test_inventory_add_item_increases_count`.

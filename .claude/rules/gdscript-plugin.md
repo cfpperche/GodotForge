@@ -1,6 +1,7 @@
 ---
 description: GDScript-specific coding standards for the Godot plugin
 paths: ["addons/godotforge/**"]
+audience: internal
 ---
 
 # GDScript Plugin Rules

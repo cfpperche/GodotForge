@@ -1,3 +1,8 @@
+---
+description: AI & NPC Behavior
+audience: game-dev
+---
+
 # AI & NPC Behavior
 
 - Budget 2ms/frame MAX for all AI systems combined. Profile before adding complexity.
