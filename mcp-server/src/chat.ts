@@ -692,7 +692,7 @@ export class ChatEngine {
   private loadRules(): string | null {
     const bundledDir = join(this.repoRoot, ".claude", "rules");
     const userDir = join(this.root, ".claude", "rules");
-      const isSameProject = resolve(bundledDir) === resolve(userDir);
+    const isSameProject = resolve(bundledDir) === resolve(userDir);
 
     const ruleMap = new Map<string, string>();
 
@@ -728,7 +728,7 @@ export class ChatEngine {
    */
   private resolveStudioContext(message: string): string {
     const claudeDir = join(this.root, ".claude");
-    const bundledDir = claudeDir !== join(this.repoRoot, ".claude") ? join(this.repoRoot, ".claude") : undefined;
+    const bundledDir = resolve(claudeDir) !== resolve(join(this.repoRoot, ".claude")) ? join(this.repoRoot, ".claude") : undefined;
     const parts: string[] = [];
 
     // 1. Skill routing: detect /command messages

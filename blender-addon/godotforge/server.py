@@ -148,4 +148,7 @@ def _execute_in_main_thread(fn, args: dict) -> dict:
         raise error_container[0]
     if not result_container:
         return {"result": "Timeout: Blender did not execute the command in time.", "is_error": True}
-    return result_container[0]
+    result = result_container[0]
+    if not isinstance(result, dict):
+        return {"result": f"Handler returned {type(result).__name__} instead of dict", "is_error": True}
+    return result

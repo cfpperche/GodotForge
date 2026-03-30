@@ -62,3 +62,10 @@ export function getAllToolDefinitions(): ToolDef[] {
 export function getToolCount(): number {
   return registry.length;
 }
+
+/**
+ * Clear registry (for testing only — avoids cross-test contamination).
+ */
+export function clearRegistry(): void {
+  registry.length = 0;
+}

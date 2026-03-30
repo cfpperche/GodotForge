@@ -54,11 +54,12 @@ async function downloadAndRescan(
   taskId: string,
   projectRoot: string
 ): Promise<string> {
+  const safeId = taskId.replace(/[^a-zA-Z0-9_-]/g, "_");
   const destDir = join(projectRoot, "assets", "models", "meshy");
-  const destPath = join(destDir, `${taskId}.glb`);
+  const destPath = join(destDir, `${safeId}.glb`);
   await downloadModel(glbUrl, destPath);
   await triggerGodotRescan(projectRoot);
-  return `res://assets/models/meshy/${taskId}.glb`;
+  return `res://assets/models/meshy/${safeId}.glb`;
 }
 
 // --- Tool Handlers ---

@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
+import { parseFrontmatter } from "./frontmatter.js";
 
 export interface SkillInfo {
   name: string;
@@ -63,20 +64,3 @@ export function resolveSkill(skills: SkillInfo[], name: string): SkillInfo | nul
   return skills.find((s) => s.name === name) || null;
 }
 
-function parseFrontmatter(raw: string): { frontmatter: Record<string, unknown>; body: string } {
-  const match = raw.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
-  if (!match) return { frontmatter: {}, body: raw };
-
-  const frontmatter: Record<string, unknown> = {};
-  for (const line of match[1].split("\n")) {
-    const idx = line.indexOf(":");
-    if (idx === -1) continue;
-    const key = line.slice(0, idx).trim();
-    let value: unknown = line.slice(idx + 1).trim();
-    if (value === "true") value = true;
-    else if (value === "false") value = false;
-    frontmatter[key] = value;
-  }
-
-  return { frontmatter, body: match[2].trim() };
-}

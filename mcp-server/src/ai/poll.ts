@@ -13,7 +13,12 @@ export async function pollUntil<T>(
   const deadline = Date.now() + maxWait;
 
   while (Date.now() < deadline) {
-    const result = await fetchFn();
+    let result: T;
+    try {
+      result = await fetchFn();
+    } catch (error) {
+      throw new Error(`${label} poll failed: ${error instanceof Error ? error.message : error}`);
+    }
     if (isDone(result)) return result;
     const remaining = deadline - Date.now();
     if (remaining <= 0) break;

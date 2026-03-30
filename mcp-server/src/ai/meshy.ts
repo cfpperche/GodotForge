@@ -337,7 +337,7 @@ export async function getBalance(apiKey: string): Promise<number> {
 
 // --- Polling & Download ---
 
-export const TERMINAL_STATUSES: Set<TaskStatus> = new Set(["SUCCEEDED", "FAILED", "CANCELED", "EXPIRED"]);
+export const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set(["SUCCEEDED", "FAILED", "CANCELED", "EXPIRED"]);
 
 /** Poll interval and max wait, exported for handlers to pass to pollUntil. */
 export const MESHY_POLL_OPTS = { intervalMs: POLL_INTERVAL_MS, maxWaitMs: MAX_POLL_MS };

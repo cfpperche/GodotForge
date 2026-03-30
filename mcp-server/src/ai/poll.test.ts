@@ -29,10 +29,17 @@ describe("pollUntil", () => {
     await expect(
       pollUntil(fetch, (r) => r.status === "done", {
         intervalMs: 10,
-        maxWaitMs: 50,
+        maxWaitMs: 200,
         label: "my-task",
       })
     ).rejects.toThrow("my-task timed out");
+  });
+
+  it("wraps fetchFn errors with label context", async () => {
+    const fetch = vi.fn().mockRejectedValue(new Error("network down"));
+    await expect(
+      pollUntil(fetch, () => true, { label: "meshy-task" })
+    ).rejects.toThrow("meshy-task poll failed: network down");
   });
 
   it("uses default options", async () => {
