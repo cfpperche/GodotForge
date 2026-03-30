@@ -19,7 +19,7 @@ export function ToolCall({ tool }: ToolCallProps) {
       >
         <Badge
           variant={tool.is_error ? "destructive" : "secondary"}
-          className="gap-1 text-[10px] font-mono cursor-pointer"
+          className="gap-1 text-[11px] font-mono cursor-pointer"
         >
           <Wrench className="h-2.5 w-2.5" />
           {tool.name}

@@ -86,10 +86,10 @@ export function SettingsStep({ onNext, onSkip }: { onNext: () => void; onSkip: (
             <preset.icon className={cn("h-8 w-8", selected === preset.id ? preset.iconColor : "text-muted-foreground")} />
             <div>
               <div className="font-semibold">{preset.label}</div>
-              <div className="text-[10px] text-muted-foreground">{preset.desc}</div>
+              <div className="text-[11px] text-muted-foreground">{preset.desc}</div>
             </div>
             {preset.recommended && (
-              <span className="text-[9px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Recommended</span>
+              <span className="text-[11px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Recommended</span>
             )}
           </button>
         ))}

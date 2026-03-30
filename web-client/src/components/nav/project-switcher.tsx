@@ -118,13 +118,13 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
                   <Check className="h-3 w-3 text-green-400" />
                   <span className="font-medium truncate">{projectName}</span>
                 </div>
-                <div className="text-[9px] text-muted-foreground font-mono truncate ml-5">{projectRoot}</div>
+                <div className="text-[11px] text-muted-foreground font-mono truncate ml-5">{projectRoot}</div>
               </div>
 
               {/* Recent projects */}
               {otherRecents.length > 0 && (
                 <div className="py-1">
-                  <div className="px-3 py-1 text-[9px] text-muted-foreground uppercase tracking-wider">Recent</div>
+                  <div className="px-3 py-1 text-[11px] text-muted-foreground uppercase tracking-wider">Recent</div>
                   {otherRecents.map((p) => {
                     const pName = p.split("/").pop() || p;
                     return (
@@ -137,7 +137,7 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
                         <Gamepad2 className="h-3 w-3 text-muted-foreground shrink-0" />
                         <div className="min-w-0">
                           <div className="truncate">{pName}</div>
-                          <div className="text-[9px] text-muted-foreground font-mono truncate">{p}</div>
+                          <div className="text-[11px] text-muted-foreground font-mono truncate">{p}</div>
                         </div>
                       </button>
                     );
@@ -179,7 +179,7 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
                   <FolderOpen className="h-3 w-3" />
                 </Button>
               </div>
-              {error && <p className="text-[10px] text-destructive">{error}</p>}
+              {error && <p className="text-[11px] text-destructive">{error}</p>}
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setMode("list"); setError(""); }}>Cancel</Button>
                 <Button size="sm" className="h-7 text-xs flex-1" onClick={() => switchTo(path)} disabled={loading || !path.trim()}>
@@ -211,11 +211,11 @@ export function ProjectSwitcher({ projectName, projectRoot, recentProjects, onSw
                 </Button>
               </div>
               {name && parentDir && (
-                <div className="text-[9px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded truncate">
+                <div className="text-[11px] font-mono text-muted-foreground bg-muted/30 px-2 py-1 rounded truncate">
                   {parentDir.replace(/\/$/, "")}/{name.replace(/\s+/g, "-").toLowerCase()}
                 </div>
               )}
-              {error && <p className="text-[10px] text-destructive">{error}</p>}
+              {error && <p className="text-[11px] text-destructive">{error}</p>}
               <div className="flex gap-1">
                 <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setMode("list"); setError(""); }}>Cancel</Button>
                 <Button size="sm" className="h-7 text-xs flex-1" onClick={createProject} disabled={loading || !name.trim() || !parentDir.trim()}>

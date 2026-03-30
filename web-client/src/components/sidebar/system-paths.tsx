@@ -119,7 +119,7 @@ function PathField({
         <span className="text-xs text-muted-foreground">{def.label}</span>
         <Badge
           variant={source === "config" ? "secondary" : "outline"}
-          className={`text-[9px] ${source === "config" ? "text-green-400" : source === "env" ? "text-blue-400" : "text-muted-foreground"}`}
+          className={`text-[11px] ${source === "config" ? "text-green-400" : source === "env" ? "text-blue-400" : "text-muted-foreground"}`}
         >
           {source === "config" ? "Configured" : source === "env" ? "ENV" : currentValue ? "Auto" : "Not set"}
         </Badge>
@@ -127,7 +127,7 @@ function PathField({
 
       {/* Current value display */}
       {currentValue && (
-        <div className="text-[10px] font-mono text-foreground/70 bg-muted/30 px-2 py-1.5 rounded break-all">
+        <div className="text-[11px] font-mono text-foreground/80 bg-muted/30 px-2 py-1.5 rounded break-all">
           {currentValue}
         </div>
       )}
@@ -138,7 +138,7 @@ function PathField({
           value={editValue}
           onChange={(e) => onEditChange(e.target.value)}
           placeholder={def.placeholder}
-          className="h-7 text-[10px] font-mono flex-1"
+          className="h-7 text-[11px] font-mono flex-1"
           onKeyDown={(e) => e.key === "Enter" && onSave(editValue)}
         />
 
@@ -181,7 +181,7 @@ function PathField({
 
       {/* Hint for manual path entry */}
       {!currentValue && (
-        <p className="text-[9px] text-muted-foreground/50">
+        <p className="text-[11px] text-muted-foreground">
           Paste the full path or use the browse button
         </p>
       )}

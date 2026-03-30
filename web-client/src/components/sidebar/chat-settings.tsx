@@ -68,7 +68,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
           Chat Settings
         </h3>
         {dirty && (
-          <Button size="sm" variant="default" className="h-6 text-[10px] gap-1" onClick={handleSave}>
+          <Button size="sm" variant="default" className="h-6 text-[11px] gap-1" onClick={handleSave}>
             <Check className="h-3 w-3" /> Save
           </Button>
         )}
@@ -77,7 +77,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
       <div className="space-y-3">
         {/* Auth mode */}
         <Row label="Auth">
-          <Badge variant="secondary" className="text-[10px]">
+          <Badge variant="secondary" className="text-[11px]">
             {settings.auth_mode === "agent_sdk" ? "Agent SDK" : settings.auth_mode === "claude_cli" ? "Claude CLI" : "API Key"}
           </Badge>
         </Row>
@@ -97,7 +97,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
                 }`}
               >
                 <div className="font-medium">{m.label}</div>
-                <div className="text-[10px] opacity-70">{m.desc}</div>
+                <div className="text-[11px] text-muted-foreground">{m.desc}</div>
               </button>
             ))}
           </div>
@@ -119,7 +119,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
               <button
                 key={e.id}
                 onClick={() => { setEffort(e.id); markDirty(); }}
-                className={`px-1.5 py-1 rounded text-[10px] text-center transition-colors ${
+                className={`px-1.5 py-1 rounded text-[11px] text-center transition-colors ${
                   effort === e.id
                     ? "bg-primary/20 border border-primary/30 " + e.color
                     : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border border-transparent"
@@ -137,7 +137,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Thermometer className="h-3 w-3" /> Temperature
             </span>
-            <span className="text-[10px] font-mono">{temperature.toFixed(1)}</span>
+            <span className="text-[11px] font-mono">{temperature.toFixed(1)}</span>
           </div>
           <input
             type="range"
@@ -148,7 +148,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
             onChange={(e) => { setTemperature(parseFloat(e.target.value)); markDirty(); }}
             className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
           />
-          <div className="flex justify-between text-[8px] text-muted-foreground">
+          <div className="flex justify-between text-[11px] text-muted-foreground">
             <span>Precise</span>
             <span>Creative</span>
           </div>
@@ -158,7 +158,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
         <div className="space-y-1">
           <div className="flex justify-between items-center">
             <span className="text-xs text-muted-foreground">Max Tokens</span>
-            <span className="text-[10px] font-mono">{maxTokens}</span>
+            <span className="text-[11px] font-mono">{maxTokens}</span>
           </div>
           <input
             type="range"
@@ -183,7 +183,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
               <button
                 key={t}
                 onClick={() => { setThinking(t); markDirty(); }}
-                className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
+                className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
                   thinking === t
                     ? "bg-primary/20 text-primary border border-primary/30"
                     : "bg-muted/30 text-muted-foreground border border-transparent"
@@ -198,7 +198,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
         {/* Advanced toggle */}
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+          className="text-[11px] text-muted-foreground hover:text-foreground transition-colors w-full text-left"
         >
           {showAdvanced ? "▼" : "▶"} Advanced
         </button>
@@ -215,7 +215,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
                   <button
                     key={tc}
                     onClick={() => { setToolChoice(tc); markDirty(); }}
-                    className={`px-2 py-0.5 rounded text-[10px] transition-colors ${
+                    className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
                       toolChoice === tc
                         ? "bg-primary/20 text-primary border border-primary/30"
                         : "bg-muted/30 text-muted-foreground border border-transparent"

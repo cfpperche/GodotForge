@@ -96,7 +96,7 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
                   ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]"
                   : "bg-red-500"
             )} />
-            <span className="text-[10px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground flex items-center gap-1">
+            <span className="text-[11px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground flex items-center gap-1">
               {CONNECTION_LABELS[key]}
               {connections[key].outdated && UPDATE_ENDPOINTS[key] && (
                 <button

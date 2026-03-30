@@ -57,7 +57,7 @@ export function OnboardingWizard({ onComplete }: OnboardingWizardProps) {
       </div>
 
       {/* Footer */}
-      <p className="mt-6 text-[10px] text-muted-foreground">
+      <p className="mt-6 text-[11px] text-muted-foreground">
         85 tools — Godot + Blender + Assets + AI
       </p>
     </div>

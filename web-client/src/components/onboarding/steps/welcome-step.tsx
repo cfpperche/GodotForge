@@ -24,7 +24,7 @@ export function WelcomeStep({ onNext }: { onNext: () => void }) {
         ].map(({ n, l }) => (
           <div key={l} className="rounded-xl bg-muted/30 p-3">
             <div className="text-xl font-bold text-primary">{n}</div>
-            <div className="text-[10px] text-muted-foreground">{l}</div>
+            <div className="text-[11px] text-muted-foreground">{l}</div>
           </div>
         ))}
       </div>

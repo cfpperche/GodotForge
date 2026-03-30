@@ -99,11 +99,11 @@ export function ConfigEditor() {
           <Copy className="h-3 w-3" /> Copy
         </Button>
         {dirty && (
-          <span className="text-[10px] text-amber-400 ml-auto animate-pulse">Unsaved changes</span>
+          <span className="text-[11px] text-amber-400 ml-auto animate-pulse">Unsaved changes</span>
         )}
       </div>
 
-      <p className="text-[10px] text-muted-foreground font-mono">~/.godotforge/config.json</p>
+      <p className="text-[11px] text-muted-foreground font-mono">~/.godotforge/config.json</p>
     </div>
   );
 }

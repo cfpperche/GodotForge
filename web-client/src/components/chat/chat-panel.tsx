@@ -56,7 +56,7 @@ export function ChatPanel() {
             </Button>
           </div>
 
-          <p className="text-[10px] text-muted-foreground/50 mt-4">
+          <p className="text-[11px] text-muted-foreground mt-4">
             Projects store memory, sessions, and context separately
           </p>
         </div>

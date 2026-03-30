@@ -67,7 +67,7 @@ export function Message({ message }: MessageProps) {
           )}
         </div>
 
-        <span className="text-[10px] text-muted-foreground">
+        <span className="text-[11px] text-muted-foreground">
           {new Date(message.timestamp).toLocaleTimeString()}
         </span>
       </div>

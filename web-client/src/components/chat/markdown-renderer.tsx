@@ -80,7 +80,7 @@ function CodeBlockWithCopy({ language, code }: { language: string; code: string 
   return (
     <div className="relative group my-2 rounded-lg overflow-hidden border border-border">
       {language && (
-        <div className="flex items-center justify-between bg-muted/80 px-3 py-1 text-[10px] text-muted-foreground uppercase tracking-wider">
+        <div className="flex items-center justify-between bg-muted/80 px-3 py-1 text-[11px] text-muted-foreground uppercase tracking-wider">
           <span>{language}</span>
           <Button
             variant="ghost"

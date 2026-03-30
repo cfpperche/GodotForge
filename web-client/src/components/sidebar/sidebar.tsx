@@ -31,11 +31,11 @@ export function Sidebar() {
           ].map(({ n, l, color }) => (
             <div key={l} className={`rounded-lg bg-gradient-to-br ${color} p-2 border border-border/30`}>
               <div className="text-sm font-bold text-foreground">{n}</div>
-              <div className="text-[9px] text-muted-foreground">{l}</div>
+              <div className="text-[11px] text-muted-foreground">{l}</div>
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-muted-foreground text-center pt-1 font-mono">
+        <p className="text-[11px] text-muted-foreground text-center pt-1 font-mono">
           GodotForge v0.2 — 85 tools
         </p>
       </div>

@@ -83,7 +83,7 @@ export function ApiKeys({ onSaved }: { onSaved?: () => void } = {}) {
             )}
           >
             {cat.label}
-            <span className="ml-1.5 text-[9px] opacity-50">{cat.services.length}</span>
+            <span className="ml-1.5 text-[11px] text-muted-foreground">{cat.services.length}</span>
           </button>
         ))}
       </div>
@@ -153,22 +153,22 @@ function KeyRow({
         </div>
         <div className="flex items-center gap-1.5">
           {service.planned && (
-            <Badge variant="outline" className="text-[8px] text-amber-400 border-amber-400/30">Phase D</Badge>
+            <Badge variant="outline" className="text-[11px] text-amber-400 border-amber-400/30">Phase D</Badge>
           )}
           {service.noKey ? (
-            <Badge variant="secondary" className="text-[9px] text-blue-400">Free</Badge>
+            <Badge variant="secondary" className="text-[11px] text-blue-400">Free</Badge>
           ) : configured ? (
-            <Badge variant="secondary" className="text-[9px] text-green-400">
+            <Badge variant="secondary" className="text-[11px] text-green-400">
               {source === "env" ? "ENV" : "Saved"}
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-[9px] text-muted-foreground">Not set</Badge>
+            <Badge variant="outline" className="text-[11px] text-muted-foreground">Not set</Badge>
           )}
         </div>
       </div>
 
       {/* Description */}
-      <p className="text-[10px] text-muted-foreground leading-relaxed">{service.desc}</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{service.desc}</p>
 
       {/* Key input */}
       {!service.noKey && (
@@ -196,7 +196,7 @@ function KeyRow({
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-6 text-[10px] transition-all duration-200 hover:text-primary"
+                className="h-6 text-[11px] transition-all duration-200 hover:text-primary"
                 onClick={() => setEditing(true)}
               >
                 {configured ? "Change" : "Set key"}
@@ -205,7 +205,7 @@ function KeyRow({
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-6 text-[10px] text-destructive/70 hover:text-destructive transition-all duration-200"
+                  className="h-6 text-[11px] text-destructive/70 hover:text-destructive transition-all duration-200"
                   onClick={onRemove}
                 >
                   Remove

@@ -25,7 +25,7 @@ export function DoneStep({ onFinish }: { onFinish: () => void }) {
         Start Building <ArrowRight className="h-4 w-4" />
       </Button>
 
-      <p className="text-[10px] text-muted-foreground animate-pulse">
+      <p className="text-[11px] text-muted-foreground animate-pulse">
         Starting automatically...
       </p>
     </div>

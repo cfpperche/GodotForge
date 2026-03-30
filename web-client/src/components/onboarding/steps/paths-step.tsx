@@ -82,13 +82,13 @@ export function PathsStep({ onNext, onSkip }: { onNext: () => void; onSkip: () =
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">{p.label}</span>
                 {hasValue && (
-                  <Badge variant="secondary" className="text-[9px] text-green-400 gap-1">
+                  <Badge variant="secondary" className="text-[11px] text-green-400 gap-1">
                     <Check className="h-2.5 w-2.5" /> {status.source === "config" ? "Set" : "Auto"}
                   </Badge>
                 )}
               </div>
               {hasValue && (
-                <div className="text-[11px] font-mono text-foreground/70 bg-muted/30 px-2 py-1.5 rounded break-all">
+                <div className="text-[11px] font-mono text-foreground/80 bg-muted/30 px-2 py-1.5 rounded break-all">
                   {status.value}
                 </div>
               )}

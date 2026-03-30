@@ -172,11 +172,11 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{wh.name}</span>
-                  <Badge variant="secondary" className="text-[9px]">{wh.format}</Badge>
+                  <Badge variant="secondary" className="text-[11px]">{wh.format}</Badge>
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {wh.events.map((e) => (
-                    <Badge key={e} variant="outline" className="text-[9px] font-mono">{e}</Badge>
+                    <Badge key={e} variant="outline" className="text-[11px] font-mono">{e}</Badge>
                   ))}
                 </div>
               </div>
@@ -184,7 +184,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
                 <Button
                   size="sm"
                   variant="ghost"
-                  className="h-7 text-[10px] gap-1"
+                  className="h-7 text-[11px] gap-1"
                   onClick={() => testWebhook(wh.name)}
                   disabled={testingName === wh.name}
                 >
@@ -233,7 +233,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
             <div className="text-sm font-medium flex items-center gap-2">
               <Send className="h-4 w-4 text-primary" /> Telegram Setup
             </div>
-            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => { setShowTelegram(false); setTelegramStatus("idle"); }}>
+            <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => { setShowTelegram(false); setTelegramStatus("idle"); }}>
               Cancel
             </Button>
           </div>
@@ -241,7 +241,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
           {telegramStatus !== "waiting" && (
             <>
               <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground">Bot Token (from @BotFather)</label>
+                <label className="text-[11px] font-medium text-muted-foreground">Bot Token (from @BotFather)</label>
                 <Input
                   value={telegramToken}
                   onChange={(e) => setTelegramToken(e.target.value)}
@@ -253,21 +253,21 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-medium text-muted-foreground">Events to notify</label>
+                <label className="text-[11px] font-medium text-muted-foreground">Events to notify</label>
                 <div className="flex flex-wrap gap-1.5">
                   {EVENT_PRESETS.map((preset) => (
                     <Button
                       key={preset.label}
                       size="sm"
                       variant={telegramEvents.join(",") === preset.events.join(",") ? "default" : "outline"}
-                      className="h-6 text-[10px]"
+                      className="h-6 text-[11px]"
                       onClick={() => setTelegramEvents(preset.events)}
                     >
                       {preset.label}
                     </Button>
                   ))}
                 </div>
-                <p className="text-[9px] text-muted-foreground">
+                <p className="text-[11px] text-muted-foreground">
                   {EVENT_PRESETS.find((p) => p.events.join(",") === telegramEvents.join(","))?.description || telegramEvents.join(", ")}
                 </p>
               </div>
@@ -306,7 +306,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
           )}
 
           {telegramError && (
-            <p className="text-[10px] text-destructive">{telegramError}</p>
+            <p className="text-[11px] text-destructive">{telegramError}</p>
           )}
         </div>
       )}
@@ -318,13 +318,13 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
             <div className="text-sm font-medium flex items-center gap-2">
               <Globe className="h-4 w-4" /> Custom Webhook
             </div>
-            <Button size="sm" variant="ghost" className="h-6 text-[10px]" onClick={() => setShowCustom(false)}>
+            <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={() => setShowCustom(false)}>
               Cancel
             </Button>
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">Name</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Name</label>
             <Input
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
@@ -335,7 +335,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">URL</label>
+            <label className="text-[11px] font-medium text-muted-foreground">URL</label>
             <Input
               value={customUrl}
               onChange={(e) => setCustomUrl(e.target.value)}
@@ -345,14 +345,14 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
           </div>
 
           <div className="space-y-1">
-            <label className="text-[10px] font-medium text-muted-foreground">Events</label>
+            <label className="text-[11px] font-medium text-muted-foreground">Events</label>
             <div className="flex flex-wrap gap-1.5">
               {EVENT_PRESETS.map((preset) => (
                 <Button
                   key={preset.label}
                   size="sm"
                   variant={customEvents.join(",") === preset.events.join(",") ? "default" : "outline"}
-                  className="h-6 text-[10px]"
+                  className="h-6 text-[11px]"
                   onClick={() => setCustomEvents(preset.events)}
                 >
                   {preset.label}
