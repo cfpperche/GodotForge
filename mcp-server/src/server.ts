@@ -15,12 +15,32 @@ import { searchDocs, getClassReference } from "./docs/search.js";
 import { readMemory, appendMemory, getMemorySize } from "./memory/store.js";
 import { ensureMemoryDb, indexMemoryEntry, searchMemory as searchMemoryDb, getMemoryStats } from "./memory/search.js";
 import { buildContext } from "./context/builder.js";
+import { executeTool, setEventLog, setWebhookDispatcher, setConfirmationManager } from "./tool-handlers.js";
+import { EventLog } from "./events.js";
+import { WebhookDispatcher } from "./webhooks.js";
+import { ConfirmationManager } from "./confirmations.js";
 
 export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge, configManager?: ConfigManager): McpServer {
   const bridge = new GodotBridge(projectRoot);
   const blender = blenderBridge || new BlenderBridge(projectRoot);
   const root = projectRoot || process.cwd();
   const config = configManager || new ConfigManager(root);
+
+  // Initialize guardrails, event log, webhooks, confirmations for MCP subprocess
+  const eventLog = new EventLog(root);
+  const webhooks = new WebhookDispatcher(config);
+  const confirmations = new ConfirmationManager();
+  confirmations.setWebhooks(webhooks);
+  setEventLog(eventLog);
+  setWebhookDispatcher(webhooks);
+  setConfirmationManager(confirmations);
+
+  // Wrapper to bridge ToolResult type with MCP SDK's expected return type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const runTool = async (name: string, args: Record<string, unknown>): Promise<any> => {
+    const result = await executeTool(name, args, root, bridge, blender);
+    return { content: result.content, isError: result.isError };
+  };
 
   const server = new McpServer({
     name: "godotforge",
@@ -37,14 +57,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       root_type: z.string().describe("Node type for root (e.g. 'CharacterBody2D')"),
       root_name: z.string().optional().describe("Name for the root node"),
     },
-    async (args) => editorTool(bridge, "create_scene", args)
+    async (args) => runTool("create_scene", args)
   );
 
   server.tool(
     "get_scene_tree",
     "Get the node hierarchy of the currently edited scene.",
     {},
-    async () => editorTool(bridge, "get_scene_tree", {})
+    async () => runTool("get_scene_tree", {})
   );
 
   server.tool(
@@ -55,7 +75,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       type: z.string().describe("Node type (e.g. 'Sprite2D')"),
       name: z.string().describe("Name for the new node"),
     },
-    async (args) => editorTool(bridge, "add_node", args)
+    async (args) => runTool("add_node", args)
   );
 
   server.tool(
@@ -66,7 +86,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       property: z.string().describe("Property name"),
       value: z.any().describe("Value to set"),
     },
-    async (args) => editorTool(bridge, "set_property", args)
+    async (args) => runTool("set_property", args)
   );
 
   server.tool(
@@ -77,7 +97,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       content: z.string().describe("Full GDScript source code"),
       attach_to: z.string().optional().describe("NodePath to attach script to"),
     },
-    async (args) => editorTool(bridge, "create_script", args)
+    async (args) => runTool("create_script", args)
   );
 
   server.tool(
@@ -86,7 +106,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       path: z.string().describe("File path (e.g. 'res://scripts/player.gd')"),
     },
-    async (args) => editorTool(bridge, "read_script", args)
+    async (args) => runTool("read_script", args)
   );
 
   server.tool(
@@ -95,7 +115,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       path: z.string().describe("Scene file path (e.g. 'res://scenes/player.tscn')"),
     },
-    async (args) => editorTool(bridge, "open_scene", args)
+    async (args) => runTool("open_scene", args)
   );
 
   server.tool(
@@ -104,7 +124,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       node_path: z.string().describe("NodePath to the node to remove"),
     },
-    async (args) => editorTool(bridge, "remove_node", args)
+    async (args) => runTool("remove_node", args)
   );
 
   server.tool(
@@ -114,7 +134,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       node_path: z.string().describe("NodePath to the node"),
       new_name: z.string().describe("New name"),
     },
-    async (args) => editorTool(bridge, "rename_node", args)
+    async (args) => runTool("rename_node", args)
   );
 
   server.tool(
@@ -124,7 +144,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       node_path: z.string().describe("NodePath to duplicate"),
       new_name: z.string().optional().describe("Name for the copy"),
     },
-    async (args) => editorTool(bridge, "duplicate_node", args)
+    async (args) => runTool("duplicate_node", args)
   );
 
   server.tool(
@@ -134,7 +154,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       node_path: z.string().describe("NodePath to move"),
       new_parent_path: z.string().describe("NodePath to the new parent"),
     },
-    async (args) => editorTool(bridge, "move_node", args)
+    async (args) => runTool("move_node", args)
   );
 
   server.tool(
@@ -146,7 +166,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       old_text: z.string().optional().describe("Text to find (partial edit)"),
       new_text: z.string().optional().describe("Replacement text (partial edit)"),
     },
-    async (args) => editorTool(bridge, "edit_script", args)
+    async (args) => runTool("edit_script", args)
   );
 
   // --- Advanced editor tools ---
@@ -157,7 +177,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       code: z.string().describe("GDScript code to execute. Use _result = 'text' to return output."),
     },
-    async (args) => editorTool(bridge, "execute_editor_script", args)
+    async (args) => runTool("execute_editor_script", args)
   );
 
   server.tool(
@@ -169,7 +189,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       resource_type: z.string().describe("Resource class (e.g. 'RectangleShape2D', 'CircleShape2D', 'ImageTexture')"),
       resource_properties: z.record(z.string(), z.any()).optional().describe("Optional properties to set on the resource"),
     },
-    async (args) => editorTool(bridge, "add_resource", args)
+    async (args) => runTool("add_resource", args)
   );
 
   server.tool(
@@ -180,14 +200,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       parent_path: z.string().optional().describe("Parent NodePath (default: root '.')"),
       name: z.string().optional().describe("Name for the instance"),
     },
-    async (args) => editorTool(bridge, "add_scene_instance", args)
+    async (args) => runTool("add_scene_instance", args)
   );
 
   server.tool(
     "save_scene",
     "Save the currently edited scene to disk.",
     {},
-    async () => editorTool(bridge, "save_scene", {})
+    async () => runTool("save_scene", {})
   );
 
   server.tool(
@@ -197,7 +217,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       node_path: z.string().describe("NodePath to the node"),
       filter: z.string().optional().describe("Filter property names (e.g. 'position', 'collision')"),
     },
-    async (args) => editorTool(bridge, "get_node_properties", args)
+    async (args) => runTool("get_node_properties", args)
   );
 
   server.tool(
@@ -209,7 +229,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       target_path: z.string().describe("NodePath to the target node"),
       method_name: z.string().describe("Method name to call"),
     },
-    async (args) => editorTool(bridge, "connect_signal", args)
+    async (args) => runTool("connect_signal", args)
   );
 
   server.tool(
@@ -219,14 +239,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       key: z.string().describe("Setting key (e.g. 'display/window/size/viewport_width', 'application/run/main_scene')"),
       value: z.any().describe("Setting value"),
     },
-    async (args) => editorTool(bridge, "set_project_setting", args)
+    async (args) => runTool("set_project_setting", args)
   );
 
   server.tool(
     "get_editor_errors",
     "Get recent errors and warnings from the Godot editor log.",
     {},
-    async () => editorTool(bridge, "get_editor_errors", {})
+    async () => runTool("get_editor_errors", {})
   );
 
   // --- Runtime tools (delegated to Godot plugin) ---
@@ -237,21 +257,21 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       scene_path: z.string().optional().describe("Scene path (e.g. 'res://scenes/main.tscn')"),
     },
-    async (args) => editorTool(bridge, "run_scene", args)
+    async (args) => runTool("run_scene", args)
   );
 
   server.tool(
     "stop_scene",
     "Stop the currently running scene in the Godot editor.",
     {},
-    async () => editorTool(bridge, "stop_scene", {})
+    async () => runTool("stop_scene", {})
   );
 
   server.tool(
     "get_game_status",
     "Check if a scene is running in Godot and which scene it is.",
     {},
-    async () => editorTool(bridge, "get_game_status", {})
+    async () => runTool("get_game_status", {})
   );
 
   server.tool(
@@ -260,7 +280,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       output_path: z.string().optional().describe("Save path (default: res://.godotforge/screenshot.png)"),
     },
-    async (args) => editorTool(bridge, "take_screenshot", args)
+    async (args) => runTool("take_screenshot", args)
   );
 
   server.tool(
@@ -269,7 +289,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       output_path: z.string().optional().describe("Save path (default: res://.godotforge/game_screenshot.png)"),
     },
-    async (args) => editorTool(bridge, "take_game_screenshot", args)
+    async (args) => runTool("take_game_screenshot", args)
   );
 
   server.tool(
@@ -278,7 +298,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     {
       node_path: z.string().optional().describe("Filter results to nodes matching this path substring"),
     },
-    async (args) => editorTool(bridge, "get_runtime_state", args)
+    async (args) => runTool("get_runtime_state", args)
   );
 
   server.tool(
@@ -288,7 +308,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       action: z.string().describe("Input action name (e.g. 'flap', 'jump', 'ui_accept')"),
       duration_ms: z.number().optional().describe("How long to hold the action in ms (default: 100)"),
     },
-    async (args) => editorTool(bridge, "simulate_input", args)
+    async (args) => runTool("simulate_input", args)
   );
 
   server.tool(
@@ -300,7 +320,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
         delay_ms: z.number().describe("Delay before this action in ms (0 = immediate)"),
       })).describe("Array of timed input actions"),
     },
-    async (args) => editorTool(bridge, "simulate_input_sequence", args)
+    async (args) => runTool("simulate_input_sequence", args)
   );
 
   // --- Local tools ---
@@ -309,56 +329,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     "get_project_context",
     "Get project metadata: name, Godot version, scenes, scripts, current scene.",
     {},
-    async () => {
-      try {
-        const ctx = await bridge.getProjectContext();
-        return { content: [{ type: "text" as const, text: JSON.stringify(ctx, null, 2) }] };
-      } catch {
-        // Fallback: read project.godot directly
-        const projectFile = join(root, "project.godot");
-        if (existsSync(projectFile)) {
-          const content = readFileSync(projectFile, "utf-8");
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `[Godot not running — reading project.godot directly]\n\n${content}`,
-              },
-            ],
-          };
-        }
-        return {
-          content: [{ type: "text" as const, text: "No Godot project found in current directory." }],
-          isError: true,
-        };
-      }
-    }
+    async () => runTool("get_project_context", {})
   );
 
   server.tool(
     "read_file",
     "Read any file from the Godot project directory.",
-    {
-      path: z.string().describe("Relative path from project root"),
-    },
-    async ({ path }) => {
-      const fullPath = resolve(root, path);
-      // Security: ensure path is within project root
-      if (!fullPath.startsWith(resolve(root))) {
-        return {
-          content: [{ type: "text" as const, text: "Error: path must be within project root." }],
-          isError: true,
-        };
-      }
-      if (!existsSync(fullPath)) {
-        return {
-          content: [{ type: "text" as const, text: `File not found: ${path}` }],
-          isError: true,
-        };
-      }
-      const content = readFileSync(fullPath, "utf-8");
-      return { content: [{ type: "text" as const, text: content }] };
-    }
+    { path: z.string().describe("Relative path from project root") },
+    async (args) => runTool("read_file", args)
   );
 
   server.tool(
@@ -368,39 +346,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       directory: z.string().optional().describe("Directory relative to root"),
       pattern: z.string().optional().describe("Glob pattern (e.g. '*.gd')"),
     },
-    async ({ directory, pattern }) => {
-      const dir = resolve(root, directory || ".");
-      if (!dir.startsWith(resolve(root))) {
-        return {
-          content: [{ type: "text" as const, text: "Error: path must be within project root." }],
-          isError: true,
-        };
-      }
-      if (!existsSync(dir)) {
-        return {
-          content: [{ type: "text" as const, text: `Directory not found: ${directory}` }],
-          isError: true,
-        };
-      }
-
-      const entries = readdirSync(dir);
-      let files = entries.map((name) => {
-        const full = join(dir, name);
-        const isDir = statSync(full).isDirectory();
-        return isDir ? `${name}/` : name;
-      });
-
-      if (pattern) {
-        const regex = new RegExp(
-          "^" + pattern.replace(/\*/g, ".*").replace(/\?/g, ".") + "$"
-        );
-        files = files.filter((f) => regex.test(f.replace("/", "")));
-      }
-
-      return {
-        content: [{ type: "text" as const, text: files.join("\n") || "(empty directory)" }],
-      };
-    }
+    async (args) => runTool("list_files", args)
   );
 
   // --- Docs tools ---
@@ -414,32 +360,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       kind: z.enum(["class", "method", "property", "signal", "constant", "all"]).optional().describe("Filter by type"),
       limit: z.number().optional().describe("Max results (default: 10)"),
     },
-    async ({ query, version, kind, limit }) => {
-      try {
-        const ver = version || detectGodotVersion(root) || "4.3";
-        const db = await ensureDocsReady(ver);
-        const results = searchDocs(db, query, kind || "all", limit || 10);
-
-        if (results.length === 0) {
-          return {
-            content: [{ type: "text" as const, text: `No results found for "${query}" in Godot ${ver} docs.` }],
-          };
-        }
-
-        const formatted = results
-          .map((r) => `[${r.kind}] ${r.class_name}.${r.symbol_name}\n  ${r.description}`)
-          .join("\n\n");
-
-        return {
-          content: [{ type: "text" as const, text: `Godot ${ver} docs — ${results.length} results:\n\n${formatted}` }],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: "text" as const, text: `Docs search failed: ${error instanceof Error ? error.message : error}` }],
-          isError: true,
-        };
-      }
-    }
+    async (args) => runTool("search_docs", args)
   );
 
   server.tool(
@@ -449,29 +370,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       class_name: z.string().describe("Class name (e.g. 'Node2D', 'CharacterBody2D')"),
       version: z.string().optional().describe("Godot version. Auto-detected if omitted."),
     },
-    async ({ class_name, version }) => {
-      try {
-        const ver = version || detectGodotVersion(root) || "4.3";
-        const db = await ensureDocsReady(ver);
-        const ref = getClassReference(db, class_name);
-
-        if (!ref) {
-          return {
-            content: [{ type: "text" as const, text: `Class "${class_name}" not found in Godot ${ver} docs.` }],
-            isError: true,
-          };
-        }
-
-        return {
-          content: [{ type: "text" as const, text: JSON.stringify(ref, null, 2) }],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: "text" as const, text: `Failed to get class reference: ${error instanceof Error ? error.message : error}` }],
-          isError: true,
-        };
-      }
-    }
+    async (args) => runTool("get_class_reference", args)
   );
 
   // --- Memory tools ---
@@ -483,22 +382,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       category: z.enum(["Conventions", "Patterns", "Decisions", "Architecture"]).describe("Memory category"),
       content: z.string().describe("What to remember (e.g. 'We use snake_case for all GDScript functions')"),
     },
-    async ({ category, content }) => {
-      try {
-        appendMemory(root, category, content);
-        const timestamp = new Date().toISOString();
-        const db = ensureMemoryDb(root);
-        indexMemoryEntry(db, timestamp, category, content);
-        return {
-          content: [{ type: "text" as const, text: `Saved to ${category}: "${content}"` }],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: "text" as const, text: `Failed to save memory: ${error instanceof Error ? error.message : error}` }],
-          isError: true,
-        };
-      }
-    }
+    async (args) => runTool("save_memory", args)
   );
 
   server.tool(
@@ -508,56 +392,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       query: z.string().describe("Search query"),
       limit: z.number().optional().describe("Max results (default: 10)"),
     },
-    async ({ query, limit }) => {
-      try {
-        const db = ensureMemoryDb(root);
-        const results = searchMemoryDb(db, query, limit || 10);
-
-        if (results.length === 0) {
-          return {
-            content: [{ type: "text" as const, text: `No memory entries found for "${query}".` }],
-          };
-        }
-
-        const formatted = results
-          .map((r) => `[${r.category}] ${r.content}`)
-          .join("\n\n");
-
-        return {
-          content: [{ type: "text" as const, text: `${results.length} memory entries:\n\n${formatted}` }],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: "text" as const, text: `Memory search failed: ${error instanceof Error ? error.message : error}` }],
-          isError: true,
-        };
-      }
-    }
+    async (args) => runTool("search_memory", args)
   );
 
   server.tool(
     "get_project_memory",
     "Get the full project memory contents and stats.",
     {},
-    async () => {
-      try {
-        const memory = readMemory(root);
-        const db = ensureMemoryDb(root);
-        const stats = getMemoryStats(db);
-        const sizeKB = (getMemorySize(root) / 1024).toFixed(1);
-
-        const header = `Memory stats: ${stats.total_entries} entries, ${sizeKB}KB, categories: ${stats.categories.join(", ") || "none"}`;
-
-        return {
-          content: [{ type: "text" as const, text: `${header}\n\n${memory}` }],
-        };
-      } catch (error) {
-        return {
-          content: [{ type: "text" as const, text: `Failed to read memory: ${error instanceof Error ? error.message : error}` }],
-          isError: true,
-        };
-      }
-    }
+    async () => runTool("get_project_memory", {})
   );
 
   // --- Config tools ---
@@ -566,12 +408,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     "get_service_status",
     "Check which external services have API keys configured (Sketchfab, Stability, OpenAI, ElevenLabs, etc.). Never returns actual keys.",
     {},
-    async () => {
-      const status = config.getStatus();
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(status, null, 2) }],
-      };
-    }
+    async () => runTool("get_service_status", {})
   );
 
   // --- Asset tools ---
@@ -583,7 +420,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       type: z.enum(["hdris", "textures", "models", "all"]).optional().describe("Asset type (default: all)"),
       categories: z.string().optional().describe("Filter by categories (comma-separated)"),
     },
-    async (args) => handleSearchPolyHaven(args)
+    async (args) => runTool("assets.search_polyhaven", args)
   );
 
   server.tool(
@@ -595,7 +432,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       format: z.string().optional().describe("File format (jpg, png, exr, gltf — default: jpg)"),
       target_dir: z.string().optional().describe("Target directory (default: assets/textures)"),
     },
-    async (args) => handleDownloadPolyHaven(args, root)
+    async (args) => runTool("assets.download_polyhaven", args)
   );
 
   server.tool(
@@ -607,7 +444,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       animated: z.boolean().optional().describe("Only animated models"),
       count: z.number().optional().describe("Results count (default: 10)"),
     },
-    async (args) => handleSearchSketchfab(args)
+    async (args) => runTool("assets.search_sketchfab", args)
   );
 
   server.tool(
@@ -617,7 +454,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       uid: z.string().describe("Model UID from search results"),
       target_dir: z.string().optional().describe("Target directory (default: assets/models)"),
     },
-    async (args) => handleDownloadSketchfab(args, root, config)
+    async (args) => runTool("assets.download_sketchfab", args)
   );
 
   server.tool(
@@ -627,7 +464,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       query: z.string().describe("Search query"),
       type: z.enum(["2d", "3d", "music", "sound"]).optional().describe("Filter by asset type"),
     },
-    async (args) => handleSearchOpenGameArt(args)
+    async (args) => runTool("assets.search_opengameart", args)
   );
 
   server.tool(
@@ -638,7 +475,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       target_dir: z.string().optional().describe("Target directory (default: assets/downloads)"),
       file_name: z.string().optional().describe("Override filename"),
     },
-    async (args) => handleDownloadAsset(args, root)
+    async (args) => runTool("assets.download_asset", args)
   );
 
   server.tool(
@@ -648,7 +485,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       directory: z.string().optional().describe("Directory to scan (default: assets)"),
       type: z.enum(["texture", "model", "audio", "scene", "script", "material"]).optional().describe("Filter by asset type"),
     },
-    async (args) => handleListLocalAssets(args, root)
+    async (args) => runTool("assets.list_local", args)
   );
 
   // --- Blender docs tools ---
@@ -702,7 +539,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       tool.name,
       tool.description,
       tool.schema,
-      async (args) => blenderTool(blender, blenderHandlerName(tool.name), args)
+      async (args) => executeTool(tool.name, args, root, bridge, blender)
     );
   }
 
@@ -715,7 +552,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       target_dir: z.string().optional().describe("Target directory in project (default: 'assets/models')"),
       file_name: z.string().optional().describe("Output filename (default: 'export.glb')"),
     },
-    async (args) => blenderToGodot(blender, bridge, root, args)
+    async (args) => runTool("pipeline.blender_to_godot", args)
   );
 
   server.tool(
@@ -725,7 +562,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       target_dir: z.string().optional().describe("Target directory in project (default: 'assets/models')"),
       file_name: z.string().optional().describe("Output filename (default: 'export.glb')"),
     },
-    async (args) => blenderToGodotAnimated(blender, bridge, root, args)
+    async (args) => runTool("pipeline.blender_to_godot_animated", args)
   );
 
   server.tool(
@@ -735,7 +572,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       object_name: z.string().describe("Object to create collision for"),
       collision_type: z.enum(["convex", "collision_only", "convex_only", "trimesh"]).optional().describe("Collision type (default: convex)"),
     },
-    async (args) => syncCollision(blender, bridge, root, args)
+    async (args) => runTool("pipeline.sync_collision", args)
   );
 
   server.tool(
@@ -745,49 +582,8 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       source_dir: z.string().describe("Source directory (relative to project root)"),
       target_dir: z.string().optional().describe("Target directory (default: 'assets/models')"),
     },
-    async (args) => batchImport(bridge, root, args)
+    async (args) => runTool("pipeline.batch_import", args)
   );
 
   return server;
-}
-
-async function blenderTool(
-  blender: BlenderBridge,
-  handlerName: string,
-  input: Record<string, unknown>
-): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
-  try {
-    const result = await blender.executeTool(handlerName, input);
-    return {
-      content: [{ type: "text" as const, text: result.result }],
-      isError: result.is_error || false,
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      content: [{ type: "text" as const, text: message }],
-      isError: true,
-    };
-  }
-}
-
-async function editorTool(
-  bridge: GodotBridge,
-  toolName: string,
-  input: Record<string, unknown>
-): Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }> {
-  try {
-    const result = await bridge.executeTool(toolName, input);
-    return {
-      content: [{ type: "text" as const, text: result.result }],
-      isError: result.is_error || false,
-    };
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : String(error);
-    return {
-      content: [{ type: "text" as const, text: message }],
-      isError: true,
-    };
-  }
 }

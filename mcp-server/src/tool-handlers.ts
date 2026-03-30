@@ -33,6 +33,7 @@ export function setConfirmationManager(cm: ConfirmationManager): void { _confirm
 export interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
   isError?: boolean;
+  [key: string]: unknown;
 }
 
 // ==================== Editor tools (delegate to Godot plugin) ====================
