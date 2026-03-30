@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { useHealth } from "@/hooks/use-health";
-import { MessageSquare, Settings, Zap, RefreshCw } from "lucide-react";
+import { MessageSquare, Settings, Zap, RefreshCw, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
   const { connections } = useHealth();
   const [updating, setUpdating] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleUpdate = async (key: string) => {
     const endpoint = UPDATE_ENDPOINTS[key];
@@ -52,15 +53,27 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
   };
 
   return (
-    <aside className="group/sidebar hidden md:flex flex-col w-14 hover:w-56 transition-all duration-300 ease-in-out border-r border-border/50 bg-card/40 backdrop-blur-xl overflow-hidden shrink-0 z-30">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-border/30 min-h-[49px]">
-        <div className="h-7 w-7 shrink-0 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-md glow-primary">
-          <Zap className="h-3.5 w-3.5 text-primary-foreground" />
+    <aside className={cn(
+      "hidden md:flex flex-col border-r border-border/50 bg-card/40 backdrop-blur-xl shrink-0 z-30 transition-all duration-200",
+      collapsed ? "w-14" : "w-52"
+    )}>
+      {/* Logo + collapse toggle */}
+      <div className="flex items-center justify-between px-3.5 py-3 border-b border-border/30 min-h-[49px]">
+        <div className="flex items-center gap-2.5">
+          <div className="h-7 w-7 shrink-0 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-md">
+            <Zap className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+          {!collapsed && (
+            <span className="text-sm font-semibold whitespace-nowrap">GodotForge</span>
+          )}
         </div>
-        <span className="text-sm font-semibold whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
-          GodotForge
-        </span>
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
       </div>
 
       {/* Navigation */}
@@ -69,17 +82,18 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
+            title={collapsed ? item.label : undefined}
             className={cn(
-              "flex items-center gap-3 w-full px-2.5 py-2.5 rounded-lg transition-all duration-200",
+              "flex items-center gap-3 w-full px-2.5 py-2.5 rounded-lg transition-colors",
               activeView === item.id
                 ? "bg-primary/15 text-primary"
                 : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
             )}
           >
             <item.icon className="h-4 w-4 shrink-0" />
-            <span className="text-sm whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300">
-              {item.label}
-            </span>
+            {!collapsed && (
+              <span className="text-sm whitespace-nowrap">{item.label}</span>
+            )}
           </button>
         ))}
       </nav>
@@ -87,7 +101,7 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
       {/* Bottom: connections */}
       <div className="border-t border-border/30 px-2.5 py-2.5 space-y-1.5">
         {(["mcp", "godot", "blender"] as const).map((key) => (
-          <div key={key} className="flex items-center gap-2.5">
+          <div key={key} className="flex items-center gap-2.5" title={collapsed ? CONNECTION_LABELS[key] : undefined}>
             <div className={cn(
               "h-2 w-2 shrink-0 rounded-full",
               connections[key].outdated
@@ -96,19 +110,21 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
                   ? "bg-green-500 shadow-[0_0_6px_theme(colors.green.500)]"
                   : "bg-red-500"
             )} />
-            <span className="text-[11px] whitespace-nowrap opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-300 text-muted-foreground flex items-center gap-1">
-              {CONNECTION_LABELS[key]}
-              {connections[key].outdated && UPDATE_ENDPOINTS[key] && (
-                <button
-                  onClick={() => handleUpdate(key)}
-                  disabled={updating === key}
-                  className="text-amber-400 hover:text-amber-300 transition-colors"
-                  title="Update plugin"
-                >
-                  <RefreshCw className={cn("h-2.5 w-2.5", updating === key && "animate-spin")} />
-                </button>
-              )}
-            </span>
+            {!collapsed && (
+              <span className="text-[11px] whitespace-nowrap text-muted-foreground flex items-center gap-1">
+                {CONNECTION_LABELS[key]}
+                {connections[key].outdated && UPDATE_ENDPOINTS[key] && (
+                  <button
+                    onClick={() => handleUpdate(key)}
+                    disabled={updating === key}
+                    className="text-amber-400 hover:text-amber-300 transition-colors"
+                    title="Update plugin"
+                  >
+                    <RefreshCw className={cn("h-2.5 w-2.5", updating === key && "animate-spin")} />
+                  </button>
+                )}
+              </span>
+            )}
           </div>
         ))}
       </div>
