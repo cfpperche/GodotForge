@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Send, Check, Loader2, Trash2, Plus, Globe, ExternalLink } from "lucide-react";
+import { Send, Check, Loader2, Trash2, Plus, Globe, ExternalLink, Pencil } from "lucide-react";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
@@ -37,6 +37,28 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
   const [customName, setCustomName] = useState("");
   const [customUrl, setCustomUrl] = useState("");
   const [customEvents, setCustomEvents] = useState<string[]>(["guardrail.blocked", "error"]);
+
+  const editWebhook = useCallback(async (name: string) => {
+    // Fetch full config to get the webhook details (events list)
+    try {
+      const res = await fetch(`${BASE_URL}/config`);
+      const config = await res.json() as Record<string, unknown>;
+      const whs = (config.webhooks || []) as Array<Record<string, unknown>>;
+      const wh = whs.find((w) => w.name === name);
+      if (!wh) return;
+
+      if (wh.format === "telegram") {
+        setTelegramToken((wh.url as string) || "");
+        setTelegramEvents((wh.events as string[]) || ["guardrail.blocked", "error"]);
+        setShowTelegram(true);
+      } else {
+        setCustomName((wh.name as string) || "");
+        setCustomUrl((wh.url as string) || "");
+        setCustomEvents((wh.events as string[]) || ["guardrail.blocked", "error"]);
+        setShowCustom(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const [testingName, setTestingName] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<{ name: string; success: boolean } | null>(null);
@@ -181,6 +203,14 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
                 </div>
               </div>
               <div className="flex items-center gap-1">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-[11px] gap-1"
+                  onClick={() => editWebhook(wh.name)}
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </Button>
                 <Button
                   size="sm"
                   variant="ghost"
