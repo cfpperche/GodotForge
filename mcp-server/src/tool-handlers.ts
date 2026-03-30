@@ -518,6 +518,18 @@ async function executeToolInner(
     return handleListLocalAssets(args, root);
   }
 
+  // AI generation tools
+  if (toolName.startsWith("ai.meshy_")) {
+    const cfg = new ConfigManager(root);
+    const { handleMeshyTextTo3D, handleMeshyImageTo3D, handleMeshyCheckTask, handleMeshyBalance } = await import("./ai/handlers.js");
+    switch (toolName) {
+      case "ai.meshy_text_to_3d": return handleMeshyTextTo3D(args, root, cfg);
+      case "ai.meshy_image_to_3d": return handleMeshyImageTo3D(args, root, cfg);
+      case "ai.meshy_check_task": return handleMeshyCheckTask(args, cfg);
+      case "ai.meshy_balance": return handleMeshyBalance(cfg);
+    }
+  }
+
   // Blender docs tools
   if (toolName === "search_blender_docs" || toolName === "get_blender_class") {
     try {

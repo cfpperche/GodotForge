@@ -87,6 +87,12 @@ const RISK_MAP: Record<string, RiskLevel> = {
   blender_join_objects: "destructive",
   blender_separate_mesh: "destructive",
 
+  // AI generation — moderate (costs credits, creates content)
+  "ai.meshy_text_to_3d": "moderate",
+  "ai.meshy_image_to_3d": "moderate",
+  "ai.meshy_check_task": "safe",
+  "ai.meshy_balance": "safe",
+
   // Critical — arbitrary code execution or project-wide settings
   execute_editor_script: "critical",
   blender_execute_python: "critical",

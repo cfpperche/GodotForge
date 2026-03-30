@@ -588,5 +588,48 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("pipeline.batch_import", args)
   );
 
+  // --- AI generation tools ---
+
+  server.tool(
+    "ai.meshy_text_to_3d",
+    "Generate a 3D model from a text description using Meshy AI. Returns a GLB file. Takes 1-5 minutes.",
+    {
+      prompt: z.string().describe("Text description of the 3D model to generate (max 600 chars)"),
+      topology: z.enum(["quad", "triangle"]).optional().describe("Mesh topology (default: triangle)"),
+      target_polycount: z.number().optional().describe("Target polygon count (100-300000)"),
+    },
+    async (args) => runTool("ai.meshy_text_to_3d", args)
+  );
+
+  server.tool(
+    "ai.meshy_image_to_3d",
+    "Generate a 3D model from an image URL using Meshy AI. Returns a GLB file. Takes 1-5 minutes.",
+    {
+      image_url: z.string().describe("Public URL or base64 data URI of the source image"),
+      ai_model: z.string().optional().describe("AI model to use (default: latest)"),
+      topology: z.enum(["quad", "triangle"]).optional().describe("Mesh topology"),
+      target_polycount: z.number().optional().describe("Target polygon count"),
+      enable_pbr: z.boolean().optional().describe("Generate PBR texture maps (default: false)"),
+    },
+    async (args) => runTool("ai.meshy_image_to_3d", args)
+  );
+
+  server.tool(
+    "ai.meshy_check_task",
+    "Check the status of a Meshy AI generation task.",
+    {
+      task_id: z.string().describe("Meshy task ID to check"),
+      endpoint: z.enum(["text-to-3d", "image-to-3d"]).optional().describe("Task type (default: text-to-3d)"),
+    },
+    async (args) => runTool("ai.meshy_check_task", args)
+  );
+
+  server.tool(
+    "ai.meshy_balance",
+    "Check remaining Meshy AI credits.",
+    {},
+    async (args) => runTool("ai.meshy_balance", args)
+  );
+
   return server;
 }
