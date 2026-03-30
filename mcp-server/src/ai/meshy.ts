@@ -5,6 +5,7 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
+import { pollUntil } from "./poll.js";
 
 const BASE_URL = "https://api.meshy.ai";
 const POLL_INTERVAL_MS = 5000;
@@ -344,13 +345,11 @@ export async function pollUntilDone(
   apiKey: string,
   maxWaitMs: number = MAX_POLL_MS
 ): Promise<MeshyTask> {
-  const start = Date.now();
-  while (Date.now() - start < maxWaitMs) {
-    const task = await getTaskStatus(taskId, endpoint, apiKey);
-    if (TERMINAL_STATUSES.has(task.status)) return task;
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-  }
-  throw new Error(`Meshy task ${taskId} timed out after ${maxWaitMs / 1000}s`);
+  return pollUntil(
+    () => getTaskStatus(taskId, endpoint, apiKey),
+    (task) => TERMINAL_STATUSES.has(task.status),
+    { intervalMs: POLL_INTERVAL_MS, maxWaitMs, label: `Meshy ${endpoint} ${taskId}` }
+  );
 }
 
 export async function downloadModel(modelUrl: string, destPath: string): Promise<void> {

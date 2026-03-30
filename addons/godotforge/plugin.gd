@@ -35,7 +35,7 @@ func _enter_tree() -> void:
 	chat_panel_instance.set_tool_registry(tool_registry)
 	chat_panel_button = add_control_to_bottom_panel(chat_panel_instance, "GodotForge")
 
-	print("[GodotForge] Plugin loaded (editor bridge port %d)." % http_server.get_port())
+	push_warning("[GodotForge] Plugin loaded (editor bridge port %d)." % http_server.get_port())
 
 
 func _exit_tree() -> void:
@@ -51,7 +51,7 @@ func _exit_tree() -> void:
 		chat_panel_instance.queue_free()
 
 	_stop_mcp_server()
-	print("[GodotForge] Plugin unloaded.")
+	push_warning("[GodotForge] Plugin unloaded.")
 
 
 func _on_ui_action(action: String) -> void:
@@ -71,7 +71,7 @@ func _try_spawn_mcp_server() -> void:
 		if file:
 			var port := file.get_as_text().strip_edges().to_int()
 			if port > 0:
-				print("[GodotForge] MCP server already running on port %d." % port)
+				push_warning("[GodotForge] MCP server already running on port %d." % port)
 				return
 
 	# Find the MCP server dist
@@ -84,7 +84,7 @@ func _try_spawn_mcp_server() -> void:
 		mcp_index = parent.path_join("mcp-server/dist/index.js")
 
 	if not FileAccess.file_exists(mcp_index):
-		print("[GodotForge] MCP server not found. Start manually: node mcp-server/dist/index.js --http-only")
+		push_warning("[GodotForge] MCP server not found. Start manually: node mcp-server/dist/index.js --http-only")
 		return
 
 	# Spawn MCP server in http-only mode
@@ -96,11 +96,11 @@ func _try_spawn_mcp_server() -> void:
 
 	_mcp_pid = OS.create_process("node", args)
 	if _mcp_pid > 0:
-		print("[GodotForge] Spawned MCP server (PID %d)." % _mcp_pid)
+		push_warning("[GodotForge] Spawned MCP server (PID %d)." % _mcp_pid)
 		# Wait a bit for it to start
 		await get_tree().create_timer(2.0).timeout
 	else:
-		print("[GodotForge] Failed to spawn MCP server.")
+		push_error("[GodotForge] Failed to spawn MCP server.")
 
 
 func _stop_mcp_server() -> void:
@@ -111,4 +111,4 @@ func _stop_mcp_server() -> void:
 		var port_file := ProjectSettings.globalize_path("res://").path_join(".godotforge/mcp.port")
 		if FileAccess.file_exists(port_file):
 			DirAccess.remove_absolute(port_file)
-		print("[GodotForge] MCP server stopped.")
+		push_warning("[GodotForge] MCP server stopped.")

@@ -2,7 +2,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { createConnection } from "node:net";
 import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync, cpSync } from "fs";
 import { join, dirname, basename } from "path";
-import { execSync } from "child_process";
+import { execSync, execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 import { fileURLToPath } from "url";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
@@ -25,6 +28,7 @@ export class HttpServer {
   private port = 0;
   private portFilePath = "";
   private projectRoot: string;
+  private _cachedWinUser: string | null | undefined = undefined; // undefined = not yet resolved
 
   constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager) {
     this.chatEngine = chatEngine;
@@ -663,22 +667,27 @@ export class HttpServer {
     const vMatch = blenderPath.match(/Blender\s+(\d+\.\d+)/i);
     if (!vMatch) return null;
 
-    // Try to get Windows user from blender path, temp path, or env
-    let winUser: string | null = null;
-    const paths = [blenderPath, this.config.getPath("windows_temp")];
-    for (const p of paths) {
-      const m = p.match(/\/mnt\/c\/(?:Users|users)\/([^/]+)/);
-      if (m) { winUser = m[1]; break; }
-    }
-    if (!winUser) {
-      try { winUser = execSync("cmd.exe /C echo %USERNAME%", { stdio: "pipe" }).toString().trim(); } catch { /* */ }
-    }
+    // Try to get Windows user (cached to avoid execSync on every call)
+    const winUser = this.getWindowsUser();
     if (!winUser) return null;
 
     return `/mnt/c/Users/${winUser}/AppData/Roaming/Blender Foundation/Blender/${vMatch[1]}/scripts/addons/godotforge`;
   }
 
-  private provisionBlenderAddon(force: boolean = false): void {
+  private getWindowsUser(): string | null {
+    if (this._cachedWinUser !== undefined) return this._cachedWinUser;
+    // Try to extract from known paths first
+    const paths = [this.config.getPath("blender_executable"), this.config.getPath("windows_temp")];
+    for (const p of paths) {
+      const m = p.match(/\/mnt\/c\/(?:Users|users)\/([^/]+)/);
+      if (m) { this._cachedWinUser = m[1]; return this._cachedWinUser; }
+    }
+    // Fall back to cmd.exe (once, cached)
+    try { this._cachedWinUser = execSync("cmd.exe /C echo %USERNAME%", { stdio: "pipe" }).toString().trim(); } catch { this._cachedWinUser = null; }
+    return this._cachedWinUser;
+  }
+
+  private async provisionBlenderAddon(force: boolean = false): Promise<void> {
     const destDir = this.getBlenderAddonDir();
     if (!destDir) {
       console.error("[GodotForge] Cannot determine Blender addon directory, skipping provision");
@@ -711,7 +720,7 @@ export class HttpServer {
       cpSync(srcAddon, destDir, { recursive: true });
       console.error(`[GodotForge] ${isUpdate ? "Updated" : "Installed"} Blender addon (v${srcVersion}) to ${destDir}`);
 
-      // Enable addon via blender --background --python
+      // Enable addon via blender --background --python (async to avoid blocking HTTP server)
       const enableScript = join(destDir, "_enable.py");
       writeFileSync(enableScript, [
         "import bpy",
@@ -721,10 +730,7 @@ export class HttpServer {
       ].join("\n"));
 
       try {
-        execSync(`"${blenderPath}" --background --python "${enableScript}"`, {
-          timeout: 30000,
-          stdio: "pipe",
-        });
+        await execFileAsync(blenderPath, ["--background", "--python", enableScript], { timeout: 30000 });
         console.error("[GodotForge] Blender addon enabled via preferences");
       } catch {
         console.error("[GodotForge] Could not auto-enable addon (Blender may not be available). User can enable manually.");

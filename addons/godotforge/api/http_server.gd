@@ -30,7 +30,7 @@ func start() -> bool:
 		if err == OK:
 			_port = try_port
 			_write_port_file()
-			print("[GodotForge] HTTP server listening on %s:%d" % [BIND_HOST, _port])
+			push_warning("[GodotForge] HTTP server listening on %s:%d" % [BIND_HOST, _port])
 			server_started.emit(_port)
 			return true
 
@@ -43,7 +43,7 @@ func stop() -> void:
 		_server.stop()
 	_remove_port_file()
 	_port = 0
-	print("[GodotForge] HTTP server stopped.")
+	push_warning("[GodotForge] HTTP server stopped.")
 	server_stopped.emit()
 
 
@@ -393,10 +393,10 @@ func _write_port_file() -> void:
 	var file := FileAccess.open(_port_file_path, FileAccess.WRITE)
 	if file:
 		file.store_string(str(_port))
-		print("[GodotForge] Port file written: %s" % _port_file_path)
+		push_warning("[GodotForge] Port file written: %s" % _port_file_path)
 
 
 func _remove_port_file() -> void:
 	if _port_file_path != "" and FileAccess.file_exists(_port_file_path):
 		DirAccess.remove_absolute(_port_file_path)
-		print("[GodotForge] Port file removed.")
+		push_warning("[GodotForge] Port file removed.")

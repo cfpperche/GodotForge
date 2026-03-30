@@ -9,8 +9,19 @@ import bpy
 import mathutils
 
 
+def safe_handler(fn):
+    """Wrap handler in try/except to return structured errors instead of raw tracebacks."""
+    def wrapper(args):
+        try:
+            return fn(args)
+        except Exception as e:
+            return {"result": f"{fn.__name__} failed: {e}", "is_error": True}
+    return wrapper
+
+
 # ==================== Modeling ====================
 
+@safe_handler
 def create_mesh(args: dict) -> dict:
     """Create a mesh primitive (cube, sphere, cylinder, plane, cone, torus, uv_sphere, ico_sphere)."""
     mesh_type = args.get("type", "cube").lower()
@@ -42,6 +53,7 @@ def create_mesh(args: dict) -> dict:
     return {"result": f"Created {mesh_type} '{obj.name}' at {list(location)}"}
 
 
+@safe_handler
 def delete_object(args: dict) -> dict:
     """Delete an object by name."""
     name = args.get("name", "")
@@ -53,6 +65,7 @@ def delete_object(args: dict) -> dict:
     return {"result": f"Deleted object '{name}'"}
 
 
+@safe_handler
 def duplicate_object(args: dict) -> dict:
     """Duplicate an object."""
     name = args.get("name", "")
@@ -69,6 +82,7 @@ def duplicate_object(args: dict) -> dict:
     return {"result": f"Duplicated '{name}' as '{new_obj.name}'"}
 
 
+@safe_handler
 def transform(args: dict) -> dict:
     """Move, rotate, or scale an object."""
     name = args.get("name", "")
@@ -94,6 +108,7 @@ def transform(args: dict) -> dict:
     return {"result": f"Transformed '{name}': {', '.join(changes)}"}
 
 
+@safe_handler
 def modify(args: dict) -> dict:
     """Apply a modifier to an object (mirror, array, solidify, bevel, subsurf)."""
     name = args.get("name", "")
@@ -117,6 +132,7 @@ def modify(args: dict) -> dict:
     return {"result": f"Added {modifier_type} modifier to '{name}'"}
 
 
+@safe_handler
 def boolean(args: dict) -> dict:
     """Boolean operation between two objects."""
     name = args.get("name", "")
@@ -137,6 +153,7 @@ def boolean(args: dict) -> dict:
     return {"result": f"Added boolean {operation} on '{name}' with '{target}'"}
 
 
+@safe_handler
 def join_objects(args: dict) -> dict:
     """Join multiple objects into one."""
     names = args.get("names", [])
@@ -161,6 +178,7 @@ def join_objects(args: dict) -> dict:
 
 # ==================== Materials ====================
 
+@safe_handler
 def create_material(args: dict) -> dict:
     """Create a PBR material."""
     name = args.get("name", "Material")
@@ -179,6 +197,7 @@ def create_material(args: dict) -> dict:
     return {"result": f"Created material '{mat.name}' (color={color}, metallic={metallic}, roughness={roughness})"}
 
 
+@safe_handler
 def assign_material(args: dict) -> dict:
     """Assign a material to an object."""
     obj_name = args.get("object", "")
@@ -200,6 +219,7 @@ def assign_material(args: dict) -> dict:
     return {"result": f"Assigned material '{mat_name}' to '{obj_name}'"}
 
 
+@safe_handler
 def list_materials(args: dict) -> dict:
     """List all materials in the scene."""
     mats = [{"name": m.name, "users": m.users} for m in bpy.data.materials]
@@ -208,6 +228,7 @@ def list_materials(args: dict) -> dict:
 
 # ==================== Scene & Info ====================
 
+@safe_handler
 def get_scene_objects(args: dict) -> dict:
     """List all objects in the scene."""
     objects = []
@@ -221,6 +242,7 @@ def get_scene_objects(args: dict) -> dict:
     return {"result": json.dumps(objects)}
 
 
+@safe_handler
 def get_object_properties(args: dict) -> dict:
     """Get properties of an object."""
     name = args.get("name", "")
@@ -247,6 +269,7 @@ def get_object_properties(args: dict) -> dict:
     return {"result": json.dumps(props)}
 
 
+@safe_handler
 def get_blender_info(args: dict) -> dict:
     """Get Blender version and scene info."""
     info = {
@@ -261,6 +284,7 @@ def get_blender_info(args: dict) -> dict:
 
 # ==================== Export ====================
 
+@safe_handler
 def export_gltf(args: dict) -> dict:
     """Export scene or selected objects as GLTF/GLB."""
     filepath = args.get("filepath", "")
@@ -280,6 +304,7 @@ def export_gltf(args: dict) -> dict:
     return {"result": f"Exported to {filepath}"}
 
 
+@safe_handler
 def export_for_godot(args: dict) -> dict:
     """Export optimized for Godot (GLB + naming conventions)."""
     filepath = args.get("filepath", "")
@@ -301,6 +326,7 @@ def export_for_godot(args: dict) -> dict:
 
 # ==================== UV ====================
 
+@safe_handler
 def unwrap_uv(args: dict) -> dict:
     """UV unwrap the active object."""
     name = args.get("name", "")
@@ -325,6 +351,7 @@ def unwrap_uv(args: dict) -> dict:
 
 # ==================== Animation ====================
 
+@safe_handler
 def create_armature(args: dict) -> dict:
     """Create an armature (skeleton)."""
     name = args.get("name", "Armature")
@@ -336,6 +363,7 @@ def create_armature(args: dict) -> dict:
     return {"result": f"Created armature '{armature.name}'"}
 
 
+@safe_handler
 def add_bone(args: dict) -> dict:
     """Add a bone to an armature."""
     armature_name = args.get("armature", "")
@@ -364,6 +392,7 @@ def add_bone(args: dict) -> dict:
     return {"result": f"Added bone '{bone_name}' to armature '{armature_name}'"}
 
 
+@safe_handler
 def parent_to_armature(args: dict) -> dict:
     """Parent a mesh to an armature with automatic weights."""
     mesh_name = args.get("mesh", "")
@@ -386,6 +415,7 @@ def parent_to_armature(args: dict) -> dict:
     return {"result": f"Parented '{mesh_name}' to '{armature_name}' with auto weights"}
 
 
+@safe_handler
 def insert_keyframe(args: dict) -> dict:
     """Insert a keyframe on an object."""
     name = args.get("name", "")
@@ -415,6 +445,7 @@ def insert_keyframe(args: dict) -> dict:
     return {"result": f"Keyframe inserted on '{name}'.{data_path} at frame {frame}"}
 
 
+@safe_handler
 def create_animation(args: dict) -> dict:
     """Create a new animation action."""
     name = args.get("name", "Action")
@@ -436,6 +467,7 @@ def create_animation(args: dict) -> dict:
     return {"result": f"Created action '{name}' on '{obj_name}' (frames {frame_start}-{frame_end})"}
 
 
+@safe_handler
 def set_animation_range(args: dict) -> dict:
     """Set the frame range for the scene."""
     frame_start = args.get("frame_start", 1)
@@ -446,6 +478,7 @@ def set_animation_range(args: dict) -> dict:
     return {"result": f"Animation range set: {frame_start}-{frame_end}"}
 
 
+@safe_handler
 def list_animations(args: dict) -> dict:
     """List all animation actions."""
     actions = []
@@ -458,6 +491,7 @@ def list_animations(args: dict) -> dict:
     return {"result": json.dumps(actions)}
 
 
+@safe_handler
 def auto_weight_paint(args: dict) -> dict:
     """Auto weight paint a mesh to its armature parent."""
     mesh_name = args.get("mesh", "")
@@ -481,6 +515,7 @@ def auto_weight_paint(args: dict) -> dict:
 
 # ==================== Scene & Render ====================
 
+@safe_handler
 def set_camera(args: dict) -> dict:
     """Add or configure a camera."""
     name = args.get("name", "Camera")
@@ -505,6 +540,7 @@ def set_camera(args: dict) -> dict:
     return {"result": f"Camera '{cam.name}' set at {list(cam.location)}, focal={focal_length}mm"}
 
 
+@safe_handler
 def set_light(args: dict) -> dict:
     """Add or configure a light."""
     name = args.get("name", "Light")
@@ -531,6 +567,7 @@ def set_light(args: dict) -> dict:
     return {"result": f"Light '{light.name}' ({light_type}) energy={energy}"}
 
 
+@safe_handler
 def render_image(args: dict) -> dict:
     """Render an image to file."""
     filepath = args.get("filepath", "//render.png")
@@ -551,6 +588,7 @@ def render_image(args: dict) -> dict:
     return {"result": f"Rendered to {filepath} ({resolution_x}x{resolution_y}, {samples} samples)"}
 
 
+@safe_handler
 def set_render_settings(args: dict) -> dict:
     """Configure render settings."""
     engine = args.get("engine", "").upper()
@@ -581,6 +619,7 @@ def set_render_settings(args: dict) -> dict:
 
 # ==================== Texture ====================
 
+@safe_handler
 def set_material_texture(args: dict) -> dict:
     """Assign a texture image to a material channel."""
     mat_name = args.get("material", "")
@@ -623,6 +662,7 @@ def set_material_texture(args: dict) -> dict:
     return {"result": f"Texture '{filepath}' assigned to '{mat_name}'.{channel}"}
 
 
+@safe_handler
 def bake_textures(args: dict) -> dict:
     """Bake textures (diffuse, normal, AO) for the active object."""
     name = args.get("name", "")
@@ -658,6 +698,7 @@ def bake_textures(args: dict) -> dict:
     return {"result": f"Baked {bake_type} for '{name}' → {filepath} ({resolution}x{resolution})"}
 
 
+@safe_handler
 def delete_material(args: dict) -> dict:
     """Remove a material."""
     name = args.get("name", "")
@@ -671,6 +712,7 @@ def delete_material(args: dict) -> dict:
 
 # ==================== Collision helpers (for Godot) ====================
 
+@safe_handler
 def generate_collision_hints(args: dict) -> dict:
     """Generate collision shape metadata for Godot import.
 
@@ -705,6 +747,7 @@ def generate_collision_hints(args: dict) -> dict:
 
 # ==================== Export enhanced ====================
 
+@safe_handler
 def export_with_animations(args: dict) -> dict:
     """Export GLTF/GLB with animations included."""
     filepath = args.get("filepath", "")
@@ -726,6 +769,7 @@ def export_with_animations(args: dict) -> dict:
     return {"result": f"Exported with animations: {filepath}"}
 
 
+@safe_handler
 def export_fbx(args: dict) -> dict:
     """Export as FBX."""
     filepath = args.get("filepath", "")
@@ -743,6 +787,7 @@ def export_fbx(args: dict) -> dict:
 
 # ==================== Modeling extras ====================
 
+@safe_handler
 def extrude(args: dict) -> dict:
     """Extrude faces of a mesh."""
     name = args.get("name", "")
@@ -763,6 +808,7 @@ def extrude(args: dict) -> dict:
     return {"result": f"Extruded '{name}' by {offset}"}
 
 
+@safe_handler
 def subdivide(args: dict) -> dict:
     """Subdivide a mesh."""
     name = args.get("name", "")
@@ -781,6 +827,7 @@ def subdivide(args: dict) -> dict:
     return {"result": f"Subdivided '{name}' with {cuts} cuts"}
 
 
+@safe_handler
 def set_origin(args: dict) -> dict:
     """Set the origin of an object."""
     name = args.get("name", "")
@@ -802,6 +849,7 @@ def set_origin(args: dict) -> dict:
     return {"result": f"Origin set for '{name}': {origin_type}"}
 
 
+@safe_handler
 def separate_mesh(args: dict) -> dict:
     """Separate mesh by loose parts or materials."""
     name = args.get("name", "")
@@ -826,6 +874,7 @@ def separate_mesh(args: dict) -> dict:
 
 # ==================== Script (escape hatch) ====================
 
+@safe_handler
 def execute_python(args: dict) -> dict:
     """Execute arbitrary Python/bpy code."""
     code = args.get("code", "")
@@ -840,6 +889,7 @@ def execute_python(args: dict) -> dict:
 
 # ==================== API Extraction ====================
 
+@safe_handler
 def extract_api(args: dict) -> dict:
     """Extract bpy API documentation and save as JSON for RAG indexing."""
     filepath = args.get("filepath", "")

@@ -41,7 +41,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   // Wrapper to bridge ToolResult type with MCP SDK's expected return type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const runTool = async (name: string, args: Record<string, unknown>): Promise<any> => {
-    const result = await executeTool(name, args, root, bridge, blender);
+    const result = await executeTool(name, args, root, bridge, blender, config);
     return { content: result.content, isError: result.isError };
   };
 
@@ -542,7 +542,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
       tool.name,
       tool.description,
       tool.schema,
-      async (args) => executeTool(tool.name, args, root, bridge, blender)
+      async (args) => executeTool(tool.name, args, root, bridge, blender, config)
     );
   }
 

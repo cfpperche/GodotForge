@@ -5,6 +5,7 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
+import { pollUntil } from "./poll.js";
 
 const BASE_URL = "https://api.sunoapi.org";
 const POLL_INTERVAL_MS = 10_000;
@@ -126,19 +127,11 @@ export async function pollSunoDone(
   taskId: string,
   maxWaitMs: number = DEFAULT_MAX_WAIT_MS
 ): Promise<SunoTask> {
-  const deadline = Date.now() + maxWaitMs;
-
-  while (Date.now() < deadline) {
-    const task = await getTaskStatus(apiKey, taskId);
-
-    if (task.status === "completed" || task.status === "failed") {
-      return task;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-
-  throw new Error(`Suno task ${taskId} did not complete within ${maxWaitMs / 1000}s`);
+  return pollUntil(
+    () => getTaskStatus(apiKey, taskId),
+    (task) => task.status === "completed" || task.status === "failed",
+    { intervalMs: POLL_INTERVAL_MS, maxWaitMs, label: `Suno ${taskId}` }
+  );
 }
 
 export async function downloadAudio(url: string, destPath: string): Promise<void> {

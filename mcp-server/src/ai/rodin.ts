@@ -5,6 +5,7 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
+import { pollUntil } from "./poll.js";
 
 const BASE_URL = "https://hyperhuman.deemos.com/api/v2";
 const POLL_INTERVAL_MS = 5000;
@@ -128,19 +129,11 @@ export async function pollRodinDone(
   subscriptionKey: string,
   maxWaitMs: number = DEFAULT_MAX_WAIT_MS
 ): Promise<RodinStatusResponse> {
-  const deadline = Date.now() + maxWaitMs;
-
-  while (Date.now() < deadline) {
-    const status = await getRodinStatus(apiKey, subscriptionKey);
-    const allDone = status.jobs.every(
-      (j) => j.status === "Done" || j.status === "Failed"
-    );
-    if (allDone) return status;
-
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-
-  throw new Error(`Rodin task timed out after ${maxWaitMs / 1000}s`);
+  return pollUntil(
+    () => getRodinStatus(apiKey, subscriptionKey),
+    (status) => status.jobs.every((j) => j.status === "Done" || j.status === "Failed"),
+    { intervalMs: POLL_INTERVAL_MS, maxWaitMs, label: `Rodin ${subscriptionKey}` }
+  );
 }
 
 export async function downloadRodinFile(url: string, destPath: string): Promise<void> {

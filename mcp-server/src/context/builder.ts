@@ -191,7 +191,7 @@ async function buildGodotDocsSection(
  * Extract Godot class names from text using known patterns.
  * Matches PascalCase words that look like Godot classes (Node2D, CharacterBody3D, etc.)
  */
-function extractGodotClasses(text: string): string[] {
+export function extractGodotClasses(text: string): string[] {
   const classPattern = /\b([A-Z][a-zA-Z]*(?:2D|3D|Body|Shape|Light|Mesh|Material|Camera|Timer|Area|Sprite|Label|Button|Panel|Control|Texture|Resource|Animation|Collision|Audio|Path|Ray|Bone|Skeleton|Armature|Environment|Viewport|Canvas|Tween|Signal|Stream|Player)?(?:2D|3D)?)\b/g;
 
   const matches = new Set<string>();
@@ -220,7 +220,7 @@ const COMMON_WORDS = new Set([
   "String", "Array", "Dictionary", "Vector", "Color", "Float", "Boolean",
 ]);
 
-function isLikelyGodotClass(name: string): boolean {
+export function isLikelyGodotClass(name: string): boolean {
   // Known suffixes
   const godotSuffixes = [
     "2D", "3D", "Node", "Body", "Shape", "Light", "Mesh", "Material",
@@ -265,7 +265,7 @@ function isLikelyGodotClass(name: string): boolean {
  * Build a compact reference for a class — key methods, properties, signals.
  * Not the full dump, just what's needed for code generation.
  */
-function buildCompactClassDoc(ref: {
+export function buildCompactClassDoc(ref: {
   name: string;
   inherits: string;
   brief_description: string;
@@ -359,7 +359,7 @@ async function buildBlenderDocsSection(
 /**
  * Extract bpy type names from text.
  */
-function extractBpyClasses(text: string): string[] {
+export function extractBpyClasses(text: string): string[] {
   const matches = new Set<string>();
 
   // Match bpy.types.X patterns
@@ -394,7 +394,7 @@ function extractBpyClasses(text: string): string[] {
   return Array.from(matches);
 }
 
-function buildCompactBpyDoc(ref: {
+export function buildCompactBpyDoc(ref: {
   name: string;
   inherits: string;
   description: string;

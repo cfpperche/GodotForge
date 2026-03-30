@@ -394,7 +394,8 @@ export async function executeTool(
   args: Record<string, unknown>,
   root: string,
   bridge: GodotBridge,
-  blenderBridge?: BlenderBridge
+  blenderBridge?: BlenderBridge,
+  config?: ConfigManager
 ): Promise<ToolResult> {
   // Guardrails check
   const guard = checkGuardrails(toolName, args);
@@ -422,7 +423,7 @@ export async function executeTool(
   const startTime = Date.now();
   _eventLog?.emit({ type: "tool_call", tool: toolName, args: sanitizeArgs(args), risk: guard.risk });
 
-  const result = await executeToolInner(toolName, args, root, bridge, blenderBridge);
+  const result = await executeToolInner(toolName, args, root, bridge, blenderBridge, config);
 
   // Log result
   const duration = Date.now() - startTime;
@@ -457,8 +458,12 @@ async function executeToolInner(
   args: Record<string, unknown>,
   root: string,
   bridge: GodotBridge,
-  blenderBridge?: BlenderBridge
+  blenderBridge?: BlenderBridge,
+  config?: ConfigManager
 ): Promise<ToolResult> {
+  // Shared ConfigManager instance — avoid re-reading config.json per tool call
+  const cfg = config ?? new ConfigManager(root);
+
   // Editor tools — delegate to Godot plugin
   if (EDITOR_TOOL_NAMES.has(toolName)) {
     return editorTool(bridge, toolName, args);
@@ -505,7 +510,6 @@ async function executeToolInner(
     return handleSearchSketchfab(args);
   }
   if (toolName === "assets.download_sketchfab") {
-    const cfg = new ConfigManager(root);
     return handleDownloadSketchfab(args, root, cfg);
   }
   if (toolName === "assets.search_opengameart") {
@@ -520,7 +524,7 @@ async function executeToolInner(
 
   // AI generation tools (Meshy)
   if (toolName.startsWith("ai.meshy_")) {
-    const cfg = new ConfigManager(root);
+
     const h = await import("./ai/handlers.js");
     switch (toolName) {
       case "ai.meshy_text_to_3d": return h.handleMeshyTextTo3D(args, root, cfg);
@@ -536,7 +540,7 @@ async function executeToolInner(
 
   // AI generation tools (Blockade Labs)
   if (toolName.startsWith("ai.blockade_")) {
-    const cfg = new ConfigManager(root);
+
     const b = await import("./ai/blockade-handlers.js");
     switch (toolName) {
       case "ai.blockade_generate_skybox": return b.handleBlockadeGenerateSkybox(args, root, cfg);
@@ -547,7 +551,7 @@ async function executeToolInner(
 
   // AI generation tools (ElevenLabs)
   if (toolName.startsWith("ai.elevenlabs_")) {
-    const cfg = new ConfigManager(root);
+
     const e = await import("./ai/elevenlabs-handlers.js");
     switch (toolName) {
       case "ai.elevenlabs_tts": return e.handleElevenLabsTTS(args, root, cfg);
@@ -559,7 +563,7 @@ async function executeToolInner(
 
   // AI generation tools (Rodin / Hyper3D)
   if (toolName.startsWith("ai.rodin_")) {
-    const cfg = new ConfigManager(root);
+
     const r = await import("./ai/rodin-handlers.js");
     switch (toolName) {
       case "ai.rodin_generate": return r.handleRodinGenerate(args, root, cfg);
@@ -569,7 +573,7 @@ async function executeToolInner(
 
   // AI generation tools (Tripo AI)
   if (toolName.startsWith("ai.tripo_")) {
-    const cfg = new ConfigManager(root);
+
     const t = await import("./ai/tripo-handlers.js");
     switch (toolName) {
       case "ai.tripo_text_to_3d": return t.handleTripoTextTo3D(args, root, cfg);
@@ -584,7 +588,7 @@ async function executeToolInner(
 
   // AI generation tools (OpenAI DALL-E)
   if (toolName.startsWith("ai.dalle_")) {
-    const cfg = new ConfigManager(root);
+
     const d = await import("./ai/openai-dalle-handlers.js");
     switch (toolName) {
       case "ai.dalle_generate": return d.handleDalleGenerate(args, root, cfg);
@@ -595,7 +599,7 @@ async function executeToolInner(
 
   // AI generation tools (Suno Music)
   if (toolName.startsWith("ai.suno_")) {
-    const cfg = new ConfigManager(root);
+
     const s = await import("./ai/suno-handlers.js");
     switch (toolName) {
       case "ai.suno_generate": return s.handleSunoGenerate(args, root, cfg);
@@ -607,7 +611,7 @@ async function executeToolInner(
 
   // AI generation tools (Hugging Face)
   if (toolName.startsWith("ai.huggingface_")) {
-    const cfg = new ConfigManager(root);
+
     const hf = await import("./ai/huggingface-handlers.js");
     switch (toolName) {
       case "ai.huggingface_text_to_image": return hf.handleHFTextToImage(args, root, cfg);
@@ -616,7 +620,7 @@ async function executeToolInner(
 
   // AI generation tools (Stability AI)
   if (toolName.startsWith("ai.stability_")) {
-    const cfg = new ConfigManager(root);
+
     const s = await import("./ai/stability-handlers.js");
     switch (toolName) {
       case "ai.stability_generate": return s.handleStabilityGenerate(args, root, cfg);
@@ -657,7 +661,7 @@ async function executeToolInner(
 
   // Config tools
   if (toolName === "get_service_status") {
-    const cfg = new ConfigManager(root);
+
     return {
       content: [{ type: "text" as const, text: JSON.stringify(cfg.getStatus(), null, 2) }],
     };

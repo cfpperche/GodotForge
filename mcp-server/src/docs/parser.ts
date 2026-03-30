@@ -9,6 +9,24 @@ import type {
   ParsedParam,
 } from "./types.js";
 
+// Interfaces for XML-parsed nodes from fast-xml-parser
+interface XmlNode {
+  "@_name"?: string;
+  "@_type"?: string;
+  "@_default"?: string;
+  "@_value"?: string;
+  "@_enum"?: string;
+  "@_qualifiers"?: string;
+  "@_inherits"?: string;
+  "@_setter"?: string;
+  "@_getter"?: string;
+  description?: unknown;
+  return?: { "@_type"?: string };
+  param?: unknown[];
+  constant?: unknown[] | unknown;
+  "#text"?: string;
+}
+
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -61,7 +79,7 @@ function extractText(node: unknown): string {
 
 function parseMethods(methods: unknown[] | undefined): ParsedMethod[] {
   if (!methods) return [];
-  return methods.map((m: any) => ({
+  return (methods as XmlNode[]).map((m) => ({
     name: m["@_name"] || "",
     return_type: m.return?.["@_type"] || "void",
     qualifiers: m["@_qualifiers"] || "",
@@ -72,7 +90,7 @@ function parseMethods(methods: unknown[] | undefined): ParsedMethod[] {
 
 function parseProperties(members: unknown[] | undefined): ParsedProperty[] {
   if (!members) return [];
-  return members.map((m: any) => ({
+  return (members as XmlNode[]).map((m) => ({
     name: m["@_name"] || "",
     type: m["@_type"] || "",
     default_value: m["@_default"] || "",
@@ -84,7 +102,7 @@ function parseProperties(members: unknown[] | undefined): ParsedProperty[] {
 
 function parseSignals(signals: unknown[] | undefined): ParsedSignal[] {
   if (!signals) return [];
-  return signals.map((s: any) => ({
+  return (signals as XmlNode[]).map((s) => ({
     name: s["@_name"] || "",
     description: extractText(s.description),
     params: parseParams(s.param),
@@ -98,7 +116,7 @@ function parseConstants(
   const result: ParsedConstant[] = [];
 
   if (constants) {
-    for (const c of constants as any[]) {
+    for (const c of constants as XmlNode[]) {
       result.push({
         name: c["@_name"] || "",
         value: c["@_value"] || "",
@@ -110,14 +128,14 @@ function parseConstants(
 
   if (enums) {
     const enumList = Array.isArray(enums) ? enums : [enums];
-    for (const e of enumList as any[]) {
+    for (const e of enumList as XmlNode[]) {
       const enumName = e["@_name"] || "";
       const enumConstants = e.constant
         ? Array.isArray(e.constant)
           ? e.constant
           : [e.constant]
         : [];
-      for (const c of enumConstants as any[]) {
+      for (const c of enumConstants as XmlNode[]) {
         result.push({
           name: c["@_name"] || "",
           value: c["@_value"] || "",
@@ -133,7 +151,7 @@ function parseConstants(
 
 function parseParams(params: unknown[] | undefined): ParsedParam[] {
   if (!params) return [];
-  return params.map((p: any) => ({
+  return (params as XmlNode[]).map((p) => ({
     name: p["@_name"] || "",
     type: p["@_type"] || "",
     default_value: p["@_default"] || undefined,

@@ -5,6 +5,7 @@
 
 import { writeFileSync, mkdirSync, createReadStream } from "fs";
 import { dirname } from "path";
+import { pollUntil } from "./poll.js";
 
 const BASE_URL = "https://api.tripo3d.ai/v2/openapi";
 const POLL_INTERVAL_MS = 5000;
@@ -202,18 +203,12 @@ export async function pollTripoDone(
   taskId: string,
   maxWaitMs: number = DEFAULT_MAX_WAIT_MS
 ): Promise<TripoTask> {
-  const deadline = Date.now() + maxWaitMs;
-
-  while (Date.now() < deadline) {
-    const result = await getTripoTaskStatus(apiKey, taskId);
-    const { status } = result.data;
-    if (status === "success" || status === "failed" || status === "cancelled") {
-      return result.data;
-    }
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-  }
-
-  throw new Error(`Tripo task ${taskId} timed out after ${maxWaitMs / 1000}s`);
+  const response = await pollUntil(
+    () => getTripoTaskStatus(apiKey, taskId),
+    (r) => r.data.status === "success" || r.data.status === "failed" || r.data.status === "cancelled",
+    { intervalMs: POLL_INTERVAL_MS, maxWaitMs, label: `Tripo ${taskId}` }
+  );
+  return response.data;
 }
 
 export async function downloadTripoModel(url: string, destPath: string): Promise<void> {

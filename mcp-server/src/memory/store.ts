@@ -161,7 +161,7 @@ export function enforceMemoryCap(projectRoot: string): boolean {
 /**
  * Trim memory content by keeping only recent entries per section.
  */
-function trimMemory(content: string, targetSize: number): string {
+export function trimMemory(content: string, targetSize: number): string {
   const sections = content.split(/(?=^## )/m);
   const header = sections[0] || "";
   const categorySections = sections.slice(1);

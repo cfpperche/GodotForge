@@ -7,6 +7,7 @@
 
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
+import { pollUntil } from "./poll.js";
 
 const BASE_URL = "https://backend.blockadelabs.com";
 const POLL_INTERVAL_MS = 5_000;
@@ -135,26 +136,20 @@ export async function pollSkyboxDone(
   id: number | string,
   maxWaitMs: number
 ): Promise<SkyboxObject> {
-  const deadline = Date.now() + maxWaitMs;
+  const skybox = await pollUntil(
+    () => getSkyboxStatus(apiKey, id),
+    (s) => s.status === "complete" || s.status === "error" || s.status === "abort",
+    { intervalMs: POLL_INTERVAL_MS, maxWaitMs, label: `Skybox ${id}` }
+  );
 
-  while (Date.now() < deadline) {
-    const skybox = await getSkyboxStatus(apiKey, id);
-
-    if (skybox.status === "complete") return skybox;
-    if (skybox.status === "error") {
-      throw new Error(`Skybox generation failed: ${skybox.error_message || "unknown error"}`);
-    }
-    if (skybox.status === "abort") {
-      throw new Error("Skybox generation was aborted");
-    }
-
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) break;
-
-    await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  if (skybox.status === "error") {
+    throw new Error(`Skybox generation failed: ${skybox.error_message || "unknown error"}`);
+  }
+  if (skybox.status === "abort") {
+    throw new Error("Skybox generation was aborted");
   }
 
-  throw new Error(`Skybox generation timed out after ${maxWaitMs / 1000}s`);
+  return skybox;
 }
 
 export async function downloadSkybox(url: string, destPath: string): Promise<void> {

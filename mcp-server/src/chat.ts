@@ -14,6 +14,10 @@ import { loadTemplates, resolveTemplate, type TemplateInfo } from "./studio/temp
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
 const MAX_TOOL_LOOPS = 10;
+const MAX_OUTPUT_TOKENS = 16384;
+const MAX_CONTINUATION_ROUNDS = 3;
+const COMPACTION_THRESHOLD = 20;
+const COMPACTION_KEEP_RECENT = 6;
 
 const BASE_SYSTEM_PROMPT =
   "You are GodotForge, an AI game development hub that orchestrates Godot Engine and Blender. " +
@@ -77,7 +81,7 @@ export class ChatEngine {
     auth_mode: "agent_sdk",
     api_key: process.env.ANTHROPIC_API_KEY || "",
     model: "claude-sonnet-4-20250514",
-    max_tokens: 16384,
+    max_tokens: MAX_OUTPUT_TOKENS,
     memory_enabled: true,
     temperature: 1.0,
     effort: "high",
@@ -623,7 +627,7 @@ export class ChatEngine {
 
         // Continuation: if truncated by max_tokens, ask LLM to continue (max 3 times)
         let continuations = 0;
-        while (apiResponse.stop_reason === "max_tokens" && continuations < 3) {
+        while (apiResponse.stop_reason === "max_tokens" && continuations < MAX_CONTINUATION_ROUNDS) {
           continuations++;
           messages.push({ role: "user", content: "continue" });
           const contResponse = await this.callClaudeApi(systemPrompt, messages);
@@ -639,7 +643,7 @@ export class ChatEngine {
 
         appendSessionLog(this.root, "assistant", responseText.slice(0, 500));
 
-        if (messages.length > 20) {
+        if (messages.length > COMPACTION_THRESHOLD) {
           this.compactSession(sessionId, messages);
         }
 
@@ -653,7 +657,7 @@ export class ChatEngine {
         const toolInput = (block.input || {}) as Record<string, unknown>;
         const toolId = block.id as string;
 
-        const result = await executeTool(toolName, toolInput, this.root, this.bridge, this.blenderBridge);
+        const result = await executeTool(toolName, toolInput, this.root, this.bridge, this.blenderBridge, this.configManager);
         const resultText = result.content[0]?.text || "";
         const isError = result.isError || false;
 
@@ -777,7 +781,7 @@ export class ChatEngine {
    * Compaction: summarize old messages, keep 6 most recent.
    */
   private compactSession(sessionId: string, messages: Message[]): void {
-    const keepCount = 6;
+    const keepCount = COMPACTION_KEEP_RECENT;
     if (messages.length <= keepCount) return;
 
     const oldMessages = messages.slice(0, messages.length - keepCount);
