@@ -223,6 +223,24 @@ export class HttpServer {
           }
           break;
 
+        case "/skills":
+          this.sendJson(res, 200, this.chatEngine.getSkills().map(
+            ({ name, description }) => ({ name, description })
+          ));
+          break;
+
+        case "/agents":
+          this.sendJson(res, 200, this.chatEngine.getAgents().map(
+            ({ name, description }) => ({ name, description })
+          ));
+          break;
+
+        case "/templates":
+          this.sendJson(res, 200, this.chatEngine.getTemplates().map(
+            ({ name }) => ({ name })
+          ));
+          break;
+
         default:
           this.sendJson(res, 404, { error: `Not found: ${url}` });
       }

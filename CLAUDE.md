@@ -76,6 +76,8 @@ mcp-server/src/
     polyhaven.ts / sketchfab.ts / opengameart.ts / handlers.ts
   docs/                           → Docs engine (SQLite FTS5, 912 Godot + 3800 Blender classes)
     types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts / blender-docs.ts
+  studio/                         → .claude/ integration (skills router, agents context, templates)
+    skills.ts / agents.ts / templates.ts
   memory/                         → Memory engine (FTS5 + markdown)
     store.ts / search.ts
   context/                        → Context builder (token-budgeted)
@@ -215,6 +217,7 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Phase K production skills**: 6 production skills — /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems
 - **Web Polish**: Config JSON editor, connection status (MCP/Godot/Blender health checks), service tabs (6 categories, 12 services)
 - **Auto-Provision**: Godot plugin auto-copied to project on create/switch, Blender addon auto-installed on startup, version comparison + auto-update
+- **Studio Integration**: MCP copilot reads .claude/ (rules, skills, agents, templates) — same quality as Claude Code CLI. Skill routing (/commands), agent context injection, template resolution. HTTP endpoints: /skills, /agents, /templates
 - **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md
 - **Onboarding wizard**: 5-step first-time setup (Welcome → Project → Paths → Settings → Done)
 - **Project switcher**: Header dropdown with recent projects, inline Open/New forms

@@ -35,17 +35,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/validate-commit.sh",
+            "command": "bash .claude/hooks/validate-commit.sh",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": ".claude/hooks/validate-push.sh",
+            "command": "bash .claude/hooks/validate-push.sh",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": ".claude/hooks/pre-build.sh",
+            "command": "bash .claude/hooks/pre-build.sh",
             "timeout": 30000
           }
         ]
@@ -56,12 +56,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/session-start.sh",
+            "command": "bash .claude/hooks/session-start.sh",
             "timeout": 5000
           },
           {
             "type": "command",
-            "command": ".claude/hooks/detect-gaps.sh",
+            "command": "bash .claude/hooks/detect-gaps.sh",
             "timeout": 10000
           }
         ]
@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/session-stop.sh",
+            "command": "bash .claude/hooks/session-stop.sh",
             "timeout": 5000
           }
         ]
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/pre-compact.sh",
+            "command": "bash .claude/hooks/pre-compact.sh",
             "timeout": 5000
           }
         ]
@@ -95,7 +95,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".claude/hooks/validate-assets.sh",
+            "command": "bash .claude/hooks/validate-assets.sh",
             "timeout": 5000
           }
         ]

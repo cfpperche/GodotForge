@@ -7,6 +7,9 @@ import { buildContext } from "./context/builder.js";
 import { appendSessionLog } from "./memory/store.js";
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join } from "path";
+import { loadSkills, resolveSkill, type SkillInfo } from "./studio/skills.js";
+import { loadAgents, resolveAgent, type AgentInfo } from "./studio/agents.js";
+import { loadTemplates, resolveTemplate, type TemplateInfo } from "./studio/templates.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -168,6 +171,12 @@ export class ChatEngine {
       systemPrompt += "\n\n<rules>\n" + rules + "\n</rules>";
     }
 
+    // Inject studio context (skills, agents, templates)
+    const studioCtx = this.resolveStudioContext(message);
+    if (studioCtx) {
+      systemPrompt += "\n\n" + studioCtx;
+    }
+
     if (this.settings.memory_enabled) {
       try {
         const ctx = await buildContext(this.root, this.bridge, message);
@@ -313,6 +322,13 @@ export class ChatEngine {
     if (rules) {
       systemPrompt += "\n\n<rules>\n" + rules + "\n</rules>";
     }
+
+    // Inject studio context (skills, agents, templates)
+    const studioCtx = this.resolveStudioContext(message);
+    if (studioCtx) {
+      systemPrompt += "\n\n" + studioCtx;
+    }
+
     if (this.settings.memory_enabled) {
       try {
         const ctx = await buildContext(this.root, this.bridge, message);
@@ -405,6 +421,79 @@ export class ChatEngine {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Resolve skill, agent, and template context for a message.
+   * Detects /skill-name commands, matches agents by task, and injects templates.
+   */
+  private resolveStudioContext(message: string): string {
+    const claudeDir = join(this.root, ".claude");
+    const parts: string[] = [];
+
+    // 1. Skill routing: detect /command messages
+    const skillMatch = message.match(/^\/([a-z][\w-]*)/);
+    if (skillMatch) {
+      const skills = loadSkills(claudeDir);
+      const skill = resolveSkill(skills, skillMatch[1]);
+      if (skill) {
+        parts.push(`<active-skill name="${skill.name}">\n${skill.content}\n</active-skill>`);
+
+        // If skill references agents (@agent-name), inject their profiles
+        const agentRefs = skill.content.match(/@([a-z][\w-]+)/g);
+        if (agentRefs) {
+          const agents = loadAgents(claudeDir);
+          const injected = new Set<string>();
+          for (const ref of agentRefs) {
+            const agentName = ref.slice(1); // remove @
+            const agent = resolveAgent(agents, agentName);
+            if (agent && !injected.has(agent.name)) {
+              injected.add(agent.name);
+              parts.push(`<agent-profile name="${agent.name}">\n${agent.content}\n</agent-profile>`);
+            }
+          }
+        }
+
+        // If skill references templates, inject them
+        const templateRefs = skill.content.match(/`([a-z][\w-]+\.md)`/g);
+        if (templateRefs) {
+          const templates = loadTemplates(claudeDir);
+          for (const ref of templateRefs) {
+            const tplName = ref.replace(/`/g, "").replace(".md", "");
+            const tpl = resolveTemplate(templates, tplName);
+            if (tpl) {
+              parts.push(`<template name="${tpl.name}">\n${tpl.content}\n</template>`);
+            }
+          }
+        }
+      }
+    }
+
+    // 2. Available skills list (always inject so LLM knows what's available)
+    if (!skillMatch) {
+      const skills = loadSkills(claudeDir);
+      if (skills.length > 0) {
+        const list = skills.map((s) => `- /${s.name}: ${s.description}`).join("\n");
+        parts.push(`<available-skills>\nUsers can invoke these skills by typing the command:\n${list}\n</available-skills>`);
+      }
+    }
+
+    return parts.length > 0 ? parts.join("\n\n") : "";
+  }
+
+  /** List available skills for HTTP API */
+  getSkills(): SkillInfo[] {
+    return loadSkills(join(this.root, ".claude"));
+  }
+
+  /** List available agents for HTTP API */
+  getAgents(): AgentInfo[] {
+    return loadAgents(join(this.root, ".claude"));
+  }
+
+  /** List available templates for HTTP API */
+  getTemplates(): TemplateInfo[] {
+    return loadTemplates(join(this.root, ".claude"));
   }
 
   /**

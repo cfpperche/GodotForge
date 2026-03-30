@@ -836,6 +836,7 @@ Project management and production workflow skills:
 | **J. Team Orchestration** | /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio, /team-release (7 skills) | — | ✅ Concluído |
 | **K. Production Skills** | /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems (6 skills) | — | ✅ Concluído |
 | **L. Polish & Launch** | npm publish, README, Asset Library, docs | — | Pendente |
+| **Studio Integration** | MCP reads .claude/ (rules, skills, agents, templates) — parity with CLI | +3 endpoints | ✅ Concluído |
 
 ### E2E Tests Validados
 - ✅ **Phase A**: Cubo metálico Blender → GLB → Godot cena 3D
