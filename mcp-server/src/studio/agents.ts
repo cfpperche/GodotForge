@@ -68,7 +68,10 @@ function parseFrontmatter(raw: string): { frontmatter: Record<string, unknown>; 
     const idx = line.indexOf(":");
     if (idx === -1) continue;
     const key = line.slice(0, idx).trim();
-    frontmatter[key] = line.slice(idx + 1).trim();
+    let value: unknown = line.slice(idx + 1).trim();
+    if (value === "true") value = true;
+    else if (value === "false") value = false;
+    frontmatter[key] = value;
   }
 
   return { frontmatter, body: match[2].trim() };

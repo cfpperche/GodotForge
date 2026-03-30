@@ -337,20 +337,10 @@ export async function getBalance(apiKey: string): Promise<number> {
 
 // --- Polling & Download ---
 
-const TERMINAL_STATUSES: Set<TaskStatus> = new Set(["SUCCEEDED", "FAILED", "CANCELED", "EXPIRED"]);
+export const TERMINAL_STATUSES: Set<TaskStatus> = new Set(["SUCCEEDED", "FAILED", "CANCELED", "EXPIRED"]);
 
-export async function pollUntilDone(
-  taskId: string,
-  endpoint: TaskEndpoint,
-  apiKey: string,
-  maxWaitMs: number = MAX_POLL_MS
-): Promise<MeshyTask> {
-  return pollUntil(
-    () => getTaskStatus(taskId, endpoint, apiKey),
-    (task) => TERMINAL_STATUSES.has(task.status),
-    { intervalMs: POLL_INTERVAL_MS, maxWaitMs, label: `Meshy ${endpoint} ${taskId}` }
-  );
-}
+/** Poll interval and max wait, exported for handlers to pass to pollUntil. */
+export const MESHY_POLL_OPTS = { intervalMs: POLL_INTERVAL_MS, maxWaitMs: MAX_POLL_MS };
 
 export async function downloadModel(modelUrl: string, destPath: string): Promise<void> {
   const res = await fetch(modelUrl);

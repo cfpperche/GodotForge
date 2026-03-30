@@ -5,6 +5,7 @@
 import { join } from "path";
 import { existsSync, readFileSync } from "fs";
 import { ConfigManager } from "../config.js";
+import { pollUntil } from "./poll.js";
 import {
   createTextTo3DPreview,
   createTextTo3DRefine,
@@ -14,8 +15,9 @@ import {
   createRetexture,
   getTaskStatus,
   getBalance,
-  pollUntilDone,
   downloadModel,
+  MESHY_POLL_OPTS,
+  TERMINAL_STATUSES,
   type TaskEndpoint,
   type TextTo3DPreviewParams,
   type TextTo3DRefineParams,
@@ -90,7 +92,7 @@ export async function handleMeshyTextTo3D(
   try {
     const taskId = await createTextTo3DPreview(keyOrErr, params);
     console.error(`[Meshy] Text-to-3D preview task: ${taskId}`);
-    const task = await pollUntilDone(taskId, "text-to-3d", keyOrErr);
+    const task = await pollUntil(() => getTaskStatus(taskId, "text-to-3d", keyOrErr), (t) => TERMINAL_STATUSES.has(t.status), { ...MESHY_POLL_OPTS, label: `Meshy text-to-3d ${taskId}` });
     if (task.status !== "SUCCEEDED") return err(`Task failed: ${task.task_error?.message || task.status}`);
 
     const glbUrl = task.model_urls?.glb;
@@ -130,7 +132,7 @@ export async function handleMeshyRefine(
   try {
     const taskId = await createTextTo3DRefine(keyOrErr, params);
     console.error(`[Meshy] Text-to-3D refine task: ${taskId}`);
-    const task = await pollUntilDone(taskId, "text-to-3d", keyOrErr);
+    const task = await pollUntil(() => getTaskStatus(taskId, "text-to-3d", keyOrErr), (t) => TERMINAL_STATUSES.has(t.status), { ...MESHY_POLL_OPTS, label: `Meshy text-to-3d ${taskId}` });
     if (task.status !== "SUCCEEDED") return err(`Task failed: ${task.task_error?.message || task.status}`);
 
     const glbUrl = task.model_urls?.glb;
@@ -179,7 +181,7 @@ export async function handleMeshyImageTo3D(
   try {
     const taskId = await createImageTo3D(keyOrErr, params);
     console.error(`[Meshy] Image-to-3D task: ${taskId}`);
-    const task = await pollUntilDone(taskId, "image-to-3d", keyOrErr);
+    const task = await pollUntil(() => getTaskStatus(taskId, "image-to-3d", keyOrErr), (t) => TERMINAL_STATUSES.has(t.status), { ...MESHY_POLL_OPTS, label: `Meshy image-to-3d ${taskId}` });
     if (task.status !== "SUCCEEDED") return err(`Task failed: ${task.task_error?.message || task.status}`);
 
     const glbUrl = task.model_urls?.glb;
@@ -228,7 +230,7 @@ export async function handleMeshyMultiImageTo3D(
   try {
     const taskId = await createMultiImageTo3D(keyOrErr, params);
     console.error(`[Meshy] Multi-Image-to-3D task: ${taskId}`);
-    const task = await pollUntilDone(taskId, "multi-image-to-3d", keyOrErr);
+    const task = await pollUntil(() => getTaskStatus(taskId, "multi-image-to-3d", keyOrErr), (t) => TERMINAL_STATUSES.has(t.status), { ...MESHY_POLL_OPTS, label: `Meshy multi-image-to-3d ${taskId}` });
     if (task.status !== "SUCCEEDED") return err(`Task failed: ${task.task_error?.message || task.status}`);
 
     const glbUrl = task.model_urls?.glb;
@@ -266,7 +268,7 @@ export async function handleMeshyRemesh(
   try {
     const taskId = await createRemesh(keyOrErr, params);
     console.error(`[Meshy] Remesh task: ${taskId}`);
-    const task = await pollUntilDone(taskId, "remesh", keyOrErr);
+    const task = await pollUntil(() => getTaskStatus(taskId, "remesh", keyOrErr), (t) => TERMINAL_STATUSES.has(t.status), { ...MESHY_POLL_OPTS, label: `Meshy remesh ${taskId}` });
     if (task.status !== "SUCCEEDED") return err(`Task failed: ${task.task_error?.message || task.status}`);
 
     const glbUrl = task.model_urls?.glb;
@@ -305,7 +307,7 @@ export async function handleMeshyRetexture(
   try {
     const taskId = await createRetexture(keyOrErr, params);
     console.error(`[Meshy] Retexture task: ${taskId}`);
-    const task = await pollUntilDone(taskId, "retexture", keyOrErr);
+    const task = await pollUntil(() => getTaskStatus(taskId, "retexture", keyOrErr), (t) => TERMINAL_STATUSES.has(t.status), { ...MESHY_POLL_OPTS, label: `Meshy retexture ${taskId}` });
     if (task.status !== "SUCCEEDED") return err(`Task failed: ${task.task_error?.message || task.status}`);
 
     const glbUrl = task.model_urls?.glb;

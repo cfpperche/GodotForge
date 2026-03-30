@@ -239,8 +239,8 @@ export class HttpServer {
 
         case "/update/blender-addon":
           if (req.method === "POST") {
-            this.provisionBlenderAddon(true);
-            this.sendJson(res, 200, { result: "Blender addon updated", ...this.getVersionStatus() });
+            this.provisionBlenderAddon(true).catch((e) => console.error(`[GodotForge] Blender addon provision failed: ${e}`));
+            this.sendJson(res, 200, { result: "Blender addon update scheduled", ...this.getVersionStatus() });
           } else {
             this.sendJson(res, 405, { error: "Method not allowed" });
           }
