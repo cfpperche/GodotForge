@@ -85,19 +85,19 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
         {/* Model */}
         <div className="space-y-1.5">
           <span className="text-xs text-muted-foreground">Model</span>
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-3 gap-1.5">
             {MODELS.map((m) => (
               <button
                 key={m.id}
                 onClick={() => { setModel(m.id); markDirty(); }}
-                className={`text-left px-2 py-1.5 rounded-md text-[11px] transition-colors ${
+                className={`text-left px-3 py-2 rounded-lg text-xs transition-colors ${
                   model === m.id
                     ? "bg-primary/20 text-primary border border-primary/30"
                     : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border border-transparent"
                 }`}
               >
                 <div className="font-medium">{m.label}</div>
-                <div className="text-[9px] opacity-70">{m.desc}</div>
+                <div className="text-[10px] opacity-70">{m.desc}</div>
               </button>
             ))}
           </div>
@@ -105,7 +105,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
             value={model}
             onChange={(e) => { setModel(e.target.value); markDirty(); }}
             placeholder="Custom model ID..."
-            className="h-6 text-[10px] font-mono"
+            className="h-7 text-xs font-mono"
           />
         </div>
 
