@@ -2,7 +2,7 @@
 
 ## What is GodotForge
 
-GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 89 tools, memory, and context.
+GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 91 tools, memory, and context.
 
 ## Environment
 
@@ -97,9 +97,9 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
   src/lib/api.ts                  → HTTP client to MCP :6980
 ```
 
-## 85 Tools
+## 91 Tools
 
-### Editor Tools (24 — run in plugin via EditorInterface)
+### Editor Tools (28 — run in plugin via EditorInterface)
 | Tool | Description |
 |------|-------------|
 | `create_scene` | Create .tscn with root node |
@@ -131,7 +131,7 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 | `simulate_input` | Inject input action into running game (press + release) |
 | `simulate_input_sequence` | Execute timed sequence of inputs (single call, game-side timing) |
 
-### Local Tools (8 — run in MCP server, no Godot needed)
+### Local Tools (10 — run in MCP server, no Godot needed)
 | Tool | Description |
 |------|-------------|
 | `get_project_context` | Project metadata (name, version, scenes, scripts) |
@@ -230,6 +230,10 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Onboarding wizard**: 5-step first-time setup (Welcome → Project → Paths → Settings → Done)
 - **Project switcher**: Header dropdown with recent projects, inline Open/New forms
 - **Settings page**: Full-screen 2-column grid + tabbed API keys + config editor
+- **Guardrail Modes**: 3 permission levels (yolo/normal/strict) — yolo skips all confirmations, normal confirms destructive/critical only, strict confirms all non-read actions. Configurable in settings UI.
+- **Per-project Chat Context**: Messages and sessions isolated per project in web copilot. Switching projects loads that project's conversation history.
+- **Scroll Virtualization**: @tanstack/react-virtual for chat messages — only renders visible messages + overscan. Smart auto-scroll (only scrolls if near bottom).
+- **Dungeon of Echoes Demo**: Top-down 2D RPG demo — player, slimes AI, NPC dialogue, pickups, HUD. Built entirely via 30+ tools.
 
 ### E2E Validations
 - ✅ Flappy Bird (2D game, 32 Godot tools)

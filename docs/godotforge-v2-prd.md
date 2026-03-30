@@ -44,22 +44,22 @@ Blender Chat Panel ──► MCP (HTTP :6980)──┤──► Blender Addon TC
 
 | Interface | Tecnologia | Status |
 |-----------|-----------|--------|
-| **Claude Code / Cursor** | MCP stdio transport | ✅ 83 tools via MCP protocol |
+| **Claude Code / Cursor** | MCP stdio transport | ✅ 91 tools via MCP protocol |
 | **Godot Chat Panel** | GDScript → MCP HTTP :6980 | ✅ Claude CLI executa tools via MCP |
 | **Blender Chat Panel** | Python sidebar → MCP HTTP :6980 | ✅ View3D > GodotForge |
 | **Web Copilot** | React + Tailwind + shadcn :5173 | ✅ Chat + sidebar + API keys |
 
-Todas as interfaces compartilham a mesma memória, contexto e 83 tools.
+Todas as interfaces compartilham a mesma memória, contexto e 91 tools.
 
 ---
 
-## 4. Módulos e Tools (85 total)
+## 4. Módulos e Tools (91 total)
 
-### 4.1 Godot Module (32 tools — ✅ Completo)
+### 4.1 Godot Module (28 editor + 10 local + 2 Blender docs = 40 tools — ✅ Completo)
 
-**Editor Tools (24)**: create_scene, open_scene, get_scene_tree, add_node, remove_node, rename_node, duplicate_node, move_node, set_property, create_script, read_script, edit_script, run_scene, stop_scene, get_game_status, take_screenshot, execute_editor_script, add_resource, add_scene_instance, save_scene, get_node_properties, connect_signal, set_project_setting, get_editor_errors
+**Editor Tools (28)**: create_scene, open_scene, get_scene_tree, add_node, remove_node, rename_node, duplicate_node, move_node, set_property, create_script, read_script, edit_script, run_scene, stop_scene, get_game_status, take_screenshot, execute_editor_script, add_resource, add_scene_instance, save_scene, get_node_properties, connect_signal, set_project_setting, get_editor_errors, take_game_screenshot, get_runtime_state, simulate_input, simulate_input_sequence
 
-**Local Tools (8)**: get_project_context, read_file, list_files, search_docs, get_class_reference, save_memory, search_memory, get_project_memory
+**Local Tools (10)**: get_project_context, read_file, list_files, search_docs, get_class_reference, save_memory, search_memory, get_project_memory, search_blender_docs, get_blender_class
 
 ### 4.2 Blender Module (39 tools — ✅ Completo)
 
@@ -842,12 +842,16 @@ Project management and production workflow skills:
 | **Event Log** | JSONL audit log (.godotforge/events.jsonl) — chat, tool_call, tool_result, guardrail, error. Rotation 10MB×3. GET /events, /events/stats | +2 endpoints | ✅ Concluído |
 | **Guardrails** | Server-side tool validation — risk levels (safe/moderate/destructive/critical), content scanning, confirmation flow for destructive tools | — | ✅ Concluído |
 | **Webhooks** | Async notifications to external systems — Telegram + Custom (raw JSON). Configurable per event type. Retry with backoff. GET /webhooks, POST /webhooks/test | +2 endpoints | ✅ Concluído |
+| **Guardrail Modes** | 3 permission levels (yolo/normal/strict) configurable in settings | — | ✅ Concluído |
+| **Per-project Chat** | Messages isolated per project, scroll virtualization (@tanstack/react-virtual) | — | ✅ Concluído |
+| **Dungeon of Echoes** | Top-down 2D RPG demo (player, slimes AI, NPC, pickups, HUD) | — | ✅ Concluído |
 
 ### E2E Tests Validados
 - ✅ **Phase A**: Cubo metálico Blender → GLB → Godot cena 3D
 - ✅ **Phase B**: Personagem rigged + walk animation + collision → Godot com AnimationPlayer + CollisionShape3D
 - ✅ **Phase C**: Textura Poly Haven (coast_sand_rocks_02) + Rock Blender → Godot cena com PBR (diffuse + normal + roughness + AO)
 - ✅ **Flappy Bird**: Jogo 2D completo criado inteiramente via tools (demo/)
+- ✅ **Dungeon of Echoes**: RPG 2D top-down (player, slimes AI, NPC dialogue, pickups, HUD) — 30+ tools exercised
 
 ---
 
@@ -881,7 +885,7 @@ Project management and production workflow skills:
 
 | Métrica | Target | Atual |
 |---------|--------|-------|
-| Total tools | 315+ | 88 atual + 9 AI + 14 asset + 52 toolchain + 53 studio + 37 polish + 48 systems + 14 tier3 → 315 |
+| Total tools | 315+ | 91 atual + 9 AI + 14 asset + 52 toolchain + 53 studio + 37 polish + 48 systems + 14 tier3 → 318 |
 | Interfaces | 4 | 4 ✅ (CLI, Godot, Blender, Web) |
 | Rules | 24 | 24 ✅ (17 engineering + 7 game studio) |
 | Skills | 20+ | 17 ✅ (9 existing + 8 game studio) |
@@ -898,7 +902,7 @@ Project management and production workflow skills:
 
 | Feature | GodotForge V2 | Concorrentes |
 |---------|---------------|-------------|
-| Godot MCP | ✅ 32 tools | Vários (parciais) |
+| Godot MCP | ✅ 40 tools | Vários (parciais) |
 | Blender MCP | ✅ 39 tools | ahujasid (22), poly-mcp (51) |
 | Pipeline Blender→Godot | ✅ Automático (4 tools) | ❌ Ninguém |
 | Asset Libraries | ✅ 3 integradas + 14 planejadas (Kenney, ambientCG, Freesound, Mixamo, Godot AL, itch.io, jsfxr, etc.) | Blender MCP (só Poly Haven) |
