@@ -9,7 +9,7 @@ import { ConfigManager } from "./config.js";
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
-import { setEventLog, setWebhookDispatcher, setConfirmationManager } from "./tool-handlers.js";
+import { setEventLog, setWebhookDispatcher, setConfirmationManager, setGuardrailMode } from "./tool-handlers.js";
 
 const BIND_HOST = "127.0.0.1";
 const DEFAULT_PORT = 6980;
@@ -39,6 +39,7 @@ export class HttpServer {
     setEventLog(this.eventLog);
     setWebhookDispatcher(this.webhooks);
     setConfirmationManager(this.confirmations);
+    setGuardrailMode(chatEngine.getSettings().guardrail_mode || "normal");
   }
 
   async start(): Promise<number> {
@@ -170,6 +171,7 @@ export class HttpServer {
               effort: settings.effort,
               thinking: settings.thinking,
               tool_choice: settings.tool_choice,
+              guardrail_mode: settings.guardrail_mode,
               system_prompt_extra: settings.system_prompt_extra,
             });
           } else {
@@ -445,6 +447,9 @@ export class HttpServer {
     }
 
     this.chatEngine.updateSettings(parsed as Record<string, string | number | boolean>);
+    if (parsed.guardrail_mode) {
+      setGuardrailMode(parsed.guardrail_mode as "yolo" | "normal" | "strict");
+    }
     this.sendJson(res, 200, { result: "Settings updated" });
   }
 

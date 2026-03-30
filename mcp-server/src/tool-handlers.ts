@@ -25,10 +25,12 @@ import { ConfirmationManager } from "./confirmations.js";
 let _eventLog: EventLog | null = null;
 let _webhooks: WebhookDispatcher | null = null;
 let _confirmations: ConfirmationManager | null = null;
+let _guardrailMode: "yolo" | "normal" | "strict" = "normal";
 
 export function setEventLog(log: EventLog): void { _eventLog = log; }
 export function setWebhookDispatcher(wh: WebhookDispatcher): void { _webhooks = wh; }
 export function setConfirmationManager(cm: ConfirmationManager): void { _confirmations = cm; }
+export function setGuardrailMode(mode: "yolo" | "normal" | "strict"): void { _guardrailMode = mode; }
 
 export interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
@@ -402,8 +404,12 @@ export async function executeTool(
     return { content: [{ type: "text" as const, text: `🛡️ Guardrail: ${guard.reason}` }], isError: true };
   }
 
-  // Interactive confirmation for destructive/critical tools
-  if ((guard.risk === "destructive" || guard.risk === "critical") && _confirmations) {
+  // Interactive confirmation based on guardrail mode
+  const needsConfirm =
+    _guardrailMode === "strict" ? guard.risk !== "safe" :
+    _guardrailMode === "normal" ? guard.risk === "destructive" || guard.risk === "critical" :
+    false; // yolo = never confirm
+  if (needsConfirm && _confirmations) {
     const confirmed = await _confirmations.requestConfirmation(toolName, args, guard.risk);
     if (!confirmed) {
       _eventLog?.emit({ type: "guardrail", tool: toolName, action: "denied", risk: guard.risk });

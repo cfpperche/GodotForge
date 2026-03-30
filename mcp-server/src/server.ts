@@ -15,7 +15,7 @@ import { searchDocs, getClassReference } from "./docs/search.js";
 import { readMemory, appendMemory, getMemorySize } from "./memory/store.js";
 import { ensureMemoryDb, indexMemoryEntry, searchMemory as searchMemoryDb, getMemoryStats } from "./memory/search.js";
 import { buildContext } from "./context/builder.js";
-import { executeTool, setEventLog, setWebhookDispatcher, setConfirmationManager } from "./tool-handlers.js";
+import { executeTool, setEventLog, setWebhookDispatcher, setConfirmationManager, setGuardrailMode } from "./tool-handlers.js";
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
@@ -34,6 +34,9 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   setEventLog(eventLog);
   setWebhookDispatcher(webhooks);
   setConfirmationManager(confirmations);
+  // Load guardrail mode from persisted settings
+  const chatSettings = config.getChatSettings();
+  setGuardrailMode((chatSettings.guardrail_mode as "yolo" | "normal" | "strict") || "normal");
 
   // Wrapper to bridge ToolResult type with MCP SDK's expected return type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

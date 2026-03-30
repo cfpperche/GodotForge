@@ -60,6 +60,7 @@ interface ChatSettings {
   effort: "low" | "medium" | "high" | "max";
   thinking: "disabled" | "adaptive";
   tool_choice: "auto" | "any" | "none";
+  guardrail_mode: "yolo" | "normal" | "strict";
   system_prompt_extra: string;
 }
 
@@ -82,6 +83,7 @@ export class ChatEngine {
     effort: "high",
     thinking: "disabled",
     tool_choice: "auto",
+    guardrail_mode: "normal",
     system_prompt_extra: "",
   };
   private root: string;
@@ -105,6 +107,7 @@ export class ChatEngine {
     if (persisted.tool_choice) this.settings.tool_choice = persisted.tool_choice;
     if (persisted.memory_enabled !== undefined) this.settings.memory_enabled = persisted.memory_enabled;
     if (persisted.system_prompt_extra) this.settings.system_prompt_extra = persisted.system_prompt_extra;
+    if (persisted.guardrail_mode) this.settings.guardrail_mode = persisted.guardrail_mode;
 
     // Auto-detect auth mode
     if (this.settings.api_key) {
@@ -121,7 +124,7 @@ export class ChatEngine {
 
     // Persist to config.json
     const toPersist: Record<string, unknown> = {};
-    const persistKeys = ["model", "max_tokens", "temperature", "effort", "thinking", "tool_choice", "memory_enabled", "system_prompt_extra"];
+    const persistKeys = ["model", "max_tokens", "temperature", "effort", "thinking", "tool_choice", "guardrail_mode", "memory_enabled", "system_prompt_extra"];
     for (const key of persistKeys) {
       if (key in partial) {
         toPersist[key] = (partial as Record<string, unknown>)[key];

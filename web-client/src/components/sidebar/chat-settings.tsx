@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Settings, Check, Brain, Zap, Thermometer, Wrench } from "lucide-react";
+import { Settings, Check, Brain, Zap, Thermometer, Wrench, Shield } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const MODELS = [
@@ -29,6 +29,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
   const [effort, setEffort] = useState<"low" | "medium" | "high" | "max">("high");
   const [thinking, setThinking] = useState<"disabled" | "adaptive">("disabled");
   const [toolChoice, setToolChoice] = useState<"auto" | "any" | "none">("auto");
+  const [guardrailMode, setGuardrailMode] = useState<"yolo" | "normal" | "strict">("normal");
   const [systemPromptExtra, setSystemPromptExtra] = useState("");
   const [dirty, setDirty] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -42,6 +43,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
       setEffort(settings.effort ?? "high");
       setThinking(settings.thinking ?? "disabled");
       setToolChoice(settings.tool_choice ?? "auto");
+      setGuardrailMode(settings.guardrail_mode ?? "normal");
       setSystemPromptExtra(settings.system_prompt_extra ?? "");
     }
   }, [settings]);
@@ -51,7 +53,7 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
   const handleSave = async () => {
     await updateSettings({
       model, max_tokens: maxTokens, memory_enabled: memoryEnabled,
-      temperature, effort, thinking, tool_choice: toolChoice,
+      temperature, effort, thinking, tool_choice: toolChoice, guardrail_mode: guardrailMode,
       system_prompt_extra: systemPromptExtra,
     });
     setDirty(false);
@@ -126,6 +128,35 @@ export function ChatSettings({ onSaved }: { onSaved?: () => void } = {}) {
                 }`}
               >
                 {e.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Guardrail Mode */}
+        <div className="space-y-1.5">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Shield className="h-3 w-3" /> Guardrails
+          </span>
+          <div className="grid grid-cols-3 gap-1">
+            {([
+              { id: "yolo" as const, label: "Yolo", desc: "No confirmations" },
+              { id: "normal" as const, label: "Normal", desc: "Destructive only" },
+              { id: "strict" as const, label: "Strict", desc: "All actions" },
+            ]).map((g) => (
+              <button
+                key={g.id}
+                onClick={() => { setGuardrailMode(g.id); markDirty(); }}
+                title={g.desc}
+                className={`px-1.5 py-1 rounded text-[11px] text-center transition-colors ${
+                  guardrailMode === g.id
+                    ? g.id === "yolo" ? "bg-red-500/20 text-red-400 border border-red-500/30"
+                    : g.id === "strict" ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                    : "bg-primary/20 text-primary border border-primary/30"
+                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50 border border-transparent"
+                }`}
+              >
+                {g.label}
               </button>
             ))}
           </div>

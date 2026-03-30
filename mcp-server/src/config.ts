@@ -74,6 +74,7 @@ export interface PersistedChatSettings {
   effort: "low" | "medium" | "high" | "max";
   thinking: "disabled" | "adaptive";
   tool_choice: "auto" | "any" | "none";
+  guardrail_mode: "yolo" | "normal" | "strict";
   memory_enabled: boolean;
   system_prompt_extra: string;
 }

@@ -90,7 +90,7 @@ const RISK_MAP: Record<string, RiskLevel> = {
   // Critical — arbitrary code execution or project-wide settings
   execute_editor_script: "critical",
   blender_execute_python: "critical",
-  set_project_setting: "critical",
+  set_project_setting: "moderate",
 };
 
 const BLOCKED_GD_PATTERNS = [
