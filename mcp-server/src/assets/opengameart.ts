@@ -1,6 +1,6 @@
 /**
  * OpenGameArt.org scraper — free sprites, sounds, music, 3D models.
- * No official API — uses the RSS/search endpoint.
+ * No official API — uses the advanced search page (Drupal views).
  */
 
 const BASE_URL = "https://opengameart.org";
@@ -13,30 +13,27 @@ export interface OGAResult {
   author: string;
 }
 
+// Drupal taxonomy IDs for art types
+const TYPE_IDS: Record<string, string> = {
+  "2d": "9",
+  "3d": "10",
+  "music": "12",
+  "sound": "13",
+};
+
 /**
- * Search OpenGameArt using their search page (returns HTML, we parse basics).
- * Uses the JSON API endpoint if available, falls back to scraping.
+ * Search OpenGameArt using their advanced search page.
  */
 export async function searchOpenGameArt(
   query: string,
   type?: "2d" | "3d" | "music" | "sound"
 ): Promise<OGAResult[]> {
-  // OGA has a basic search API via their Drupal JSON endpoint
-  const typeMap: Record<string, string> = {
-    "2d": "art2d",
-    "3d": "art3d",
-    "music": "music",
-    "sound": "sfx",
-  };
-
-  const params = new URLSearchParams({
-    keys: query,
-  });
-  if (type && typeMap[type]) {
-    params.set("type", typeMap[type]);
+  const params = new URLSearchParams({ keys: query });
+  if (type && TYPE_IDS[type]) {
+    params.append("field_art_type_tid[]", TYPE_IDS[type]);
   }
 
-  const url = `${BASE_URL}/search/node?${params.toString()}`;
+  const url = `${BASE_URL}/art-search-advanced?${params.toString()}`;
 
   const response = await fetch(url, {
     headers: {
@@ -54,51 +51,29 @@ export async function searchOpenGameArt(
 }
 
 /**
- * Parse search results from OpenGameArt HTML.
+ * Parse search results from OGA advanced search HTML.
+ * Results are in: <span class="art-preview-title"><a href="/content/...">Title</a></span>
  */
 function parseSearchResults(html: string): OGAResult[] {
   const results: OGAResult[] = [];
+  const seen = new Set<string>();
 
-  // Match search result entries — OGA uses <h3 class="title"> or <li class="search-result"> patterns
-  // Look for content links within search result context
-  const resultPattern = /class="search-result[^"]*"[\s\S]*?<a href="(\/content\/[^"]+)"[^>]*>([^<]+)<\/a>/g;
+  const pattern = /art-preview-title"><a href="(\/content\/[^"]+)"[^>]*>([^<]+)<\/a>/g;
   let match;
 
-  while ((match = resultPattern.exec(html)) !== null) {
+  while ((match = pattern.exec(html)) !== null) {
     const path = match[1];
-    const title = match[2].trim();
-    if (title.length < 2) continue;
-    if (results.some((r) => r.url === `${BASE_URL}${path}`)) continue;
+    const title = decodeHtmlEntities(match[2].trim());
+    if (title.length < 2 || seen.has(path)) continue;
+    seen.add(path);
 
     results.push({
-      title: decodeHtmlEntities(title),
+      title,
       url: `${BASE_URL}${path}`,
       type: "unknown",
       license: "varies",
       author: "",
     });
-  }
-
-  // Fallback: grab all /content/ links if structured parsing finds nothing
-  if (results.length === 0) {
-    const fallbackPattern = /<a href="(\/content\/[^"]+)"[^>]*>([^<]{3,80})<\/a>/g;
-    const skipTitles = new Set(["FAQ", "Forums", "Collections", "Art Search", "Submit Art"]);
-
-    while ((match = fallbackPattern.exec(html)) !== null) {
-      const path = match[1];
-      const title = match[2].trim();
-      if (skipTitles.has(title)) continue;
-      if (title.length < 3) continue;
-      if (results.some((r) => r.url === `${BASE_URL}${path}`)) continue;
-
-      results.push({
-        title: decodeHtmlEntities(title),
-        url: `${BASE_URL}${path}`,
-        type: "unknown",
-        license: "varies",
-        author: "",
-      });
-    }
   }
 
   return results.slice(0, 20);
