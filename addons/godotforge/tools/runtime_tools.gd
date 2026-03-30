@@ -3,13 +3,8 @@ extends GodotForgeToolBase
 
 const CAPTURE_AUTOLOAD := "GodotForgeCapture"
 const CAPTURE_SCRIPT := "res://addons/godotforge/capture/game_capture.gd"
-const CAPTURE_DIR := "res://.godotforge/"
-const SCREENSHOT_REQUEST := "res://.godotforge/capture_request"
-const GAME_SCREENSHOT := "res://.godotforge/game_screenshot.png"
-const RUNTIME_STATE := "res://.godotforge/runtime_state.json"
-const INPUT_REQUEST := "res://.godotforge/input_request"
 const POLL_INTERVAL_MS := 100
-const POLL_TIMEOUT_MS := 4000
+const POLL_TIMEOUT_MS := 3000
 
 var _debugger: GodotForgeDebugger
 
@@ -34,8 +29,16 @@ func execute(tool_name: String, input: Dictionary) -> Dictionary:
 			return _get_runtime_state(input)
 		"simulate_input":
 			return _simulate_input(input)
+		"simulate_input_sequence":
+			return _simulate_input_sequence(input)
 		_:
 			return {"result": "Unknown runtime tool: %s" % tool_name, "is_error": true}
+
+
+# --- Temp dir paths (native NTFS, avoids WSL2 9P latency) ---
+
+func _temp(filename: String) -> String:
+	return OS.get_temp_dir().path_join(filename)
 
 
 # --- Run / Stop ---
@@ -43,11 +46,8 @@ func execute(tool_name: String, input: Dictionary) -> Dictionary:
 func _run_scene(input: Dictionary) -> Dictionary:
 	if EditorInterface.is_playing_scene():
 		return {"result": "A scene is already running. Stop it first.", "is_error": true}
-
 	_inject_capture_autoload()
-
 	var scene_path: String = input.get("scene_path", "")
-
 	if scene_path == "":
 		var root := EditorInterface.get_edited_scene_root()
 		if root and root.scene_file_path != "":
@@ -64,11 +64,9 @@ func _run_scene(input: Dictionary) -> Dictionary:
 func _stop_scene() -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return {"result": "No scene is currently running.", "is_error": true}
-
 	EditorInterface.stop_playing_scene()
 	_remove_capture_autoload()
-	_cleanup_capture_files()
-
+	_cleanup_temp_files()
 	return {"result": "Scene stopped."}
 
 
@@ -94,116 +92,47 @@ func _take_screenshot(input: Dictionary) -> Dictionary:
 func _take_editor_screenshot(input: Dictionary) -> Dictionary:
 	var output_path: String = input.get("output_path", "res://.godotforge/screenshot.png")
 	_ensure_dir(output_path)
-
 	var viewport := EditorInterface.get_editor_viewport_2d()
 	if not viewport:
 		return {"result": "Failed to get editor viewport.", "is_error": true}
-
 	var texture := viewport.get_texture()
 	if not texture:
 		return {"result": "Failed to get viewport texture.", "is_error": true}
-
 	var image := texture.get_image()
 	if not image:
 		return {"result": "Failed to get viewport image.", "is_error": true}
-
 	var err := image.save_png(output_path)
 	if err != OK:
 		return {"result": "Failed to save screenshot: %s" % error_string(err), "is_error": true}
-
 	return {"result": "Screenshot saved to %s (%dx%d)" % [output_path, image.get_width(), image.get_height()]}
 
 
-func _take_game_screenshot(input: Dictionary) -> Dictionary:
+func _take_game_screenshot(_input: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return {"result": "No game is running. Use run_scene first.", "is_error": true}
 
-	var output_path: String = input.get("output_path", GAME_SCREENSHOT)
+	# Write capture trigger to temp dir
+	var trigger := _temp("godotforge_capture")
+	var f := FileAccess.open(trigger, FileAccess.WRITE)
+	if not f:
+		return {"result": "Failed to create capture trigger.", "is_error": true}
+	f.store_string("1")
+	f.close()
 
-	# Send capture command via debugger, then poll for file output
-	if _debugger and _debugger.is_game_connected():
-		_debugger.send_capture()
-	return _poll_for_screenshot(output_path)
-
-
-func _poll_for_screenshot(output_path: String) -> Dictionary:
+	# Poll for screenshot file
+	var screenshot := _temp("godotforge_screenshot.png")
 	var start_time := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
-		if FileAccess.file_exists(GAME_SCREENSHOT):
-			var mod_time := FileAccess.get_modified_time(GAME_SCREENSHOT)
+		if FileAccess.file_exists(screenshot):
+			var mod_time := FileAccess.get_modified_time(screenshot)
 			if mod_time >= (start_time / 1000) - 2:
-				var img := Image.load_from_file(GAME_SCREENSHOT)
+				var img := Image.load_from_file(screenshot)
 				if img:
-					if output_path != GAME_SCREENSHOT:
-						img.save_png(output_path)
-					return {"result": "Game screenshot saved to %s (%dx%d)" % [output_path, img.get_width(), img.get_height()]}
-		OS.delay_msec(POLL_INTERVAL_MS)
-	return {"result": "Timeout waiting for game screenshot.", "is_error": true}
-
-
-func _poll_for_state(filter_path: String) -> Dictionary:
-	var start_time := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
-		if FileAccess.file_exists(RUNTIME_STATE):
-			var mod_time := FileAccess.get_modified_time(RUNTIME_STATE)
-			if mod_time >= (start_time / 1000) - 2:
-				var state_file := FileAccess.open(RUNTIME_STATE, FileAccess.READ)
-				if state_file:
-					var json_str := state_file.get_as_text()
-					state_file.close()
-					return {"result": json_str}
-		OS.delay_msec(POLL_INTERVAL_MS)
-	return {"result": "Timeout waiting for runtime state.", "is_error": true}
-
-
-func _capture_via_debugger(output_path: String) -> Dictionary:
-	var received := false
-	var result_path := ""
-
-	var callback := func(path: String) -> void:
-		received = true
-		result_path = path
-
-	_debugger.capture_received.connect(callback, CONNECT_ONE_SHOT)
-	_debugger.send_capture()
-
-	# Poll for response
-	var start_time := Time.get_ticks_msec()
-	while not received and (Time.get_ticks_msec() - start_time) < POLL_TIMEOUT_MS:
-		OS.delay_msec(POLL_INTERVAL_MS)
-
-	if not received:
-		return {"result": "Timeout waiting for game screenshot via debugger.", "is_error": true}
-
-	# Read the saved image
-	if FileAccess.file_exists(GAME_SCREENSHOT):
-		var img := Image.load_from_file(GAME_SCREENSHOT)
-		if img:
-			if output_path != GAME_SCREENSHOT:
-				img.save_png(output_path)
-			return {"result": "Game screenshot saved to %s (%dx%d)" % [output_path, img.get_width(), img.get_height()]}
-
-	return {"result": "Screenshot file not found after capture.", "is_error": true}
-
-
-func _capture_via_file(output_path: String) -> Dictionary:
-	_ensure_dir(SCREENSHOT_REQUEST)
-	var file := FileAccess.open(SCREENSHOT_REQUEST, FileAccess.WRITE)
-	if not file:
-		return {"result": "Failed to create capture request.", "is_error": true}
-	file.store_string(str(Time.get_ticks_msec()))
-	file.close()
-
-	var start_time := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
-		if FileAccess.file_exists(GAME_SCREENSHOT):
-			var mod_time := FileAccess.get_modified_time(GAME_SCREENSHOT)
-			if mod_time >= (start_time / 1000) - 2:
-				var img := Image.load_from_file(GAME_SCREENSHOT)
-				if img:
-					if output_path != GAME_SCREENSHOT:
-						img.save_png(output_path)
-					return {"result": "Game screenshot saved to %s (%dx%d)" % [output_path, img.get_width(), img.get_height()]}
+					# Also copy to project dir for MCP to read
+					var project_path := "res://.godotforge/game_screenshot.png"
+					_ensure_dir(project_path)
+					img.save_png(project_path)
+					return {"result": "Game screenshot saved to %s (%dx%d)" % [project_path, img.get_width(), img.get_height()]}
 		OS.delay_msec(POLL_INTERVAL_MS)
 
 	return {"result": "Timeout waiting for game screenshot.", "is_error": true}
@@ -215,49 +144,23 @@ func _get_runtime_state(input: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return {"result": "No game is running. Use run_scene first.", "is_error": true}
 
+	# Trigger capture (which also writes state)
+	var trigger := _temp("godotforge_capture")
+	var f := FileAccess.open(trigger, FileAccess.WRITE)
+	if not f:
+		return {"result": "Failed to create state trigger.", "is_error": true}
+	f.store_string("1")
+	f.close()
+
 	var filter_path: String = input.get("node_path", "")
-
-	# Send state command via debugger, then poll for file output
-	if _debugger and _debugger.is_game_connected():
-		_debugger.send_state_request(filter_path)
-	return _poll_for_state(filter_path)
-
-
-func _state_via_debugger(filter_path: String) -> Dictionary:
-	var received := false
-	var result_json := ""
-
-	var callback := func(json: String) -> void:
-		received = true
-		result_json = json
-
-	_debugger.state_received.connect(callback, CONNECT_ONE_SHOT)
-	_debugger.send_state_request(filter_path)
-
+	var state_path := _temp("godotforge_state.json")
 	var start_time := Time.get_ticks_msec()
-	while not received and (Time.get_ticks_msec() - start_time) < POLL_TIMEOUT_MS:
-		OS.delay_msec(POLL_INTERVAL_MS)
 
-	if not received:
-		return {"result": "Timeout waiting for runtime state via debugger.", "is_error": true}
-
-	return {"result": result_json}
-
-
-func _state_via_file(filter_path: String) -> Dictionary:
-	_ensure_dir(SCREENSHOT_REQUEST)
-	var file := FileAccess.open(SCREENSHOT_REQUEST, FileAccess.WRITE)
-	if not file:
-		return {"result": "Failed to create state request.", "is_error": true}
-	file.store_string(str(Time.get_ticks_msec()))
-	file.close()
-
-	var start_time := Time.get_ticks_msec()
 	while Time.get_ticks_msec() - start_time < POLL_TIMEOUT_MS:
-		if FileAccess.file_exists(RUNTIME_STATE):
-			var mod_time := FileAccess.get_modified_time(RUNTIME_STATE)
+		if FileAccess.file_exists(state_path):
+			var mod_time := FileAccess.get_modified_time(state_path)
 			if mod_time >= (start_time / 1000) - 2:
-				var state_file := FileAccess.open(RUNTIME_STATE, FileAccess.READ)
+				var state_file := FileAccess.open(state_path, FileAccess.READ)
 				if state_file:
 					var json_str := state_file.get_as_text()
 					state_file.close()
@@ -282,21 +185,32 @@ func _state_via_file(filter_path: String) -> Dictionary:
 func _simulate_input(input: Dictionary) -> Dictionary:
 	if not EditorInterface.is_playing_scene():
 		return {"result": "No game is running. Use run_scene first.", "is_error": true}
-
 	var action: String = input.get("action", "")
 	if action == "":
 		return {"result": "Missing 'action' parameter.", "is_error": true}
 
-	var duration_ms: int = input.get("duration_ms", 100)
-
-	# Write trigger to OS temp dir (native filesystem, no WSL latency)
-	var temp_path := OS.get_temp_dir().path_join("godotforge_input")
-	var file := FileAccess.open(temp_path, FileAccess.WRITE)
+	var file := FileAccess.open(_temp("godotforge_input"), FileAccess.WRITE)
 	if not file:
-		return {"result": "Failed to create input trigger at %s" % temp_path, "is_error": true}
+		return {"result": "Failed to create input trigger.", "is_error": true}
 	file.store_string(action)
 	file.close()
 	return {"result": "Input '%s' simulated" % action}
+
+
+func _simulate_input_sequence(input: Dictionary) -> Dictionary:
+	if not EditorInterface.is_playing_scene():
+		return {"result": "No game is running. Use run_scene first.", "is_error": true}
+	var sequence = input.get("sequence", [])
+	if sequence is not Array or sequence.size() == 0:
+		return {"result": "Missing or empty 'sequence' array.", "is_error": true}
+
+	var json := JSON.stringify(sequence)
+	var file := FileAccess.open(_temp("godotforge_input_sequence"), FileAccess.WRITE)
+	if not file:
+		return {"result": "Failed to create sequence trigger.", "is_error": true}
+	file.store_string(json)
+	file.close()
+	return {"result": "Input sequence queued (%d actions)" % sequence.size()}
 
 
 # --- Autoload Management ---
@@ -314,8 +228,10 @@ func _remove_capture_autoload() -> void:
 		ProjectSettings.save()
 
 
-func _cleanup_capture_files() -> void:
-	for path in [SCREENSHOT_REQUEST, GAME_SCREENSHOT, RUNTIME_STATE]:
+func _cleanup_temp_files() -> void:
+	for filename in ["godotforge_input", "godotforge_input_sequence", "godotforge_capture",
+					  "godotforge_screenshot.png", "godotforge_state.json"]:
+		var path := _temp(filename)
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
 

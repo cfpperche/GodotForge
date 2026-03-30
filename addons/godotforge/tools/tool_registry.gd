@@ -40,6 +40,7 @@ func _register_defaults(debugger: GodotForgeDebugger = null) -> void:
 	register("take_game_screenshot", runtime_tools)
 	register("get_runtime_state", runtime_tools)
 	register("simulate_input", runtime_tools)
+	register("simulate_input_sequence", runtime_tools)
 
 	var editor_tools := preload("res://addons/godotforge/tools/editor_tools.gd").new()
 	register("execute_editor_script", editor_tools)

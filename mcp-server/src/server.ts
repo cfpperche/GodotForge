@@ -291,6 +291,18 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => editorTool(bridge, "simulate_input", args)
   );
 
+  server.tool(
+    "simulate_input_sequence",
+    "Execute a timed sequence of input actions in the running game. Single HTTP call, game-side timing.",
+    {
+      sequence: z.array(z.object({
+        action: z.string().describe("Input action name"),
+        delay_ms: z.number().describe("Delay before this action in ms (0 = immediate)"),
+      })).describe("Array of timed input actions"),
+    },
+    async (args) => editorTool(bridge, "simulate_input_sequence", args)
+  );
+
   // --- Local tools ---
 
   server.tool(

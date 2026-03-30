@@ -367,7 +367,7 @@ const EDITOR_TOOL_NAMES = new Set([
   "duplicate_node", "move_node",
   "create_script", "read_script", "edit_script",
   "run_scene", "stop_scene", "get_game_status", "take_screenshot",
-  "take_game_screenshot", "get_runtime_state", "simulate_input",
+  "take_game_screenshot", "get_runtime_state", "simulate_input", "simulate_input_sequence",
   "execute_editor_script", "add_resource", "add_scene_instance",
   "save_scene", "get_node_properties", "connect_signal",
   "set_project_setting", "get_editor_errors",

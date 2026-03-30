@@ -31,4 +31,4 @@ Critical — blocks all real-time interaction with running games.
 
 ## Status
 
-Open
+Resolved — all trigger files now use `OS.get_temp_dir()` (native NTFS). Input, capture, state all via Windows temp dir.

@@ -27,4 +27,4 @@ High — blocks autonomous play-testing.
 
 ## Status
 
-Open — investigating
+Resolved — migrated all IPC to OS temp dir file-based polling. EditorDebuggerPlugin kept for connection status only.

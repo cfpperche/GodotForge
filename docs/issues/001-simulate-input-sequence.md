@@ -33,4 +33,4 @@ Medium — workaround is to tune game physics for agent-friendly values.
 
 ## Status
 
-Open
+Resolved — `simulate_input_sequence` tool implemented. Game autoload polls temp dir for sequence JSON file.
