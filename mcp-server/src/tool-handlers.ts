@@ -534,6 +534,86 @@ async function executeToolInner(
     }
   }
 
+  // AI generation tools (Blockade Labs)
+  if (toolName.startsWith("ai.blockade_")) {
+    const cfg = new ConfigManager(root);
+    const b = await import("./ai/blockade-handlers.js");
+    switch (toolName) {
+      case "ai.blockade_generate_skybox": return b.handleBlockadeGenerateSkybox(args, root, cfg);
+      case "ai.blockade_list_styles": return b.handleBlockadeListStyles(args, cfg);
+      case "ai.blockade_check_task": return b.handleBlockadeCheckTask(args, cfg);
+    }
+  }
+
+  // AI generation tools (ElevenLabs)
+  if (toolName.startsWith("ai.elevenlabs_")) {
+    const cfg = new ConfigManager(root);
+    const e = await import("./ai/elevenlabs-handlers.js");
+    switch (toolName) {
+      case "ai.elevenlabs_tts": return e.handleElevenLabsTTS(args, root, cfg);
+      case "ai.elevenlabs_sound_effect": return e.handleElevenLabsSoundEffect(args, root, cfg);
+      case "ai.elevenlabs_list_voices": return e.handleElevenLabsListVoices(args, cfg);
+      case "ai.elevenlabs_list_models": return e.handleElevenLabsListModels(cfg);
+    }
+  }
+
+  // AI generation tools (Rodin / Hyper3D)
+  if (toolName.startsWith("ai.rodin_")) {
+    const cfg = new ConfigManager(root);
+    const r = await import("./ai/rodin-handlers.js");
+    switch (toolName) {
+      case "ai.rodin_generate": return r.handleRodinGenerate(args, root, cfg);
+      case "ai.rodin_check_task": return r.handleRodinCheckTask(args, cfg);
+    }
+  }
+
+  // AI generation tools (Tripo AI)
+  if (toolName.startsWith("ai.tripo_")) {
+    const cfg = new ConfigManager(root);
+    const t = await import("./ai/tripo-handlers.js");
+    switch (toolName) {
+      case "ai.tripo_text_to_3d": return t.handleTripoTextTo3D(args, root, cfg);
+      case "ai.tripo_image_to_3d": return t.handleTripoImageTo3D(args, root, cfg);
+      case "ai.tripo_refine": return t.handleTripoRefine(args, root, cfg);
+      case "ai.tripo_animate": return t.handleTripoAnimate(args, root, cfg);
+      case "ai.tripo_stylize": return t.handleTripoStylize(args, root, cfg);
+      case "ai.tripo_check_task": return t.handleTripoCheckTask(args, cfg);
+      case "ai.tripo_balance": return t.handleTripoBalance(cfg);
+    }
+  }
+
+  // AI generation tools (OpenAI DALL-E)
+  if (toolName.startsWith("ai.dalle_")) {
+    const cfg = new ConfigManager(root);
+    const d = await import("./ai/openai-dalle-handlers.js");
+    switch (toolName) {
+      case "ai.dalle_generate": return d.handleDalleGenerate(args, root, cfg);
+      case "ai.dalle_edit": return d.handleDalleEdit(args, root, cfg);
+      case "ai.dalle_variation": return d.handleDalleVariation(args, root, cfg);
+    }
+  }
+
+  // AI generation tools (Suno Music)
+  if (toolName.startsWith("ai.suno_")) {
+    const cfg = new ConfigManager(root);
+    const s = await import("./ai/suno-handlers.js");
+    switch (toolName) {
+      case "ai.suno_generate": return s.handleSunoGenerate(args, root, cfg);
+      case "ai.suno_lyrics": return s.handleSunoLyrics(args, cfg);
+      case "ai.suno_check_task": return s.handleSunoCheckTask(args, cfg);
+      case "ai.suno_credits": return s.handleSunoCredits(cfg);
+    }
+  }
+
+  // AI generation tools (Hugging Face)
+  if (toolName.startsWith("ai.huggingface_")) {
+    const cfg = new ConfigManager(root);
+    const hf = await import("./ai/huggingface-handlers.js");
+    switch (toolName) {
+      case "ai.huggingface_text_to_image": return hf.handleHFTextToImage(args, root, cfg);
+    }
+  }
+
   // AI generation tools (Stability AI)
   if (toolName.startsWith("ai.stability_")) {
     const cfg = new ConfigManager(root);

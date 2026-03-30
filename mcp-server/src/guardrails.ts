@@ -109,6 +109,37 @@ const RISK_MAP: Record<string, RiskLevel> = {
   "ai.stability_sketch": "moderate",
   "ai.stability_style": "moderate",
   "ai.stability_balance": "safe",
+  // Blockade Labs
+  "ai.blockade_generate_skybox": "moderate",
+  "ai.blockade_list_styles": "safe",
+  "ai.blockade_check_task": "safe",
+  // ElevenLabs
+  "ai.elevenlabs_tts": "moderate",
+  "ai.elevenlabs_sound_effect": "moderate",
+  "ai.elevenlabs_list_voices": "safe",
+  "ai.elevenlabs_list_models": "safe",
+  // Rodin
+  "ai.rodin_generate": "moderate",
+  "ai.rodin_check_task": "safe",
+  // Tripo
+  "ai.tripo_text_to_3d": "moderate",
+  "ai.tripo_image_to_3d": "moderate",
+  "ai.tripo_refine": "moderate",
+  "ai.tripo_animate": "moderate",
+  "ai.tripo_stylize": "moderate",
+  "ai.tripo_check_task": "safe",
+  "ai.tripo_balance": "safe",
+  // OpenAI DALL-E
+  "ai.dalle_generate": "moderate",
+  "ai.dalle_edit": "moderate",
+  "ai.dalle_variation": "moderate",
+  // Suno
+  "ai.suno_generate": "moderate",
+  "ai.suno_lyrics": "safe",
+  "ai.suno_check_task": "safe",
+  "ai.suno_credits": "safe",
+  // Hugging Face
+  "ai.huggingface_text_to_image": "moderate",
 
   // Critical — arbitrary code execution or project-wide settings
   execute_editor_script: "critical",
