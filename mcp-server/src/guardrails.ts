@@ -89,7 +89,11 @@ const RISK_MAP: Record<string, RiskLevel> = {
 
   // AI generation — moderate (costs credits, creates content)
   "ai.meshy_text_to_3d": "moderate",
+  "ai.meshy_refine": "moderate",
   "ai.meshy_image_to_3d": "moderate",
+  "ai.meshy_multi_image_to_3d": "moderate",
+  "ai.meshy_remesh": "moderate",
+  "ai.meshy_retexture": "moderate",
   "ai.meshy_check_task": "safe",
   "ai.meshy_balance": "safe",
 

@@ -518,15 +518,19 @@ async function executeToolInner(
     return handleListLocalAssets(args, root);
   }
 
-  // AI generation tools
+  // AI generation tools (Meshy)
   if (toolName.startsWith("ai.meshy_")) {
     const cfg = new ConfigManager(root);
-    const { handleMeshyTextTo3D, handleMeshyImageTo3D, handleMeshyCheckTask, handleMeshyBalance } = await import("./ai/handlers.js");
+    const h = await import("./ai/handlers.js");
     switch (toolName) {
-      case "ai.meshy_text_to_3d": return handleMeshyTextTo3D(args, root, cfg);
-      case "ai.meshy_image_to_3d": return handleMeshyImageTo3D(args, root, cfg);
-      case "ai.meshy_check_task": return handleMeshyCheckTask(args, cfg);
-      case "ai.meshy_balance": return handleMeshyBalance(cfg);
+      case "ai.meshy_text_to_3d": return h.handleMeshyTextTo3D(args, root, cfg);
+      case "ai.meshy_refine": return h.handleMeshyRefine(args, root, cfg);
+      case "ai.meshy_image_to_3d": return h.handleMeshyImageTo3D(args, root, cfg);
+      case "ai.meshy_multi_image_to_3d": return h.handleMeshyMultiImageTo3D(args, root, cfg);
+      case "ai.meshy_remesh": return h.handleMeshyRemesh(args, root, cfg);
+      case "ai.meshy_retexture": return h.handleMeshyRetexture(args, root, cfg);
+      case "ai.meshy_check_task": return h.handleMeshyCheckTask(args, cfg);
+      case "ai.meshy_balance": return h.handleMeshyBalance(cfg);
     }
   }
 
