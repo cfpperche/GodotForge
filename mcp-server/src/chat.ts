@@ -177,6 +177,16 @@ export class ChatEngine {
       systemPrompt += "\n\n" + studioCtx;
     }
 
+    // Rewrite /skill-name messages to avoid Agent SDK intercepting them as built-in skills.
+    // The skill instructions are already in the system prompt via resolveStudioContext.
+    let prompt = message;
+    const skillMatch = message.match(/^\/([a-z][\w-]*)\s*(.*)/);
+    if (skillMatch) {
+      const skillName = skillMatch[1];
+      const skillArgs = skillMatch[2] || "";
+      prompt = `[Skill: ${skillName}] ${skillArgs}`.trim();
+    }
+
     if (this.settings.memory_enabled) {
       try {
         const ctx = await buildContext(this.root, this.bridge, message);
@@ -227,7 +237,7 @@ export class ChatEngine {
       }
 
       for await (const msg of query({
-        prompt: message,
+        prompt: prompt,
         options: queryOptions as Parameters<typeof query>[0]["options"],
       })) {
         // Capture SDK session ID for resume
