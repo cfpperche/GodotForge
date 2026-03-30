@@ -209,6 +209,8 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Game dev skills**: /create-game, /game-polish, /game-review
 - **Phase F skills**: /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report, /design-system, /reverse-document
 - **Phase G hooks**: session-start, session-stop, pre-compact, detect-gaps, validate-assets
+- **Phase H doc templates**: 25 game dev templates in `.claude/templates/` (GDD, TDD, art/sound bible, economy, balance, character, faction, sprint, milestone, ADR, test-plan, playtest, bug-report, changelog, release/patch notes, post-mortem, incident, risk, onboarding, concept, pillars, pitch, level-design)
+- **Phase I specialized agents**: 20 agents in `.claude/agents/` — 7 engineering (godot, gdscript, shader, gameplay, tools, performance, blender) + 4 design (economy, level, systems, prototyper) + 3 art/audio (tech-artist, sound-designer, audio-director) + 3 narrative (director, writer, world-builder) + 3 QA (lead, tester, accessibility)
 - **Web Polish**: Config JSON editor, connection status (MCP/Godot/Blender health checks), service tabs (6 categories, 12 services)
 - **Auto-Provision**: Godot plugin auto-copied to project on create/switch, Blender addon auto-installed on startup, version comparison + auto-update
 - **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md

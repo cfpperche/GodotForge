@@ -831,8 +831,8 @@ Project management and production workflow skills:
 | **E. Game Studio Rules** | ai-code, network-code, ui-code, prototype-code, test-standards, data-files, narrative (7 rules) | — | ✅ |
 | **F. Game Studio Skills** | /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report, /design-system, /reverse-document (8 skills) | — | ✅ |
 | **G. Studio Hooks** | session-start, session-stop, pre-compact, detect-gaps, validate-assets (5 hooks) | — | ✅ |
-| **H. Doc Templates** | GDD, ADR, sprint-plan, economy-model, art-bible, playtest-report (27 templates) | — | Pendente |
-| **I. Specialized Agents** | godot-specialist, economy-designer, performance-analyst, technical-artist, narrative-director | — | Pendente |
+| **H. Doc Templates** | GDD, ADR, sprint-plan, economy-model, art-bible, playtest-report (25 templates) | — | ✅ Concluído |
+| **I. Specialized Agents** | 20 agents: 7 engineering + 4 design + 3 art/audio + 3 narrative + 3 QA | — | ✅ Concluído |
 | **J. Team Orchestration** | /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio | — | Pendente |
 | **K. Production Skills** | /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems | — | Pendente |
 | **L. Polish & Launch** | npm publish, README, Asset Library, docs | — | Pendente |
@@ -880,8 +880,8 @@ Project management and production workflow skills:
 | Rules | 24 | 24 ✅ (17 engineering + 7 game studio) |
 | Skills | 20+ | 17 ✅ (9 existing + 8 game studio) |
 | Hooks | 8 | 8 ✅ (3 engineering + 5 studio) |
-| Doc templates | 27 | 0 (Phase H) |
-| Specialized agents | 20+ | 0 (Phase I) |
+| Doc templates | 25 | 25 ✅ (Phase H) |
+| Specialized agents | 20+ | 20 ✅ (Phase I) |
 | Blender → Godot pipeline time | < 30s | ~5s ✅ |
 | Asset download → in-game | < 1 min | ~15s ✅ |
 | AI generation → in-game | < 2 min | Phase D |
