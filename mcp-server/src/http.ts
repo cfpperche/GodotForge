@@ -114,7 +114,7 @@ export class HttpServer {
         return;
       }
 
-      switch (url) {
+      switch (urlPath) {
         case "/":
         case "/dashboard":
           this.serveDashboard(res);
