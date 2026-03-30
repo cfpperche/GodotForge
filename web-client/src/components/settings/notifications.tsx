@@ -13,11 +13,18 @@ interface WebhookInfo {
   format: string;
 }
 
-const EVENT_PRESETS = [
-  { label: "Security", events: ["guardrail.blocked", "error"], description: "Blocked tools + errors" },
-  { label: "Tools", events: ["tool_call.*"], description: "All tool executions" },
-  { label: "Sessions", events: ["session.*"], description: "Session start/end" },
-  { label: "Everything", events: ["*"], description: "All events (high volume)" },
+const EVENT_OPTIONS = [
+  { id: "guardrail.blocked", label: "Guardrail blocks", description: "When a dangerous tool is blocked" },
+  { id: "guardrail.*", label: "Confirmations", description: "Approval requests for destructive tools" },
+  { id: "error", label: "Errors", description: "Internal errors and failures" },
+  { id: "tool_call.*", label: "Tool calls", description: "Every tool execution (high volume)" },
+  { id: "session.*", label: "Sessions", description: "Session start and end" },
+  { id: "chat.*", label: "Chat messages", description: "User and assistant messages" },
+];
+
+const QUICK_PRESETS = [
+  { label: "Security only", events: ["guardrail.blocked", "guardrail.*", "error"] },
+  { label: "Everything", events: ["*"] },
 ];
 
 export function Notifications({ onSaved }: { onSaved?: () => void }) {
@@ -171,14 +178,6 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
     setTestingName(null);
   };
 
-  const toggleEvent = (events: string[], setEvents: (e: string[]) => void, event: string) => {
-    if (events.includes(event)) {
-      setEvents(events.filter((e) => e !== event));
-    } else {
-      setEvents([...events, event]);
-    }
-  };
-
   if (loading) {
     return <div className="text-xs text-muted-foreground flex items-center gap-2"><Loader2 className="h-3 w-3 animate-spin" /> Loading...</div>;
   }
@@ -282,25 +281,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-medium text-muted-foreground">Events to notify</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {EVENT_PRESETS.map((preset) => (
-                    <Button
-                      key={preset.label}
-                      size="sm"
-                      variant={telegramEvents.join(",") === preset.events.join(",") ? "default" : "outline"}
-                      className="h-6 text-[11px]"
-                      onClick={() => setTelegramEvents(preset.events)}
-                    >
-                      {preset.label}
-                    </Button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {EVENT_PRESETS.find((p) => p.events.join(",") === telegramEvents.join(","))?.description || telegramEvents.join(", ")}
-                </p>
-              </div>
+              <EventSelector events={telegramEvents} onChange={setTelegramEvents} />
 
               <Button
                 size="sm"
@@ -374,22 +355,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[11px] font-medium text-muted-foreground">Events</label>
-            <div className="flex flex-wrap gap-1.5">
-              {EVENT_PRESETS.map((preset) => (
-                <Button
-                  key={preset.label}
-                  size="sm"
-                  variant={customEvents.join(",") === preset.events.join(",") ? "default" : "outline"}
-                  className="h-6 text-[11px]"
-                  onClick={() => setCustomEvents(preset.events)}
-                >
-                  {preset.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+          <EventSelector events={customEvents} onChange={setCustomEvents} />
 
           <Button
             size="sm"
@@ -401,6 +367,71 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function EventSelector({ events, onChange }: { events: string[]; onChange: (e: string[]) => void }) {
+  const toggle = (id: string) => {
+    if (events.includes(id)) {
+      onChange(events.filter((e) => e !== id));
+    } else {
+      // Remove "*" wildcard when selecting specific events
+      onChange([...events.filter((e) => e !== "*"), id]);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-[11px] font-medium text-muted-foreground">Events to notify</label>
+
+      {/* Quick presets */}
+      <div className="flex gap-1.5">
+        {QUICK_PRESETS.map((preset) => (
+          <Button
+            key={preset.label}
+            size="sm"
+            variant={JSON.stringify(events.sort()) === JSON.stringify(preset.events.sort()) ? "default" : "outline"}
+            className="h-6 text-[11px]"
+            onClick={() => onChange(preset.events)}
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
+
+      {/* Individual event checkboxes */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {EVENT_OPTIONS.map((opt) => {
+          const checked = events.includes(opt.id) || events.includes("*");
+          return (
+            <button
+              key={opt.id}
+              onClick={() => toggle(opt.id)}
+              className={`flex items-start gap-2 p-2 rounded-lg text-left text-[11px] transition-colors ${
+                checked
+                  ? "bg-primary/10 border border-primary/30 text-foreground"
+                  : "bg-muted/20 border border-border/30 text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              <div className={`mt-0.5 h-3.5 w-3.5 rounded border flex items-center justify-center shrink-0 ${
+                checked ? "bg-primary border-primary" : "border-muted-foreground/30"
+              }`}>
+                {checked && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+              </div>
+              <div>
+                <div className="font-medium">{opt.label}</div>
+                <div className="text-muted-foreground text-[10px]">{opt.description}</div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Show selected events */}
+      <p className="text-[11px] text-muted-foreground">
+        Selected: {events.includes("*") ? "All events" : events.join(", ") || "None"}
+      </p>
     </div>
   );
 }
