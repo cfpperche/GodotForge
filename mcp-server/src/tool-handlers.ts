@@ -534,6 +534,27 @@ async function executeToolInner(
     }
   }
 
+  // AI generation tools (Stability AI)
+  if (toolName.startsWith("ai.stability_")) {
+    const cfg = new ConfigManager(root);
+    const s = await import("./ai/stability-handlers.js");
+    switch (toolName) {
+      case "ai.stability_generate": return s.handleStabilityGenerate(args, root, cfg);
+      case "ai.stability_generate_ultra": return s.handleStabilityGenerateUltra(args, root, cfg);
+      case "ai.stability_generate_core": return s.handleStabilityGenerateCore(args, root, cfg);
+      case "ai.stability_inpaint": return s.handleStabilityInpaint(args, root, cfg);
+      case "ai.stability_outpaint": return s.handleStabilityOutpaint(args, root, cfg);
+      case "ai.stability_search_replace": return s.handleStabilitySearchReplace(args, root, cfg);
+      case "ai.stability_recolor": return s.handleStabilityRecolor(args, root, cfg);
+      case "ai.stability_erase": return s.handleStabilityErase(args, root, cfg);
+      case "ai.stability_remove_bg": return s.handleStabilityRemoveBg(args, root, cfg);
+      case "ai.stability_upscale_fast": return s.handleStabilityUpscaleFast(args, root, cfg);
+      case "ai.stability_sketch": return s.handleStabilitySketch(args, root, cfg);
+      case "ai.stability_style": return s.handleStabilityStyle(args, root, cfg);
+      case "ai.stability_balance": return s.handleStabilityBalance(cfg);
+    }
+  }
+
   // Blender docs tools
   if (toolName === "search_blender_docs" || toolName === "get_blender_class") {
     try {
