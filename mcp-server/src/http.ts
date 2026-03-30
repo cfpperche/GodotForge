@@ -107,6 +107,22 @@ export class HttpServer {
           await this.handleChat(res, body);
           break;
 
+        case "/chat/stream":
+          if (req.method !== "POST") {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+            break;
+          }
+          await this.handleChatStream(res, body);
+          break;
+
+        case "/chat/agent":
+          if (req.method !== "POST") {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+            break;
+          }
+          await this.handleChatAgent(res, body);
+          break;
+
         case "/settings":
           if (req.method === "POST") {
             this.handleUpdateSettings(res, body);
@@ -270,6 +286,62 @@ export class HttpServer {
     }
 
     const result = await this.chatEngine.chat(message, sessionId);
+    this.sendJson(res, result.error ? 422 : 200, result);
+  }
+
+  private async handleChatStream(res: ServerResponse, body: string): Promise<void> {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      this.sendJson(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    const message = parsed.message as string;
+    const sessionId = (parsed.session_id as string) || "default";
+
+    if (!message) {
+      this.sendJson(res, 400, { error: "Missing 'message' field" });
+      return;
+    }
+
+    res.writeHead(200, {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+      "Access-Control-Allow-Origin": "*",
+    });
+
+    await this.chatEngine.chatStream(message, sessionId, (event) => {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+        if (event.type === "done" || event.type === "error") {
+          res.end();
+        }
+      }
+    });
+  }
+
+  private async handleChatAgent(res: ServerResponse, body: string): Promise<void> {
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      this.sendJson(res, 400, { error: "Invalid JSON body" });
+      return;
+    }
+
+    const agent = parsed.agent as string;
+    const task = parsed.task as string;
+    const sessionId = (parsed.session_id as string) || "default";
+
+    if (!agent || !task) {
+      this.sendJson(res, 400, { error: "Missing 'agent' and 'task' fields" });
+      return;
+    }
+
+    const result = await this.chatEngine.chatAsAgent(agent, task, sessionId);
     this.sendJson(res, result.error ? 422 : 200, result);
   }
 

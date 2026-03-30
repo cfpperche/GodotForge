@@ -3,6 +3,7 @@ import type {
   HealthResponse,
   SettingsResponse,
   KeysResponse,
+  StreamEvent,
 } from "@/types/api";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
@@ -49,4 +50,45 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify({ service }),
     }),
+
+  chatStream: async (
+    message: string,
+    sessionId: string,
+    onEvent: (event: StreamEvent) => void,
+  ): Promise<void> => {
+    const res = await fetch(`${BASE_URL}/chat/stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, session_id: sessionId }),
+    });
+
+    if (!res.ok || !res.body) {
+      const err = (await res.json().catch(() => ({ error: res.statusText }))) as Record<string, string>;
+      onEvent({ type: "error", content: err.error || `HTTP ${res.status}` });
+      onEvent({ type: "done" });
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const event = JSON.parse(line.slice(6)) as StreamEvent;
+            onEvent(event);
+          } catch { /* skip malformed events */ }
+        }
+      }
+    }
+  },
 };

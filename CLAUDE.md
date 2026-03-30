@@ -218,6 +218,8 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Web Polish**: Config JSON editor, connection status (MCP/Godot/Blender health checks), service tabs (6 categories, 12 services)
 - **Auto-Provision**: Godot plugin auto-copied to project on create/switch, Blender addon auto-installed on startup, version comparison + auto-update
 - **Studio Integration**: MCP copilot reads .claude/ (rules, skills, agents, templates) — same quality as Claude Code CLI. Skill routing (/commands), agent context injection, template resolution. HTTP endpoints: /skills, /agents, /templates
+- **SSE Streaming**: POST /chat/stream returns Server-Sent Events (text, tool_use, tool_result, done). Web client renders incrementally via ReadableStream.
+- **Agent Isolation**: POST /chat/agent runs isolated LLM call with agent-specific system prompt. Team skills delegate to real agent sessions, not role injection.
 - **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md
 - **Onboarding wizard**: 5-step first-time setup (Welcome → Project → Paths → Settings → Done)
 - **Project switcher**: Header dropdown with recent projects, inline Open/New forms

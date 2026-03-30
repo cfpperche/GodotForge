@@ -837,6 +837,8 @@ Project management and production workflow skills:
 | **K. Production Skills** | /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems (6 skills) | — | ✅ Concluído |
 | **L. Polish & Launch** | npm publish, README, Asset Library, docs | — | Pendente |
 | **Studio Integration** | MCP reads .claude/ (rules, skills, agents, templates) — parity with CLI | +3 endpoints | ✅ Concluído |
+| **SSE Streaming** | POST /chat/stream — token-by-token streaming via Server-Sent Events | +1 endpoint | ✅ Concluído |
+| **Agent Isolation** | POST /chat/agent — isolated LLM calls per agent with dedicated system prompt | +1 endpoint | ✅ Concluído |
 
 ### E2E Tests Validados
 - ✅ **Phase A**: Cubo metálico Blender → GLB → Godot cena 3D

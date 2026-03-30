@@ -39,6 +39,15 @@ interface ChatResponse {
   error?: string;
 }
 
+export interface StreamEvent {
+  type: "text" | "tool_use" | "tool_result" | "error" | "done";
+  content?: string;
+  name?: string;
+  status?: string;
+}
+
+export type StreamCallback = (event: StreamEvent) => void;
+
 type AuthMode = "api_key" | "agent_sdk";
 
 interface ChatSettings {
@@ -151,6 +160,243 @@ export class ChatEngine {
       return this.chatViaAgentSdk(message, sessionId);
     }
     return this.chatViaApi(message, sessionId);
+  }
+
+  /** Streaming chat — emits events via callback as they arrive. */
+  async chatStream(message: string, sessionId: string, onEvent: StreamCallback): Promise<void> {
+    if (this.settings.auth_mode === "agent_sdk") {
+      return this.streamViaAgentSdk(message, sessionId, onEvent);
+    }
+    // Fallback: non-streaming API mode, emit result as single event
+    const result = await this.chatViaApi(message, sessionId);
+    if (result.error) {
+      onEvent({ type: "error", content: result.error });
+    } else {
+      for (const tc of result.tool_calls) {
+        onEvent({ type: "tool_use", name: tc.name, status: "done" });
+      }
+      onEvent({ type: "text", content: result.response });
+    }
+    onEvent({ type: "done" });
+  }
+
+  /**
+   * Chat as a specific agent — isolated LLM call with agent's system prompt.
+   * Used by team orchestration skills for true agent delegation.
+   */
+  async chatAsAgent(agentName: string, task: string, sessionId: string): Promise<ChatResponse> {
+    const claudeDir = join(this.root, ".claude");
+    const agents = loadAgents(claudeDir);
+    const agent = resolveAgent(agents, agentName);
+
+    if (!agent) {
+      return { response: "", tool_calls: [], error: `Agent not found: ${agentName}` };
+    }
+
+    // Build agent-specific system prompt
+    let systemPrompt = `You are ${agent.name}. ${agent.description}\n\n${agent.content}`;
+
+    // Inject relevant rules
+    const rules = this.loadRules();
+    if (rules) {
+      systemPrompt += "\n\n<rules>\n" + rules + "\n</rules>";
+    }
+
+    // Inject project context
+    if (this.settings.memory_enabled) {
+      try {
+        const ctx = await buildContext(this.root, this.bridge, task);
+        if (ctx) systemPrompt += "\n\n" + ctx;
+      } catch { /* non-critical */ }
+    }
+
+    if (this.settings.auth_mode === "agent_sdk") {
+      return this.runAgentSdk(systemPrompt, task, sessionId + "-" + agentName);
+    }
+    return this.runAgentApi(systemPrompt, task, sessionId + "-" + agentName);
+  }
+
+  /** Run an isolated agent via Agent SDK */
+  private async runAgentSdk(systemPrompt: string, task: string, sessionId: string): Promise<ChatResponse> {
+    let mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
+    if (!existsSync(mcpDistPath)) {
+      const parentRoot = join(this.root, "..");
+      mcpDistPath = join(parentRoot, "mcp-server", "dist", "index.js");
+      if (!existsSync(mcpDistPath)) {
+        mcpDistPath = join(import.meta.dirname || ".", "..", "dist", "index.js");
+      }
+    }
+
+    const queryOptions: Record<string, unknown> = {
+      model: this.settings.model,
+      effort: this.settings.effort,
+      maxTurns: 15,
+      systemPrompt,
+      cwd: this.root,
+      permissionMode: "bypassPermissions",
+      allowedTools: ["Read", "Glob", "Grep", "Bash", "Write", "Edit"],
+      mcpServers: {
+        godotforge: { command: "node", args: [mcpDistPath, "--project-root", this.root] },
+      },
+    };
+
+    let response = "";
+    const toolCalls: ToolCallLog[] = [];
+
+    try {
+      for await (const msg of query({
+        prompt: task,
+        options: queryOptions as Parameters<typeof query>[0]["options"],
+      })) {
+        if (msg.type === "assistant") {
+          const content = (msg as SDKMessage & { message: { content: Array<Record<string, unknown>> } }).message?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === "tool_use") {
+                toolCalls.push({ name: block.name as string, result: "", is_error: false });
+              }
+              if (block.type === "text" && typeof block.text === "string") {
+                response = block.text;
+              }
+            }
+          }
+        }
+        if (msg.type === "result") {
+          const resultMsg = msg as SDKMessage & { result?: string; subtype?: string };
+          if (resultMsg.subtype === "success") {
+            response = resultMsg.result || response;
+          }
+        }
+      }
+
+      return { response, tool_calls: toolCalls };
+    } catch (error) {
+      return { response: "", tool_calls: toolCalls, error: `Agent error: ${error instanceof Error ? error.message : error}` };
+    }
+  }
+
+  /** Run an isolated agent via direct API */
+  private async runAgentApi(systemPrompt: string, task: string, _sessionId: string): Promise<ChatResponse> {
+    const messages: Message[] = [{ role: "user", content: task }];
+    const apiResponse = await this.callClaudeApi(systemPrompt, messages);
+
+    if (apiResponse.error) {
+      return { response: "", tool_calls: [], error: apiResponse.error };
+    }
+
+    const textBlocks = apiResponse.content
+      .filter((b: Record<string, unknown>) => b.type === "text")
+      .map((b: Record<string, unknown>) => b.text as string);
+
+    return { response: textBlocks.join("\n\n"), tool_calls: [] };
+  }
+
+  private async streamViaAgentSdk(message: string, sessionId: string, onEvent: StreamCallback): Promise<void> {
+    appendSessionLog(this.root, "user", message);
+
+    let systemPrompt = BASE_SYSTEM_PROMPT;
+    if (this.settings.system_prompt_extra) {
+      systemPrompt += "\n\n" + this.settings.system_prompt_extra;
+    }
+    const rules = this.loadRules();
+    if (rules) {
+      systemPrompt += "\n\n<rules>\n" + rules + "\n</rules>";
+    }
+    const studioCtx = this.resolveStudioContext(message);
+    if (studioCtx) {
+      systemPrompt += "\n\n" + studioCtx;
+    }
+    if (this.settings.memory_enabled) {
+      try {
+        const ctx = await buildContext(this.root, this.bridge, message);
+        if (ctx) systemPrompt += "\n\n" + ctx;
+      } catch { /* non-critical */ }
+    }
+
+    let prompt = message;
+    const skillMatch = message.match(/^\/([a-z][\w-]*)\s*(.*)/);
+    if (skillMatch) {
+      prompt = `[Skill: ${skillMatch[1]}] ${skillMatch[2] || ""}`.trim();
+    }
+
+    let mcpDistPath = join(this.root, "mcp-server", "dist", "index.js");
+    if (!existsSync(mcpDistPath)) {
+      const parentRoot = join(this.root, "..");
+      mcpDistPath = join(parentRoot, "mcp-server", "dist", "index.js");
+      if (!existsSync(mcpDistPath)) {
+        mcpDistPath = join(import.meta.dirname || ".", "..", "dist", "index.js");
+      }
+    }
+
+    const existingSdkSession = this.sdkSessionIds.get(sessionId);
+    const queryOptions: Record<string, unknown> = {
+      model: this.settings.model,
+      effort: this.settings.effort,
+      maxTurns: 30,
+      systemPrompt,
+      cwd: this.root,
+      permissionMode: "bypassPermissions",
+      allowedTools: ["Read", "Glob", "Grep", "Bash", "Write", "Edit"],
+      mcpServers: {
+        godotforge: { command: "node", args: [mcpDistPath, "--project-root", this.root] },
+      },
+    };
+    if (existingSdkSession) {
+      queryOptions.resume = existingSdkSession;
+    }
+
+    let response = "";
+    let newSdkSessionId: string | undefined;
+
+    try {
+      for await (const msg of query({
+        prompt,
+        options: queryOptions as Parameters<typeof query>[0]["options"],
+      })) {
+        if (msg.type === "system") {
+          const sysMsg = msg as SDKMessage & { session_id?: string; subtype?: string };
+          if (sysMsg.subtype === "init" && sysMsg.session_id) {
+            newSdkSessionId = sysMsg.session_id;
+          }
+        }
+
+        if (msg.type === "assistant") {
+          const content = (msg as SDKMessage & { message: { content: Array<Record<string, unknown>> } }).message?.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === "tool_use") {
+                onEvent({ type: "tool_use", name: block.name as string, status: "started" });
+              }
+              if (block.type === "text" && typeof block.text === "string") {
+                onEvent({ type: "text", content: block.text });
+                response = block.text;
+              }
+            }
+          }
+        }
+
+        if (msg.type === "result") {
+          const resultMsg = msg as SDKMessage & { result?: string; subtype?: string; num_turns?: number; total_cost_usd?: number };
+          if (resultMsg.subtype === "success") {
+            if (resultMsg.result && resultMsg.result !== response) {
+              onEvent({ type: "text", content: resultMsg.result });
+              response = resultMsg.result;
+            }
+          } else {
+            onEvent({ type: "error", content: `Agent SDK: ${resultMsg.subtype}` });
+          }
+        }
+      }
+
+      if (newSdkSessionId) {
+        this.sdkSessionIds.set(sessionId, newSdkSessionId);
+      }
+      appendSessionLog(this.root, "assistant", response.slice(0, 500));
+    } catch (error) {
+      onEvent({ type: "error", content: error instanceof Error ? error.message : String(error) });
+    }
+
+    onEvent({ type: "done" });
   }
 
   /**

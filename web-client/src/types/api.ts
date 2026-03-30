@@ -46,3 +46,10 @@ export interface ChatMessage {
   tool_calls?: ToolCallLog[];
   timestamp: number;
 }
+
+export interface StreamEvent {
+  type: "text" | "tool_use" | "tool_result" | "error" | "done";
+  content?: string;
+  name?: string;
+  status?: string;
+}

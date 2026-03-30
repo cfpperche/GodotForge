@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { api } from "@/lib/api";
-import type { ChatMessage } from "@/types/api";
+import type { ChatMessage, ToolCallLog } from "@/types/api";
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -17,32 +17,77 @@ export function useChat() {
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const assistantId = crypto.randomUUID();
+    const assistantMsg: ChatMessage = {
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      tool_calls: [],
+      timestamp: Date.now(),
+    };
+
+    setMessages((prev) => [...prev, userMsg, assistantMsg]);
     setLoading(true);
 
     try {
-      const response = await api.chat(content.trim(), sessionId.current);
+      await api.chatStream(content.trim(), sessionId.current, (event) => {
+        switch (event.type) {
+          case "text":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: event.content || "" }
+                  : m,
+              ),
+            );
+            break;
 
-      const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: response.error
-          ? `Error: ${response.error}`
-          : response.response,
-        tool_calls: response.tool_calls,
-        timestamp: Date.now(),
-      };
+          case "tool_use":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      tool_calls: [
+                        ...(m.tool_calls || []),
+                        {
+                          name: event.name || "",
+                          result: "",
+                          is_error: false,
+                        } as ToolCallLog,
+                      ],
+                    }
+                  : m,
+              ),
+            );
+            break;
 
-      setMessages((prev) => [...prev, assistantMsg]);
+          case "error":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, content: `Error: ${event.content}` }
+                  : m,
+              ),
+            );
+            break;
+
+          case "done":
+            setLoading(false);
+            break;
+        }
+      });
     } catch (error) {
-      const errorMsg: ChatMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`,
-        timestamp: Date.now(),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
-    } finally {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId
+            ? {
+                ...m,
+                content: `Connection error: ${error instanceof Error ? error.message : "Unknown error"}`,
+              }
+            : m,
+        ),
+      );
       setLoading(false);
     }
   }, [loading]);
