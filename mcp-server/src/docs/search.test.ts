@@ -114,4 +114,86 @@ describe("getClassReference", () => {
     expect(result!.methods[0].params).toEqual([]); // invalid JSON → empty
     expect(result!.signals[0].params).toEqual([]); // null → empty
   });
+
+  it("handles params_json as undefined", () => {
+    const classRow = { id: 1, name: "Test", inherits: "", brief_description: "", description: "" };
+    const stmts = [
+      { all: vi.fn(), get: vi.fn(() => classRow) },
+      { all: vi.fn(() => [{ name: "m", return_type: "void", qualifiers: "", description: "", params_json: undefined }]), get: vi.fn() },
+      { all: vi.fn(() => []), get: vi.fn() },
+      { all: vi.fn(() => []), get: vi.fn() },
+      { all: vi.fn(() => []), get: vi.fn() },
+    ];
+    let i = 0;
+    const db = { prepare: vi.fn(() => stmts[i++]) };
+
+    const result = getClassReference(db as any, "Test");
+    // undefined is falsy, safeParseJson returns []
+    expect(result!.methods[0].params).toEqual([]);
+  });
+});
+
+describe("searchDocs — FTS query sanitization", () => {
+  it("handles special characters in query", () => {
+    const db = createMockDb([]);
+
+    // Should not throw — special chars are stripped
+    searchDocs(db as any, "Node2D's (method)");
+
+    const ftsQuery = db._stmt.all.mock.calls[0][0];
+    expect(typeof ftsQuery).toBe("string");
+    // Special chars removed, should not contain raw quotes/parens
+    expect(ftsQuery).not.toContain("(");
+    expect(ftsQuery).not.toContain("'");
+  });
+
+  it("handles empty query after sanitization", () => {
+    const db = createMockDb([]);
+
+    searchDocs(db as any, "'''(){}");
+
+    // All chars stripped → empty → returns '""'
+    const ftsQuery = db._stmt.all.mock.calls[0][0];
+    expect(ftsQuery).toBe('""');
+  });
+
+  it("quotes PascalCase class names", () => {
+    const db = createMockDb([]);
+
+    searchDocs(db as any, "CharacterBody2D");
+
+    const ftsQuery = db._stmt.all.mock.calls[0][0];
+    expect(ftsQuery).toBe('"CharacterBody2D"');
+  });
+
+  it("adds prefix matching for multi-word queries", () => {
+    const db = createMockDb([]);
+
+    searchDocs(db as any, "move and slide");
+
+    const ftsQuery = db._stmt.all.mock.calls[0][0];
+    expect(ftsQuery).toContain('"move"*');
+    expect(ftsQuery).toContain('"and"*');
+    expect(ftsQuery).toContain('"slide"*');
+  });
+});
+
+describe("searchDocs — error paths", () => {
+  it("handles db.prepare throwing", () => {
+    const db = {
+      prepare: vi.fn(() => { throw new Error("DB corrupted"); }),
+    };
+
+    expect(() => searchDocs(db as any, "test")).toThrow("DB corrupted");
+  });
+
+  it("handles db.prepare().all throwing", () => {
+    const stmt = {
+      all: vi.fn(() => { throw new Error("FTS query error"); }),
+      get: vi.fn(),
+    };
+    const db = { prepare: vi.fn(() => stmt) };
+
+    expect(() => searchDocs(db as any, "test")).toThrow("FTS query error");
+  });
 });
