@@ -57,6 +57,80 @@ export class WebhookDispatcher {
     });
   }
 
+  /**
+   * Auto-setup Telegram webhook: resolve bot info + chat_id, save config, send test.
+   * Returns bot_url if user hasn't sent /start yet.
+   */
+  async setupTelegram(token: string, events?: string[]): Promise<{
+    status: "ok" | "waiting";
+    bot_url?: string;
+    bot_name?: string;
+    chat_id?: string;
+    error?: string;
+  }> {
+    // 1. Validate token by getting bot info
+    try {
+      const meRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const meData = await meRes.json() as Record<string, unknown>;
+      if (!meData.ok) {
+        return { status: "waiting", error: "Invalid bot token" };
+      }
+      const botInfo = meData.result as Record<string, unknown>;
+      const botUsername = botInfo.username as string;
+
+      // 2. Try to get chat_id from recent updates
+      const updatesRes = await fetch(`https://api.telegram.org/bot${token}/getUpdates?limit=10`);
+      const updatesData = await updatesRes.json() as Record<string, unknown>;
+      const results = (updatesData.result || []) as Array<Record<string, unknown>>;
+
+      let chatId: string | undefined;
+      for (const update of results) {
+        const msg = update.message as Record<string, unknown> | undefined;
+        if (msg?.chat) {
+          const chat = msg.chat as Record<string, unknown>;
+          chatId = String(chat.id);
+          break;
+        }
+      }
+
+      if (!chatId) {
+        return {
+          status: "waiting",
+          bot_url: `https://t.me/${botUsername}`,
+          bot_name: botUsername,
+        };
+      }
+
+      // 3. Save config
+      const full = this.config.getFullConfig();
+      const webhooks = ((full.webhooks || []) as WebhookConfig[]).filter((w) => w.name !== "Telegram");
+      webhooks.push({
+        name: "Telegram",
+        url: token,
+        chat_id: chatId,
+        events: events || ["guardrail.blocked", "error"],
+        format: "telegram",
+      });
+      this.config.writeFullConfig({ ...full, webhooks });
+
+      // 4. Send confirmation message
+      await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: "✅ <b>GodotForge connected!</b>\n\nYou'll receive notifications for: " +
+            (events || ["guardrail.blocked", "error"]).join(", "),
+          parse_mode: "HTML",
+        }),
+      });
+
+      return { status: "ok", bot_name: botUsername, chat_id: chatId };
+    } catch (err) {
+      return { status: "waiting", error: err instanceof Error ? err.message : "Unknown error" };
+    }
+  }
+
   private matchesEvent(patterns: string[], event: string): boolean {
     for (const p of patterns) {
       if (p === "*") return true;

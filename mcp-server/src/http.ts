@@ -303,6 +303,21 @@ export class HttpServer {
           }
           break;
 
+        case "/webhooks/telegram/setup":
+          if (req.method === "POST") {
+            const parsed = JSON.parse(body || "{}") as Record<string, unknown>;
+            const token = parsed.token as string;
+            if (!token) {
+              this.sendJson(res, 400, { error: "Missing 'token' field" });
+              break;
+            }
+            const result = await this.webhooks.setupTelegram(token, parsed.events as string[] | undefined);
+            this.sendJson(res, 200, result);
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+
         default:
           this.sendJson(res, 404, { error: `Not found: ${url}` });
       }
