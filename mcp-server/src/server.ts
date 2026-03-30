@@ -19,6 +19,7 @@ import { executeTool, setEventLog, setWebhookDispatcher, setConfirmationManager,
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
+import { registerTool } from "./tool-registry.js";
 
 export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge, configManager?: ConfigManager): McpServer {
   const bridge = new GodotBridge(projectRoot);
@@ -50,9 +51,16 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     version: "0.2.0",
   });
 
+  // Wrapper: register with both MCP SDK and tool-registry (for API-key mode)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function regTool(name: string, description: string, schema: Record<string, z.ZodTypeAny>, handler: (args: any) => Promise<any>): void {
+    server.tool(name, description, schema, handler);
+    registerTool(name, description, schema);
+  }
+
   // --- Editor tools (delegate to Godot plugin) ---
 
-  server.tool(
+  regTool(
     "create_scene",
     "Create a new scene with a root node and save it as a .tscn file.",
     {
@@ -63,14 +71,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("create_scene", args)
   );
 
-  server.tool(
+  regTool(
     "get_scene_tree",
     "Get the node hierarchy of the currently edited scene.",
     {},
     async () => runTool("get_scene_tree", {})
   );
 
-  server.tool(
+  regTool(
     "add_node",
     "Add a child node to a node in the currently edited scene.",
     {
@@ -81,7 +89,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("add_node", args)
   );
 
-  server.tool(
+  regTool(
     "set_property",
     "Set a property on a node in the currently edited scene.",
     {
@@ -92,7 +100,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("set_property", args)
   );
 
-  server.tool(
+  regTool(
     "create_script",
     "Create a new GDScript file with the given content.",
     {
@@ -103,7 +111,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("create_script", args)
   );
 
-  server.tool(
+  regTool(
     "read_script",
     "Read the content of a GDScript file.",
     {
@@ -112,7 +120,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("read_script", args)
   );
 
-  server.tool(
+  regTool(
     "open_scene",
     "Open a scene file in the Godot editor for editing.",
     {
@@ -121,7 +129,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("open_scene", args)
   );
 
-  server.tool(
+  regTool(
     "remove_node",
     "Remove a node from the currently edited scene in Godot.",
     {
@@ -130,7 +138,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("remove_node", args)
   );
 
-  server.tool(
+  regTool(
     "rename_node",
     "Rename a node in the currently edited scene in Godot.",
     {
@@ -140,7 +148,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("rename_node", args)
   );
 
-  server.tool(
+  regTool(
     "duplicate_node",
     "Duplicate a node (and its children) in the currently edited scene.",
     {
@@ -150,7 +158,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("duplicate_node", args)
   );
 
-  server.tool(
+  regTool(
     "move_node",
     "Move a node to a new parent in the currently edited scene.",
     {
@@ -160,7 +168,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("move_node", args)
   );
 
-  server.tool(
+  regTool(
     "edit_script",
     "Edit a GDScript file. Use 'content' for full rewrite, or 'old_text'+'new_text' for find-and-replace.",
     {
@@ -174,7 +182,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Advanced editor tools ---
 
-  server.tool(
+  regTool(
     "execute_editor_script",
     "Execute arbitrary GDScript in the Godot editor context. Has access to EditorInterface, ClassDB, ResourceSaver, etc. Use for operations not covered by other tools.",
     {
@@ -183,7 +191,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("execute_editor_script", args)
   );
 
-  server.tool(
+  regTool(
     "add_resource",
     "Create and assign a Resource to a node property (e.g., RectangleShape2D to CollisionShape2D.shape, CircleShape2D, etc.).",
     {
@@ -195,7 +203,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("add_resource", args)
   );
 
-  server.tool(
+  regTool(
     "add_scene_instance",
     "Instance an existing .tscn scene as a child node in the current scene.",
     {
@@ -206,14 +214,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("add_scene_instance", args)
   );
 
-  server.tool(
+  regTool(
     "save_scene",
     "Save the currently edited scene to disk.",
     {},
     async () => runTool("save_scene", {})
   );
 
-  server.tool(
+  regTool(
     "get_node_properties",
     "Get all properties and values of a node in the current scene.",
     {
@@ -223,7 +231,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("get_node_properties", args)
   );
 
-  server.tool(
+  regTool(
     "connect_signal",
     "Connect a signal from one node to a method on another node.",
     {
@@ -235,7 +243,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("connect_signal", args)
   );
 
-  server.tool(
+  regTool(
     "set_project_setting",
     "Set a Godot project setting (window size, physics, main scene, input actions, etc.).",
     {
@@ -245,7 +253,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("set_project_setting", args)
   );
 
-  server.tool(
+  regTool(
     "get_editor_errors",
     "Get recent errors and warnings from the Godot editor log.",
     {},
@@ -254,7 +262,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Runtime tools (delegated to Godot plugin) ---
 
-  server.tool(
+  regTool(
     "run_scene",
     "Run a scene in the Godot editor. If no path given, runs current or main scene.",
     {
@@ -263,21 +271,21 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("run_scene", args)
   );
 
-  server.tool(
+  regTool(
     "stop_scene",
     "Stop the currently running scene in the Godot editor.",
     {},
     async () => runTool("stop_scene", {})
   );
 
-  server.tool(
+  regTool(
     "get_game_status",
     "Check if a scene is running in Godot and which scene it is.",
     {},
     async () => runTool("get_game_status", {})
   );
 
-  server.tool(
+  regTool(
     "take_screenshot",
     "Take a screenshot. If a game is running, captures the game window; otherwise captures the editor viewport.",
     {
@@ -286,7 +294,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("take_screenshot", args)
   );
 
-  server.tool(
+  regTool(
     "take_game_screenshot",
     "Take a screenshot of the RUNNING game window (not editor). Requires a scene to be playing via run_scene.",
     {
@@ -295,7 +303,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("take_game_screenshot", args)
   );
 
-  server.tool(
+  regTool(
     "get_runtime_state",
     "Get runtime scene tree state of the running game: node types, positions, visibility, text values, velocities.",
     {
@@ -304,7 +312,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("get_runtime_state", args)
   );
 
-  server.tool(
+  regTool(
     "simulate_input",
     "Simulate an input action in the running game (press + release). Use to play-test games autonomously.",
     {
@@ -314,7 +322,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("simulate_input", args)
   );
 
-  server.tool(
+  regTool(
     "simulate_input_sequence",
     "Execute a timed sequence of input actions in the running game. Single HTTP call, game-side timing.",
     {
@@ -328,21 +336,21 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Local tools ---
 
-  server.tool(
+  regTool(
     "get_project_context",
     "Get project metadata: name, Godot version, scenes, scripts, current scene.",
     {},
     async () => runTool("get_project_context", {})
   );
 
-  server.tool(
+  regTool(
     "read_file",
     "Read any file from the Godot project directory.",
     { path: z.string().describe("Relative path from project root") },
     async (args) => runTool("read_file", args)
   );
 
-  server.tool(
+  regTool(
     "list_files",
     "List files in a project directory with optional pattern filtering.",
     {
@@ -354,7 +362,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Docs tools ---
 
-  server.tool(
+  regTool(
     "search_docs",
     "Search Godot documentation for classes, methods, properties, or signals. Uses version-aware FTS5 index.",
     {
@@ -366,7 +374,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("search_docs", args)
   );
 
-  server.tool(
+  regTool(
     "get_class_reference",
     "Get the full Godot class reference including methods, properties, signals, and constants.",
     {
@@ -378,7 +386,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Memory tools ---
 
-  server.tool(
+  regTool(
     "save_memory",
     "Save a fact, convention, pattern, or decision to the project's persistent memory.",
     {
@@ -388,7 +396,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("save_memory", args)
   );
 
-  server.tool(
+  regTool(
     "search_memory",
     "Search the project's persistent memory for facts, conventions, patterns, or decisions.",
     {
@@ -398,7 +406,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("search_memory", args)
   );
 
-  server.tool(
+  regTool(
     "get_project_memory",
     "Get the full project memory contents and stats.",
     {},
@@ -407,7 +415,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Config tools ---
 
-  server.tool(
+  regTool(
     "get_service_status",
     "Check which external services have API keys configured (Sketchfab, Stability, OpenAI, ElevenLabs, etc.). Never returns actual keys.",
     {},
@@ -416,7 +424,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Asset tools ---
 
-  server.tool(
+  regTool(
     "assets.search_polyhaven",
     "Search Poly Haven for free textures, 3D models, and HDRIs. No API key needed.",
     {
@@ -426,7 +434,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("assets.search_polyhaven", args)
   );
 
-  server.tool(
+  regTool(
     "assets.download_polyhaven",
     "Download a Poly Haven asset (texture, model, or HDRI) into the project.",
     {
@@ -438,7 +446,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("assets.download_polyhaven", args)
   );
 
-  server.tool(
+  regTool(
     "assets.search_sketchfab",
     "Search Sketchfab for downloadable 3D models.",
     {
@@ -450,7 +458,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("assets.search_sketchfab", args)
   );
 
-  server.tool(
+  regTool(
     "assets.download_sketchfab",
     "Download a Sketchfab model (GLTF) into the project. Requires Sketchfab API token.",
     {
@@ -460,7 +468,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("assets.download_sketchfab", args)
   );
 
-  server.tool(
+  regTool(
     "assets.search_opengameart",
     "Search OpenGameArt.org for free sprites, 3D models, sounds, and music.",
     {
@@ -470,7 +478,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("assets.search_opengameart", args)
   );
 
-  server.tool(
+  regTool(
     "assets.download_asset",
     "Download any asset from a URL into the project. Triggers Godot filesystem rescan.",
     {
@@ -481,7 +489,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("assets.download_asset", args)
   );
 
-  server.tool(
+  regTool(
     "assets.list_local",
     "List downloaded assets in the project with type and size.",
     {
@@ -493,7 +501,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Blender docs tools ---
 
-  server.tool(
+  regTool(
     "search_blender_docs",
     "Search Blender bpy API documentation for classes, methods, properties, or operators.",
     {
@@ -515,7 +523,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     }
   );
 
-  server.tool(
+  regTool(
     "get_blender_class",
     "Get the full bpy.types class reference including properties and methods.",
     {
@@ -538,7 +546,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   // --- Blender tools (delegate to Blender addon via socket) ---
 
   for (const tool of BLENDER_TOOLS) {
-    server.tool(
+    regTool(
       tool.name,
       tool.description,
       tool.schema,
@@ -548,7 +556,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Pipeline tools ---
 
-  server.tool(
+  regTool(
     "pipeline.blender_to_godot",
     "Export from Blender as GLB and import into the Godot project. Handles path conversion and filesystem rescan.",
     {
@@ -558,7 +566,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("pipeline.blender_to_godot", args)
   );
 
-  server.tool(
+  regTool(
     "pipeline.blender_to_godot_animated",
     "Export from Blender with animations and armatures as GLB into the Godot project.",
     {
@@ -568,7 +576,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("pipeline.blender_to_godot_animated", args)
   );
 
-  server.tool(
+  regTool(
     "pipeline.sync_collision",
     "Generate collision shape hints in Blender for Godot import. Creates -col/-colonly/-trimesh suffixed duplicates that Godot auto-detects on GLTF import.",
     {
@@ -578,7 +586,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("pipeline.sync_collision", args)
   );
 
-  server.tool(
+  regTool(
     "pipeline.batch_import",
     "Batch import multiple 3D asset files (GLB, GLTF, FBX, OBJ) from a directory into the Godot project.",
     {
@@ -596,7 +604,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   const meshyPolycount = z.number().min(100).max(300000).optional().describe("Target polygon count (100-300000, default: 30000)");
   const meshyOrigin = z.enum(["bottom", "center"]).optional().describe("Model origin point (default: bottom)");
 
-  server.tool(
+  regTool(
     "ai.meshy_text_to_3d",
     "Generate a 3D mesh from a text description using Meshy AI (preview mode). Returns a GLB file. Takes 1-5 minutes. Use ai.meshy_refine to add textures afterwards.",
     {
@@ -616,7 +624,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_text_to_3d", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_refine",
     "Apply AI texture to a completed text-to-3D preview task. Costs 10 credits. Takes 1-3 minutes.",
     {
@@ -634,7 +642,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_refine", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_image_to_3d",
     "Generate a 3D model from a single image using Meshy AI. Returns a GLB file. Takes 1-5 minutes.",
     {
@@ -661,7 +669,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_image_to_3d", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_multi_image_to_3d",
     "Generate a 3D model from 1-4 images of the same object (different angles) using Meshy AI. Takes 1-5 minutes.",
     {
@@ -683,7 +691,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_multi_image_to_3d", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_remesh",
     "Remesh/retopologize an existing 3D model. Can change topology, polycount, format, or resize. 5 credits.",
     {
@@ -700,7 +708,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_remesh", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_retexture",
     "Apply new AI-generated texture to an existing 3D model. Describe the style with text or provide a reference image. 10 credits.",
     {
@@ -717,7 +725,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_retexture", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_check_task",
     "Check the status and progress of any Meshy AI generation task.",
     {
@@ -727,7 +735,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.meshy_check_task", args)
   );
 
-  server.tool(
+  regTool(
     "ai.meshy_balance",
     "Check remaining Meshy AI credit balance.",
     {},
@@ -747,7 +755,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   ]).optional().describe("Style preset to guide generation");
   const stabilityGrowMask = z.number().int().min(0).max(20).optional().describe("Pixels to grow mask edges (default: 5)");
 
-  server.tool(
+  regTool(
     "ai.stability_generate",
     "Generate an image using Stable Diffusion 3.5. Supports text-to-image and image-to-image modes. 3.5-6.5 credits. Great for textures (use tile-texture style), sprites, concept art.",
     {
@@ -764,7 +772,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_generate", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_generate_ultra",
     "Generate a high-quality image using Stable Image Ultra. 8 credits. Best for concept art and hero images.",
     {
@@ -779,7 +787,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_generate_ultra", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_generate_core",
     "Generate an image using Stable Image Core. Fast, 3 credits. Supports style presets (pixel-art, anime, low-poly, etc.).",
     {
@@ -793,7 +801,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_generate_core", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_inpaint",
     "Fill or replace a masked area in an image. 5 credits. Use for editing textures or sprites.",
     {
@@ -809,7 +817,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_inpaint", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_outpaint",
     "Extend an image beyond its borders in any direction. 5 credits. Great for extending tilesets.",
     {
@@ -828,7 +836,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_outpaint", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_search_replace",
     "Find an object in an image and replace it with something else. No mask needed. 5 credits.",
     {
@@ -844,7 +852,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_search_replace", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_recolor",
     "Find an object in an image and recolor it. 5 credits. Great for creating color variants of assets.",
     {
@@ -860,7 +868,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_recolor", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_erase",
     "Erase an object from an image using a mask. 5 credits.",
     {
@@ -873,7 +881,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_erase", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_remove_bg",
     "Remove the background from an image. 5 credits. Essential for creating sprites with transparent backgrounds.",
     {
@@ -883,7 +891,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_remove_bg", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_upscale_fast",
     "Upscale an image 4x using fast AI upscaling. 2 credits. Good for pixel art.",
     {
@@ -893,7 +901,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_upscale_fast", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_sketch",
     "Transform a sketch or outline into a finished image. 5 credits. Great for concept art workflow.",
     {
@@ -908,7 +916,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_sketch", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_style",
     "Generate an image matching the style of a reference image. 5 credits. Perfect for consistent art direction.",
     {
@@ -924,7 +932,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.stability_style", args)
   );
 
-  server.tool(
+  regTool(
     "ai.stability_balance",
     "Check remaining Stability AI credit balance.",
     {},
@@ -933,7 +941,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Blockade Labs (Skybox AI) ---
 
-  server.tool(
+  regTool(
     "ai.blockade_generate_skybox",
     "Generate a 360° skybox image from a text description using Blockade Labs. Takes 30-120 seconds. Output: equirectangular image.",
     {
@@ -952,7 +960,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.blockade_generate_skybox", args)
   );
 
-  server.tool(
+  regTool(
     "ai.blockade_list_styles",
     "List available Blockade Labs skybox styles with their IDs, names, and character limits.",
     {
@@ -961,7 +969,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.blockade_list_styles", args)
   );
 
-  server.tool(
+  regTool(
     "ai.blockade_check_task",
     "Check the status of a Blockade Labs skybox generation task.",
     {
@@ -972,7 +980,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- ElevenLabs (Voice & Audio AI) ---
 
-  server.tool(
+  regTool(
     "ai.elevenlabs_tts",
     "Generate speech audio from text using ElevenLabs AI voices. Returns an audio file. Use ai.elevenlabs_list_voices to find voice IDs.",
     {
@@ -992,7 +1000,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.elevenlabs_tts", args)
   );
 
-  server.tool(
+  regTool(
     "ai.elevenlabs_sound_effect",
     "Generate a sound effect from a text description using ElevenLabs. Great for game SFX.",
     {
@@ -1005,7 +1013,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.elevenlabs_sound_effect", args)
   );
 
-  server.tool(
+  regTool(
     "ai.elevenlabs_list_voices",
     "List available ElevenLabs voices with IDs, names, and categories.",
     {
@@ -1016,7 +1024,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.elevenlabs_list_voices", args)
   );
 
-  server.tool(
+  regTool(
     "ai.elevenlabs_list_models",
     "List available ElevenLabs TTS models with capabilities and language support.",
     {},
@@ -1025,7 +1033,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Rodin (Hyper3D) ---
 
-  server.tool(
+  regTool(
     "ai.rodin_generate",
     "Generate a 3D model using Hyper3D Rodin AI. Supports text-to-3D and image-to-3D. Returns a GLB file.",
     {
@@ -1044,7 +1052,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.rodin_generate", args)
   );
 
-  server.tool(
+  regTool(
     "ai.rodin_check_task",
     "Check the status of a Rodin 3D generation task.",
     {
@@ -1055,7 +1063,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Tripo AI ---
 
-  server.tool(
+  regTool(
     "ai.tripo_text_to_3d",
     "Generate a 3D model from text using Tripo AI. Returns a GLB file with PBR textures.",
     {
@@ -1070,7 +1078,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.tripo_text_to_3d", args)
   );
 
-  server.tool(
+  regTool(
     "ai.tripo_image_to_3d",
     "Generate a 3D model from an image using Tripo AI. Uploads the image then generates.",
     {
@@ -1083,7 +1091,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.tripo_image_to_3d", args)
   );
 
-  server.tool(
+  regTool(
     "ai.tripo_refine",
     "Refine a previously generated Tripo 3D model for higher quality.",
     {
@@ -1092,7 +1100,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.tripo_refine", args)
   );
 
-  server.tool(
+  regTool(
     "ai.tripo_animate",
     "Auto-rig and optionally animate a Tripo 3D model. Supports animation presets like walk, run, idle, dance.",
     {
@@ -1102,7 +1110,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.tripo_animate", args)
   );
 
-  server.tool(
+  regTool(
     "ai.tripo_stylize",
     "Apply an artistic style to a Tripo 3D model (voronoi, lego, minecraft).",
     {
@@ -1112,7 +1120,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.tripo_stylize", args)
   );
 
-  server.tool(
+  regTool(
     "ai.tripo_check_task",
     "Check the status of a Tripo AI task.",
     {
@@ -1121,7 +1129,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.tripo_check_task", args)
   );
 
-  server.tool(
+  regTool(
     "ai.tripo_balance",
     "Check remaining Tripo AI credit balance.",
     {},
@@ -1130,7 +1138,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- OpenAI DALL-E ---
 
-  server.tool(
+  regTool(
     "ai.dalle_generate",
     "Generate an image using OpenAI DALL-E 3 or DALL-E 2.",
     {
@@ -1144,7 +1152,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.dalle_generate", args)
   );
 
-  server.tool(
+  regTool(
     "ai.dalle_edit",
     "Edit an image using DALL-E 2 with an optional mask. Replace areas with AI-generated content.",
     {
@@ -1157,7 +1165,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.dalle_edit", args)
   );
 
-  server.tool(
+  regTool(
     "ai.dalle_variation",
     "Create variations of an existing image using DALL-E 2.",
     {
@@ -1170,7 +1178,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Suno (Music AI) ---
 
-  server.tool(
+  regTool(
     "ai.suno_generate",
     "Generate music using Suno AI. Returns 2 tracks per request. Custom mode: provide lyrics/style/title. Auto mode: describe what you want.",
     {
@@ -1188,7 +1196,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.suno_generate", args)
   );
 
-  server.tool(
+  regTool(
     "ai.suno_lyrics",
     "Generate lyrics from a prompt using Suno AI.",
     {
@@ -1197,7 +1205,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.suno_lyrics", args)
   );
 
-  server.tool(
+  regTool(
     "ai.suno_check_task",
     "Check the status of a Suno music generation task.",
     {
@@ -1206,7 +1214,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
     async (args) => runTool("ai.suno_check_task", args)
   );
 
-  server.tool(
+  regTool(
     "ai.suno_credits",
     "Check remaining Suno AI credits.",
     {},
@@ -1215,7 +1223,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // --- Hugging Face Inference ---
 
-  server.tool(
+  regTool(
     "ai.huggingface_text_to_image",
     "Generate an image using open-source models on Hugging Face (FLUX, Stable Diffusion, etc.). Free tier available.",
     {

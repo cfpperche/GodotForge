@@ -10,6 +10,7 @@ import { join } from "path";
 import { loadSkills, resolveSkill, type SkillInfo } from "./studio/skills.js";
 import { loadAgents, resolveAgent, type AgentInfo } from "./studio/agents.js";
 import { loadTemplates, resolveTemplate, type TemplateInfo } from "./studio/templates.js";
+import { getAllToolDefinitions } from "./tool-registry.js";
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -859,43 +860,16 @@ export class ChatEngine {
   }
 }
 
-// Tool definitions for direct API mode (not needed for Agent SDK mode)
+// Tool definitions for direct API mode — derived from the shared tool-registry.
+// The registry is populated by server.ts via regTool() during MCP server setup.
+// This ensures API-key mode has access to ALL tools (editor, blender, AI, assets, pipeline).
 function getToolDefinitions(): Array<Record<string, unknown>> {
+  const defs = getAllToolDefinitions();
+  if (defs.length > 0) return defs as unknown as Array<Record<string, unknown>>;
+
+  // Fallback: minimal set if registry is empty (shouldn't happen in normal flow)
   return [
-    { name: "create_scene", description: "Create a new scene with a root node.", input_schema: { type: "object", properties: { path: { type: "string" }, root_type: { type: "string" }, root_name: { type: "string" } }, required: ["path", "root_type"] } },
-    { name: "open_scene", description: "Open a scene in the editor.", input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
-    { name: "get_scene_tree", description: "Get the node hierarchy of the current scene.", input_schema: { type: "object", properties: {} } },
-    { name: "add_node", description: "Add a child node to the scene.", input_schema: { type: "object", properties: { parent_path: { type: "string" }, type: { type: "string" }, name: { type: "string" } }, required: ["parent_path", "type", "name"] } },
-    { name: "set_property", description: "Set a property on a node.", input_schema: { type: "object", properties: { node_path: { type: "string" }, property: { type: "string" }, value: {} }, required: ["node_path", "property", "value"] } },
-    { name: "remove_node", description: "Remove a node from the scene.", input_schema: { type: "object", properties: { node_path: { type: "string" } }, required: ["node_path"] } },
-    { name: "rename_node", description: "Rename a node.", input_schema: { type: "object", properties: { node_path: { type: "string" }, new_name: { type: "string" } }, required: ["node_path", "new_name"] } },
-    { name: "duplicate_node", description: "Duplicate a node and its children.", input_schema: { type: "object", properties: { node_path: { type: "string" }, new_name: { type: "string" } }, required: ["node_path"] } },
-    { name: "move_node", description: "Move a node to a new parent.", input_schema: { type: "object", properties: { node_path: { type: "string" }, new_parent_path: { type: "string" } }, required: ["node_path", "new_parent_path"] } },
-    { name: "create_script", description: "Create a GDScript file.", input_schema: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, attach_to: { type: "string" } }, required: ["path", "content"] } },
-    { name: "read_script", description: "Read a GDScript file.", input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
-    { name: "edit_script", description: "Edit a GDScript file.", input_schema: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, old_text: { type: "string" }, new_text: { type: "string" } }, required: ["path"] } },
-    { name: "run_scene", description: "Run a scene in Godot.", input_schema: { type: "object", properties: { scene_path: { type: "string" } } } },
-    { name: "stop_scene", description: "Stop the running scene.", input_schema: { type: "object", properties: {} } },
-    { name: "get_game_status", description: "Check if a scene is running.", input_schema: { type: "object", properties: {} } },
-    { name: "take_screenshot", description: "Take a screenshot of the editor.", input_schema: { type: "object", properties: { output_path: { type: "string" } } } },
-    { name: "execute_editor_script", description: "Execute GDScript in the editor.", input_schema: { type: "object", properties: { code: { type: "string" } }, required: ["code"] } },
-    { name: "add_resource", description: "Create and assign a Resource to a node property.", input_schema: { type: "object", properties: { node_path: { type: "string" }, property: { type: "string" }, resource_type: { type: "string" }, resource_properties: { type: "object" } }, required: ["node_path", "property", "resource_type"] } },
-    { name: "add_scene_instance", description: "Instance a .tscn scene as child node.", input_schema: { type: "object", properties: { scene_path: { type: "string" }, parent_path: { type: "string" }, name: { type: "string" } }, required: ["scene_path"] } },
-    { name: "save_scene", description: "Save the current scene to disk.", input_schema: { type: "object", properties: {} } },
-    { name: "get_node_properties", description: "Get all properties of a node.", input_schema: { type: "object", properties: { node_path: { type: "string" }, filter: { type: "string" } }, required: ["node_path"] } },
-    { name: "connect_signal", description: "Connect a signal to a method.", input_schema: { type: "object", properties: { source_path: { type: "string" }, signal_name: { type: "string" }, target_path: { type: "string" }, method_name: { type: "string" } }, required: ["source_path", "signal_name", "target_path", "method_name"] } },
-    { name: "set_project_setting", description: "Set a Godot project setting.", input_schema: { type: "object", properties: { key: { type: "string" }, value: {} }, required: ["key", "value"] } },
-    { name: "get_editor_errors", description: "Get recent editor errors.", input_schema: { type: "object", properties: {} } },
     { name: "get_project_context", description: "Get project metadata.", input_schema: { type: "object", properties: {} } },
-    { name: "read_file", description: "Read any file from the project.", input_schema: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } },
-    { name: "list_files", description: "List files in a directory.", input_schema: { type: "object", properties: { directory: { type: "string" }, pattern: { type: "string" } } } },
     { name: "search_docs", description: "Search Godot documentation.", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-    { name: "get_class_reference", description: "Get full Godot class reference.", input_schema: { type: "object", properties: { class_name: { type: "string" } }, required: ["class_name"] } },
-    { name: "search_blender_docs", description: "Search Blender bpy API docs.", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-    { name: "get_blender_class", description: "Get bpy.types class reference.", input_schema: { type: "object", properties: { class_name: { type: "string" } }, required: ["class_name"] } },
-    { name: "save_memory", description: "Save a fact to project memory.", input_schema: { type: "object", properties: { category: { type: "string" }, content: { type: "string" } }, required: ["category", "content"] } },
-    { name: "search_memory", description: "Search project memory.", input_schema: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } },
-    { name: "get_project_memory", description: "Get full project memory.", input_schema: { type: "object", properties: {} } },
-    { name: "get_service_status", description: "Check API key status.", input_schema: { type: "object", properties: {} } },
   ];
 }
