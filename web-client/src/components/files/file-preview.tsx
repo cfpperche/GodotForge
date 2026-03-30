@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { FileEntry } from "@/types/api";
 import { Box, File } from "lucide-react";
+import "@google/model-viewer";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -118,18 +119,26 @@ export function FilePreview({ entry, parentPath }: FilePreviewProps) {
     }
 
     if (MODEL_EXTS.has(ext)) {
+      if (ext === ".glb" || ext === ".gltf") {
+        return (
+          <div className="h-full w-full p-2">
+            <model-viewer
+              src={url}
+              auto-rotate
+              camera-controls
+              shadow-intensity="0.5"
+              loading="lazy"
+              style={{ width: "100%", height: "100%", minHeight: 300, background: "transparent" }}
+            />
+          </div>
+        );
+      }
       return (
         <div className="flex flex-col items-center justify-center h-full gap-3 text-muted-foreground">
           <Box className="h-12 w-12 text-orange-400/60" />
-          <p className="text-sm font-medium">3D Preview</p>
-          <p className="text-xs text-muted-foreground/60">{entry.name}</p>
-          <a
-            href={url}
-            download={entry.name}
-            className="text-xs text-primary hover:underline mt-1"
-          >
-            Download file
-          </a>
+          <p className="text-sm font-medium">{entry.name}</p>
+          <p className="text-xs text-muted-foreground/60">Preview not available for {ext} files</p>
+          <a href={url} download={entry.name} className="text-xs text-primary hover:underline mt-1">Download file</a>
         </div>
       );
     }
