@@ -3,6 +3,7 @@
 import json
 import math
 import os
+from functools import wraps
 from typing import Any
 
 import bpy
@@ -11,6 +12,7 @@ import mathutils
 
 def safe_handler(fn):
     """Wrap handler in try/except to return structured errors instead of raw tracebacks."""
+    @wraps(fn)
     def wrapper(args):
         try:
             return fn(args)

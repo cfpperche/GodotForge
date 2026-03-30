@@ -43,6 +43,8 @@ export function registerTool(
     }
     jsonSchema = { type: "object", properties, required };
   }
+  // Dedup: skip if already registered (prevents accumulation on hot-reload)
+  if (registry.some((t) => t.name === name)) return;
   registry.push({ name, description, input_schema: jsonSchema });
 }
 

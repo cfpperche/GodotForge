@@ -6,7 +6,7 @@ import { executeTool, type ToolResult } from "./tool-handlers.js";
 import { buildContext } from "./context/builder.js";
 import { appendSessionLog } from "./memory/store.js";
 import { existsSync, readFileSync, readdirSync } from "fs";
-import { join } from "path";
+import { join, resolve } from "path";
 import { loadSkills, resolveSkill, type SkillInfo } from "./studio/skills.js";
 import { loadAgents, resolveAgent, type AgentInfo } from "./studio/agents.js";
 import { loadTemplates, resolveTemplate, type TemplateInfo } from "./studio/templates.js";
@@ -692,7 +692,7 @@ export class ChatEngine {
   private loadRules(): string | null {
     const bundledDir = join(this.repoRoot, ".claude", "rules");
     const userDir = join(this.root, ".claude", "rules");
-    const isSameProject = bundledDir === userDir;
+      const isSameProject = resolve(bundledDir) === resolve(userDir);
 
     const ruleMap = new Map<string, string>();
 
@@ -889,7 +889,7 @@ export class ChatEngine {
 
 /** Extract audience field from rule frontmatter. */
 function parseAudience(raw: string): string | null {
-  const match = raw.match(/^---\n[\s\S]*?audience:\s*(\S+)[\s\S]*?\n---/);
+  const match = raw.match(/^---\r?\n[\s\S]*?audience:\s*(\S+)[\s\S]*?\r?\n---/);
   return match ? match[1] : null;
 }
 
