@@ -3,6 +3,7 @@ import { LeftSidebar } from "@/components/nav/left-sidebar";
 import { ProjectSwitcher } from "@/components/nav/project-switcher";
 import { SettingsPage } from "@/components/settings/settings-page";
 import { OnboardingWizard } from "@/components/onboarding/onboarding-wizard";
+import { FileBrowser } from "@/components/files/file-browser";
 import { useProject } from "@/hooks/use-project";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import { cn } from "@/lib/utils";
@@ -11,7 +12,7 @@ import { useState, createContext, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "sonner";
 
-type View = "chat" | "settings";
+type View = "chat" | "settings" | "files";
 
 export const ProjectContext = createContext<{
   isValid: boolean;
@@ -107,6 +108,12 @@ export default function App() {
                   Chat
                 </button>
                 <button
+                  onClick={() => { setActiveView("files"); setMobileMenuOpen(false); }}
+                  className={cn("flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm", activeView === "files" ? "bg-primary/15 text-primary" : "text-muted-foreground")}
+                >
+                  Files
+                </button>
+                <button
                   onClick={() => { setActiveView("settings"); setMobileMenuOpen(false); }}
                   className={cn("flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm", activeView === "settings" ? "bg-primary/15 text-primary" : "text-muted-foreground")}
                 >
@@ -120,6 +127,7 @@ export default function App() {
           <main className="flex-1 overflow-hidden">
             {activeView === "chat" && <ChatPanel />}
             {activeView === "settings" && <SettingsPage onBack={() => setActiveView("chat")} />}
+            {activeView === "files" && <FileBrowser />}
           </main>
         </div>
       </div>

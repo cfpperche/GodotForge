@@ -4,6 +4,7 @@ import type {
   SettingsResponse,
   KeysResponse,
   StreamEvent,
+  FileEntry,
 } from "@/types/api";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
@@ -50,6 +51,16 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify({ service }),
     }),
+
+  listFiles: async (path = ""): Promise<FileEntry[]> => {
+    const res = await fetch(`${BASE_URL}/files?path=${encodeURIComponent(path)}`);
+    if (!res.ok) return [];
+    return res.json() as Promise<FileEntry[]>;
+  },
+
+  getFileUrl: (path: string): string => {
+    return `${BASE_URL}/file/${encodeURIComponent(path)}`;
+  },
 
   chatStream: async (
     message: string,

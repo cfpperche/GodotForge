@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createConnection } from "node:net";
-import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync, cpSync } from "fs";
-import { join, dirname, basename } from "path";
+import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync, cpSync, readdirSync, statSync, createReadStream, watch as fsWatch } from "fs";
+import { join, dirname, basename, resolve, extname } from "path";
+import { WebSocketServer } from "ws";
 import { execSync, execFile } from "child_process";
 import { promisify } from "util";
 
@@ -69,6 +70,7 @@ export class HttpServer {
           this.writePortFile();
           console.error(`[GodotForge HTTP] Listening on ${BIND_HOST}:${port}`);
           this.provisionBlenderAddon();
+          this.attachFileWatcher();
           resolve(port);
         });
       };
@@ -105,6 +107,13 @@ export class HttpServer {
     const body = await readBody(req);
 
     try {
+      // Prefix-matched routes (must come before the switch)
+      const urlPath = new URL(url, "http://localhost").pathname;
+      if (urlPath.startsWith("/file/")) {
+        this.serveProjectFile(res, urlPath.slice("/file/".length));
+        return;
+      }
+
       switch (url) {
         case "/":
         case "/dashboard":
@@ -344,6 +353,13 @@ export class HttpServer {
             this.sendJson(res, 405, { error: "Method not allowed" });
           }
           break;
+
+        case "/files": {
+          if (req.method !== "GET") { this.sendJson(res, 405, { error: "Method not allowed" }); break; }
+          const params = new URL(url, "http://localhost").searchParams;
+          this.handleListFiles(res, params.get("path") || "", params.get("include_meta") !== "false");
+          break;
+        }
 
         default:
           this.sendJson(res, 404, { error: `Not found: ${url}` });
@@ -843,6 +859,121 @@ export class HttpServer {
     this.sendJson(res, 200, { result: `Key removed for ${service}` });
   }
 
+  private handleListFiles(res: ServerResponse, relPath: string, _includeMeta: boolean): void {
+    const safePath = resolve(join(this.projectRoot, relPath));
+    if (!safePath.startsWith(this.projectRoot)) {
+      this.sendJson(res, 403, { error: "Path traversal rejected" });
+      return;
+    }
+    if (!existsSync(safePath)) {
+      this.sendJson(res, 404, { error: `Path not found: ${relPath}` });
+      return;
+    }
+
+    try {
+      const entries = readdirSync(safePath, { withFileTypes: true });
+      const result = entries
+        .filter((e) => !e.name.startsWith("."))
+        .map((e) => {
+          let size = 0;
+          let modified = "";
+          try {
+            const st = statSync(join(safePath, e.name));
+            size = st.size;
+            modified = st.mtime.toISOString();
+          } catch { /* skip if stat fails */ }
+          return {
+            name: e.name,
+            isDir: e.isDirectory(),
+            size,
+            modified,
+            extension: e.isDirectory() ? "" : extname(e.name).slice(1),
+          };
+        })
+        .sort((a, b) => {
+          if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+      this.sendJson(res, 200, result);
+    } catch (error) {
+      this.sendJson(res, 500, { error: error instanceof Error ? error.message : "Failed to list files" });
+    }
+  }
+
+  private attachFileWatcher(): void {
+    const wss = new WebSocketServer({ noServer: true });
+
+    this.server!.on("upgrade", (req, socket, head) => {
+      const pathname = new URL(req.url || "", `http://${req.headers.host}`).pathname;
+      if (pathname === "/files/watch") {
+        wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws));
+      } else {
+        socket.destroy();
+      }
+    });
+
+    wss.on("connection", (ws) => {
+      const debounce = new Map<string, NodeJS.Timeout>();
+
+      const watcher = fsWatch(this.projectRoot, { recursive: true }, (eventType, filename) => {
+        if (!filename || filename.startsWith(".")) return;
+
+        const existing = debounce.get(filename);
+        if (existing) clearTimeout(existing);
+
+        debounce.set(filename, setTimeout(() => {
+          debounce.delete(filename);
+          const fullPath = join(this.projectRoot, filename);
+          let type: string;
+          if (eventType === "change") {
+            type = "modified";
+          } else {
+            type = existsSync(fullPath) ? "created" : "deleted";
+          }
+          const isDir = existsSync(fullPath) && statSync(fullPath).isDirectory();
+          if (ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({ type, path: filename, isDir }));
+          }
+        }, 100));
+      });
+
+      ws.on("close", () => {
+        watcher.close();
+        for (const t of debounce.values()) clearTimeout(t);
+      });
+    });
+  }
+
+  private serveProjectFile(res: ServerResponse, filePath: string): void {
+    const safePath = resolve(join(this.projectRoot, decodeURIComponent(filePath)));
+    if (!safePath.startsWith(this.projectRoot)) {
+      this.sendJson(res, 403, { error: "Path traversal rejected" });
+      return;
+    }
+
+    // Blocklist sensitive files
+    const godotforgeDir = join(this.projectRoot, ".godotforge");
+    if (safePath.startsWith(godotforgeDir)) {
+      const name = basename(safePath);
+      if (name === ".env" || name === ".api_key" || name === "config.json") {
+        this.sendJson(res, 403, { error: "Access denied" });
+        return;
+      }
+    }
+
+    if (!existsSync(safePath)) {
+      this.sendJson(res, 404, { error: "File not found" });
+      return;
+    }
+
+    const contentType = getContentType(extname(safePath).toLowerCase());
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=60",
+    });
+    createReadStream(safePath).pipe(res);
+  }
+
   private sendJson(res: ServerResponse, status: number, data: unknown): void {
     const json = JSON.stringify(data);
     res.writeHead(status, {
@@ -874,4 +1005,32 @@ function readBody(req: IncomingMessage): Promise<string> {
     req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
     req.on("error", () => resolve(""));
   });
+}
+
+function getContentType(ext: string): string {
+  const map: Record<string, string> = {
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+    ".glb": "model/gltf-binary",
+    ".gltf": "model/gltf+json",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".gd": "text/plain; charset=utf-8",
+    ".gdshader": "text/plain; charset=utf-8",
+    ".tscn": "text/plain; charset=utf-8",
+    ".tres": "text/plain; charset=utf-8",
+    ".cfg": "text/plain; charset=utf-8",
+    ".json": "application/json",
+    ".md": "text/plain; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8",
+    ".csv": "text/plain; charset=utf-8",
+    ".log": "text/plain; charset=utf-8",
+  };
+  return map[ext] || "application/octet-stream";
 }

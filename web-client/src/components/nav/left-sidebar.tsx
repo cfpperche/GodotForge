@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 import { useHealth } from "@/hooks/use-health";
-import { MessageSquare, Settings, Zap, RefreshCw, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { MessageSquare, Settings, Zap, RefreshCw, PanelLeftClose, PanelLeftOpen, FolderOpen } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-type View = "chat" | "settings";
+type View = "chat" | "settings" | "files";
 
 interface LeftSidebarProps {
   activeView: View;
@@ -13,6 +13,7 @@ interface LeftSidebarProps {
 
 const NAV_ITEMS: { id: View; icon: typeof MessageSquare; label: string }[] = [
   { id: "chat", icon: MessageSquare, label: "Chat" },
+  { id: "files", icon: FolderOpen, label: "Files" },
   { id: "settings", icon: Settings, label: "Settings" },
 ];
 

@@ -58,3 +58,17 @@ export interface StreamEvent {
   args?: Record<string, unknown>;
   risk?: string;
 }
+
+export interface FileEntry {
+  name: string;
+  isDir: boolean;
+  size: number;
+  modified: string;
+  extension: string;
+}
+
+export interface FileWatchEvent {
+  type: "created" | "modified" | "deleted" | "renamed";
+  path: string;
+  isDir: boolean;
+}
