@@ -1,11 +1,11 @@
-import { useEffect, useRef, useContext } from "react";
+import { useEffect, useRef, useContext, useState, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Message } from "./message";
 import { ChatInput } from "./chat-input";
 import { useChat } from "@/hooks/use-chat";
 import { ProjectContext } from "@/app";
-import { Bot, Trash2, Gamepad2, Boxes, Paintbrush, Music, FolderOpen, Plus, AlertCircle } from "lucide-react";
+import { Bot, Trash2, Gamepad2, Boxes, Paintbrush, Music, FolderOpen, Plus, AlertCircle, Sparkles } from "lucide-react";
 
 const SUGGESTIONS = [
   { icon: Gamepad2, text: "Create a 3D platformer scene with a player" },
@@ -14,10 +14,29 @@ const SUGGESTIONS = [
   { icon: Music, text: "Search OpenGameArt for background music" },
 ];
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
+
+interface SkillInfo { name: string; description: string; }
+
 export function ChatPanel() {
   const { messages, loading, sendMessage, clearMessages } = useChat();
   const { isValid, openSettings } = useContext(ProjectContext);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [insertText, setInsertText] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (!isValid) return;
+    fetch(`${BASE_URL}/skills`).then((r) => r.json()).then((data) => {
+      if (Array.isArray(data)) setSkills(data);
+    }).catch(() => {});
+  }, [isValid]);
+
+  const handleSkillClick = useCallback((name: string) => {
+    setInsertText(`/${name} `);
+    // Reset so the same skill can be clicked again
+    setTimeout(() => setInsertText(undefined), 100);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -109,6 +128,31 @@ export function ChatPanel() {
                   </button>
                 ))}
               </div>
+
+              {/* Skill bar */}
+              {skills.length > 0 && (
+                <div className="max-w-lg w-full mt-4">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Sparkles className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[11px] text-muted-foreground font-medium">Skills</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {skills.slice(0, 12).map((s) => (
+                      <button
+                        key={s.name}
+                        onClick={() => handleSkillClick(s.name)}
+                        title={s.description}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-mono bg-muted/30 text-muted-foreground border border-border/30 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                      >
+                        /{s.name}
+                      </button>
+                    ))}
+                    {skills.length > 12 && (
+                      <span className="px-2.5 py-1 text-[11px] text-muted-foreground">+{skills.length - 12} more</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -134,7 +178,7 @@ export function ChatPanel() {
         </div>
       </ScrollArea>
 
-      <ChatInput onSend={sendMessage} loading={loading} />
+      <ChatInput onSend={sendMessage} loading={loading} insertText={insertText} />
     </div>
   );
 }

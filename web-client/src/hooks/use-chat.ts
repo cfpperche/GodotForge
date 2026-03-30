@@ -1,11 +1,34 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
 import type { ChatMessage, ToolCallLog } from "@/types/api";
 
+const SESSION_KEY = "godotforge-session-id";
+const MESSAGES_KEY = "godotforge-messages";
+
+function getOrCreateSessionId(): string {
+  const stored = localStorage.getItem(SESSION_KEY);
+  if (stored) return stored;
+  const id = crypto.randomUUID();
+  localStorage.setItem(SESSION_KEY, id);
+  return id;
+}
+
 export function useChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const stored = sessionStorage.getItem(MESSAGES_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
   const [loading, setLoading] = useState(false);
-  const sessionId = useRef(crypto.randomUUID());
+  const sessionId = useRef(getOrCreateSessionId());
+
+  // Persist messages to sessionStorage on change
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+    }
+  }, [messages]);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || loading) return;
@@ -94,7 +117,10 @@ export function useChat() {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-    sessionId.current = crypto.randomUUID();
+    sessionStorage.removeItem(MESSAGES_KEY);
+    const newId = crypto.randomUUID();
+    sessionId.current = newId;
+    localStorage.setItem(SESSION_KEY, newId);
   }, []);
 
   return { messages, loading, sendMessage, clearMessages };

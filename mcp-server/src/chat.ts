@@ -76,7 +76,7 @@ export class ChatEngine {
     auth_mode: "agent_sdk",
     api_key: process.env.ANTHROPIC_API_KEY || "",
     model: "claude-sonnet-4-20250514",
-    max_tokens: 4096,
+    max_tokens: 16384,
     memory_enabled: true,
     temperature: 1.0,
     effort: "high",
@@ -597,7 +597,7 @@ export class ChatEngine {
 
     while (loops < MAX_TOOL_LOOPS) {
       loops++;
-      const apiResponse = await this.callClaudeApi(systemPrompt, messages);
+      let apiResponse = await this.callClaudeApi(systemPrompt, messages);
 
       if (apiResponse.error) {
         return { response: "", tool_calls: toolCalls, error: apiResponse.error };
@@ -611,18 +611,34 @@ export class ChatEngine {
       );
 
       if (toolUseBlocks.length === 0) {
-        const textBlocks = content
+        let responseText = content
           .filter((b: Record<string, unknown>) => b.type === "text")
-          .map((b: Record<string, unknown>) => b.text as string);
+          .map((b: Record<string, unknown>) => b.text as string)
+          .join("\n\n");
 
-        const response = textBlocks.join("\n\n");
-        appendSessionLog(this.root, "assistant", response.slice(0, 500));
+        // Continuation: if truncated by max_tokens, ask LLM to continue (max 3 times)
+        let continuations = 0;
+        while (apiResponse.stop_reason === "max_tokens" && continuations < 3) {
+          continuations++;
+          messages.push({ role: "user", content: "continue" });
+          const contResponse = await this.callClaudeApi(systemPrompt, messages);
+          if (contResponse.error) break;
+          messages.push({ role: "assistant", content: contResponse.content });
+          const contText = contResponse.content
+            .filter((b: Record<string, unknown>) => b.type === "text")
+            .map((b: Record<string, unknown>) => b.text as string)
+            .join("\n\n");
+          responseText += contText;
+          apiResponse = contResponse;
+        }
+
+        appendSessionLog(this.root, "assistant", responseText.slice(0, 500));
 
         if (messages.length > 20) {
           this.compactSession(sessionId, messages);
         }
 
-        return { response, tool_calls: toolCalls };
+        return { response: responseText, tool_calls: toolCalls };
       }
 
       const toolResults: Array<Record<string, unknown>> = [];
@@ -784,7 +800,7 @@ export class ChatEngine {
   private async callClaudeApi(
     systemPrompt: string,
     messages: Message[]
-  ): Promise<{ content: Array<Record<string, unknown>>; error?: string }> {
+  ): Promise<{ content: Array<Record<string, unknown>>; stop_reason?: string; error?: string }> {
     const body: Record<string, unknown> = {
       model: this.settings.model,
       max_tokens: this.settings.max_tokens,
@@ -824,7 +840,7 @@ export class ChatEngine {
       }
 
       const data = (await response.json()) as Record<string, unknown>;
-      return { content: data.content as Array<Record<string, unknown>> };
+      return { content: data.content as Array<Record<string, unknown>>, stop_reason: data.stop_reason as string };
     } catch (error) {
       return {
         content: [],

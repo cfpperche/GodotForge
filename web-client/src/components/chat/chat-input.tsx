@@ -1,4 +1,4 @@
-import { useState, useRef, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Loader2 } from "lucide-react";
@@ -6,11 +6,20 @@ import { Send, Loader2 } from "lucide-react";
 interface ChatInputProps {
   onSend: (message: string) => void;
   loading: boolean;
+  insertText?: string;
 }
 
-export function ChatInput({ onSend, loading }: ChatInputProps) {
+export function ChatInput({ onSend, loading, insertText }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Insert text from external source (e.g. skill bar click)
+  useEffect(() => {
+    if (insertText) {
+      setValue(insertText);
+      textareaRef.current?.focus();
+    }
+  }, [insertText]);
 
   const handleSend = () => {
     if (!value.trim() || loading) return;

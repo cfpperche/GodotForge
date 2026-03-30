@@ -223,6 +223,9 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Guardrails**: Server-side tool validation — 4 risk levels (safe/moderate/destructive/critical), content scanning for dangerous patterns, root node protection
 - **Event Log**: JSONL audit log (.godotforge/events.jsonl) — tool_call, tool_result, guardrail, chat, error. 10MB rotation × 3. GET /events, /events/stats
 - **Webhooks**: Async notifications — Telegram (HTML formatted) + Custom (raw JSON). Configurable per event. 3 retries with backoff. GET /webhooks, POST /webhooks/test
+- **Continuation**: max_tokens 16384 + auto-continuation on truncation (max 3 rounds) in API mode
+- **Session persistence**: sessionId in localStorage, messages in sessionStorage — survives refresh
+- **Skill bar**: Chat panel shows clickable `/skill` buttons when empty, fetched from GET /skills
 - **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md
 - **Onboarding wizard**: 5-step first-time setup (Welcome → Project → Paths → Settings → Done)
 - **Project switcher**: Header dropdown with recent projects, inline Open/New forms
