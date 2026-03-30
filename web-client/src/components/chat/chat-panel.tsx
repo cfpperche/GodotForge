@@ -5,7 +5,7 @@ import { Message } from "./message";
 import { ChatInput } from "./chat-input";
 import { useChat } from "@/hooks/use-chat";
 import { ProjectContext } from "@/app";
-import { Bot, Trash2, Gamepad2, Boxes, Paintbrush, Music, FolderOpen, Plus, AlertCircle, Sparkles } from "lucide-react";
+import { Bot, Trash2, Gamepad2, Boxes, Paintbrush, Music, FolderOpen, Plus, AlertCircle, Sparkles, ShieldAlert, Check, X } from "lucide-react";
 
 const SUGGESTIONS = [
   { icon: Gamepad2, text: "Create a 3D platformer scene with a player" },
@@ -19,7 +19,7 @@ const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 interface SkillInfo { name: string; description: string; }
 
 export function ChatPanel() {
-  const { messages, loading, sendMessage, clearMessages } = useChat();
+  const { messages, loading, sendMessage, clearMessages, pendingConfirm, respondConfirm } = useChat();
   const { isValid, openSettings } = useContext(ProjectContext);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
@@ -177,6 +177,33 @@ export function ChatPanel() {
           )}
         </div>
       </ScrollArea>
+
+      {/* Confirmation dialog */}
+      {pendingConfirm && (
+        <div className="mx-4 mb-2 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+          <div className="flex items-center gap-2 text-sm font-medium text-amber-400">
+            <ShieldAlert className="h-4 w-4" />
+            Confirmation Required
+          </div>
+          <div className="text-xs text-muted-foreground">
+            <span className="font-mono bg-muted/30 px-1.5 py-0.5 rounded">{pendingConfirm.tool}</span>
+            <span className="ml-1.5 text-amber-400/70">({pendingConfirm.risk})</span>
+          </div>
+          {Object.keys(pendingConfirm.args).length > 0 && (
+            <pre className="text-[11px] font-mono text-muted-foreground bg-muted/20 p-2 rounded overflow-x-auto">
+              {Object.entries(pendingConfirm.args).map(([k, v]) => `${k}: ${String(v)}`).join("\n")}
+            </pre>
+          )}
+          <div className="flex gap-2">
+            <Button size="sm" className="h-7 text-xs gap-1 flex-1" onClick={() => respondConfirm(true)}>
+              <Check className="h-3 w-3" /> Approve
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1 flex-1 text-destructive" onClick={() => respondConfirm(false)}>
+              <X className="h-3 w-3" /> Deny
+            </Button>
+          </div>
+        </div>
+      )}
 
       <ChatInput onSend={sendMessage} loading={loading} insertText={insertText} />
     </div>

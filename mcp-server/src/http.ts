@@ -8,7 +8,8 @@ import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
-import { setEventLog, setWebhookDispatcher } from "./tool-handlers.js";
+import { ConfirmationManager } from "./confirmations.js";
+import { setEventLog, setWebhookDispatcher, setConfirmationManager } from "./tool-handlers.js";
 
 const BIND_HOST = "127.0.0.1";
 const DEFAULT_PORT = 6980;
@@ -20,6 +21,7 @@ export class HttpServer {
   private config: ConfigManager;
   private eventLog: EventLog;
   private webhooks: WebhookDispatcher;
+  private confirmations: ConfirmationManager;
   private port = 0;
   private portFilePath = "";
   private projectRoot: string;
@@ -30,10 +32,13 @@ export class HttpServer {
     this.config = config || new ConfigManager(projectRoot);
     this.eventLog = new EventLog(projectRoot);
     this.webhooks = new WebhookDispatcher(this.config);
+    this.confirmations = new ConfirmationManager();
+    this.confirmations.setWebhooks(this.webhooks);
 
     // Wire into tool handlers
     setEventLog(this.eventLog);
     setWebhookDispatcher(this.webhooks);
+    setConfirmationManager(this.confirmations);
   }
 
   async start(): Promise<number> {
@@ -132,6 +137,22 @@ export class HttpServer {
             break;
           }
           await this.handleChatAgent(res, body);
+          break;
+
+        case "/chat/confirm":
+          if (req.method === "POST") {
+            const parsed = JSON.parse(body || "{}") as Record<string, unknown>;
+            const id = parsed.id as string;
+            const confirmed = parsed.confirmed as boolean;
+            if (!id) {
+              this.sendJson(res, 400, { error: "Missing 'id' field" });
+              break;
+            }
+            const resolved = this.confirmations.resolve(id, !!confirmed);
+            this.sendJson(res, 200, { resolved, confirmed: !!confirmed });
+          } else {
+            this.sendJson(res, 405, { error: "Method not allowed" });
+          }
           break;
 
         case "/settings":
@@ -374,10 +395,18 @@ export class HttpServer {
       "Access-Control-Allow-Origin": "*",
     });
 
+    // Wire SSE callback to confirmation manager so confirm events reach the client
+    this.confirmations.setSSECallback((event) => {
+      if (!res.writableEnded) {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      }
+    });
+
     await this.chatEngine.chatStream(message, sessionId, (event) => {
       if (!res.writableEnded) {
         res.write(`data: ${JSON.stringify(event)}\n\n`);
         if (event.type === "done" || event.type === "error") {
+          this.confirmations.setSSECallback(null);
           res.end();
         }
       }

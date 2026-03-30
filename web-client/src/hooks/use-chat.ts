@@ -1,6 +1,13 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
-import type { ChatMessage, ToolCallLog } from "@/types/api";
+import type { ChatMessage, ToolCallLog, StreamEvent } from "@/types/api";
+
+export interface PendingConfirmation {
+  id: string;
+  tool: string;
+  args: Record<string, unknown>;
+  risk: string;
+}
 
 const SESSION_KEY = "godotforge-session-id";
 const MESSAGES_KEY = "godotforge-messages";
@@ -21,6 +28,7 @@ export function useChat() {
     } catch { return []; }
   });
   const [loading, setLoading] = useState(false);
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirmation | null>(null);
   const sessionId = useRef(getOrCreateSessionId());
 
   // Persist messages to sessionStorage on change
@@ -85,6 +93,15 @@ export function useChat() {
             );
             break;
 
+          case "confirm":
+            setPendingConfirm({
+              id: event.id || "",
+              tool: event.tool || event.name || "",
+              args: event.args || {},
+              risk: event.risk || "destructive",
+            });
+            break;
+
           case "error":
             setMessages((prev) =>
               prev.map((m) =>
@@ -123,5 +140,18 @@ export function useChat() {
     localStorage.setItem(SESSION_KEY, newId);
   }, []);
 
-  return { messages, loading, sendMessage, clearMessages };
+  const respondConfirm = useCallback(async (confirmed: boolean) => {
+    if (!pendingConfirm) return;
+    const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
+    try {
+      await fetch(`${BASE_URL}/chat/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pendingConfirm.id, confirmed }),
+      });
+    } catch { /* non-critical */ }
+    setPendingConfirm(null);
+  }, [pendingConfirm]);
+
+  return { messages, loading, sendMessage, clearMessages, pendingConfirm, respondConfirm };
 }

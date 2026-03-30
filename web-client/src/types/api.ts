@@ -48,8 +48,12 @@ export interface ChatMessage {
 }
 
 export interface StreamEvent {
-  type: "text" | "tool_use" | "tool_result" | "error" | "done";
+  type: "text" | "tool_use" | "tool_result" | "error" | "done" | "confirm";
   content?: string;
   name?: string;
   status?: string;
+  id?: string;
+  tool?: string;
+  args?: Record<string, unknown>;
+  risk?: string;
 }

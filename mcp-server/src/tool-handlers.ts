@@ -19,13 +19,16 @@ import { buildContext } from "./context/builder.js";
 import { checkGuardrails } from "./guardrails.js";
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
+import { ConfirmationManager } from "./confirmations.js";
 
 // Shared instances — set once from index.ts or http.ts
 let _eventLog: EventLog | null = null;
 let _webhooks: WebhookDispatcher | null = null;
+let _confirmations: ConfirmationManager | null = null;
 
 export function setEventLog(log: EventLog): void { _eventLog = log; }
 export function setWebhookDispatcher(wh: WebhookDispatcher): void { _webhooks = wh; }
+export function setConfirmationManager(cm: ConfirmationManager): void { _confirmations = cm; }
 
 export interface ToolResult {
   content: Array<{ type: "text"; text: string }>;
@@ -396,6 +399,16 @@ export async function executeTool(
     _eventLog?.emit({ type: "guardrail", tool: toolName, action: "blocked", reason: guard.reason, risk: guard.risk });
     _webhooks?.notify("guardrail.blocked", { tool: toolName, reason: guard.reason, risk: guard.risk });
     return { content: [{ type: "text" as const, text: `🛡️ Guardrail: ${guard.reason}` }], isError: true };
+  }
+
+  // Interactive confirmation for destructive/critical tools
+  if ((guard.risk === "destructive" || guard.risk === "critical") && _confirmations) {
+    const confirmed = await _confirmations.requestConfirmation(toolName, args, guard.risk);
+    if (!confirmed) {
+      _eventLog?.emit({ type: "guardrail", tool: toolName, action: "denied", risk: guard.risk });
+      return { content: [{ type: "text" as const, text: `🛡️ Action denied by user: ${toolName}` }], isError: true };
+    }
+    _eventLog?.emit({ type: "guardrail", tool: toolName, action: "approved", risk: guard.risk });
   }
 
   // Log tool call
