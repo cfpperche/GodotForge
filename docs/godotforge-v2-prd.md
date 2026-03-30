@@ -833,8 +833,8 @@ Project management and production workflow skills:
 | **G. Studio Hooks** | session-start, session-stop, pre-compact, detect-gaps, validate-assets (5 hooks) | — | ✅ |
 | **H. Doc Templates** | GDD, ADR, sprint-plan, economy-model, art-bible, playtest-report (25 templates) | — | ✅ Concluído |
 | **I. Specialized Agents** | 20 agents: 7 engineering + 4 design + 3 art/audio + 3 narrative + 3 QA | — | ✅ Concluído |
-| **J. Team Orchestration** | /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio | — | Pendente |
-| **K. Production Skills** | /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems | — | Pendente |
+| **J. Team Orchestration** | /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio, /team-release (7 skills) | — | ✅ Concluído |
+| **K. Production Skills** | /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems (6 skills) | — | ✅ Concluído |
 | **L. Polish & Launch** | npm publish, README, Asset Library, docs | — | Pendente |
 
 ### E2E Tests Validados
