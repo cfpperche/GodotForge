@@ -4,7 +4,8 @@ import { ChatSettings } from "@/components/sidebar/chat-settings";
 import { SystemPaths } from "@/components/sidebar/system-paths";
 import { ApiKeys } from "@/components/sidebar/api-keys";
 import { ConfigEditor } from "@/components/settings/config-editor";
-import { ArrowLeft, Settings, Key, FolderCog, FileJson } from "lucide-react";
+import { Notifications } from "@/components/settings/notifications";
+import { ArrowLeft, Settings, Key, FolderCog, FileJson, Bell } from "lucide-react";
 import { useState, useCallback } from "react";
 
 interface SettingsPageProps {
@@ -58,6 +59,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         {/* API Keys & Services — full width with tabs */}
         <SettingsCard title="API Keys & Services" icon={<Key className="h-3.5 w-3.5 text-primary" />}>
           <ApiKeys onSaved={onSettingsChanged} />
+        </SettingsCard>
+
+        {/* Notifications */}
+        <SettingsCard title="Notifications" icon={<Bell className="h-3.5 w-3.5 text-primary" />}>
+          <Notifications onSaved={onSettingsChanged} />
         </SettingsCard>
 
         {/* Config file editor */}
