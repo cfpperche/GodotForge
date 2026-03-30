@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Send, Check, Loader2, Trash2, Plus, Globe, ExternalLink, Pencil } from "lucide-react";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";

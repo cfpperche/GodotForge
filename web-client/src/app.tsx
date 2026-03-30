@@ -15,9 +15,10 @@ type View = "chat" | "settings";
 
 export const ProjectContext = createContext<{
   isValid: boolean;
+  projectRoot: string;
   refresh: () => Promise<void>;
   openSettings: () => void;
-}>({ isValid: false, refresh: async () => {}, openSettings: () => {} });
+}>({ isValid: false, projectRoot: "", refresh: async () => {}, openSettings: () => {} });
 
 export default function App() {
   const { project, isValid, refresh: refreshProject, recentProjects } = useProject();
@@ -45,7 +46,7 @@ export default function App() {
   }
 
   return (
-    <ProjectContext.Provider value={{ isValid, refresh: refreshProject, openSettings: () => setActiveView("settings") }}>
+    <ProjectContext.Provider value={{ isValid, projectRoot: project?.project_root || "", refresh: refreshProject, openSettings: () => setActiveView("settings") }}>
       <div className="flex h-screen overflow-hidden">
         <div className="ambient-bg" />
         <Toaster position="top-right" toastOptions={{ className: "bg-card border-border text-foreground" }} />

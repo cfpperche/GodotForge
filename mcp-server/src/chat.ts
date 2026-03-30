@@ -148,6 +148,8 @@ export class ChatEngine {
 
   /** Switch to a different game project directory. Clears all sessions. */
   switchProject(newRoot: string): void {
+    // Save current project to recents before switching
+    this.configManager.addRecentProject(this.root);
     this.root = newRoot;
     this.sessions.clear();
     this.sdkSessionIds.clear();

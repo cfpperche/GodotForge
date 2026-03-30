@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { api } from "@/lib/api";
-import type { ChatMessage, ToolCallLog, StreamEvent } from "@/types/api";
+import type { ChatMessage, ToolCallLog } from "@/types/api";
 
 export interface PendingConfirmation {
   id: string;
@@ -9,32 +9,46 @@ export interface PendingConfirmation {
   risk: string;
 }
 
-const SESSION_KEY = "godotforge-session-id";
-const MESSAGES_KEY = "godotforge-messages";
+const SESSION_PREFIX = "godotforge-session-id:";
+const MESSAGES_PREFIX = "godotforge-messages:";
 
-function getOrCreateSessionId(): string {
-  const stored = localStorage.getItem(SESSION_KEY);
+function getOrCreateSessionId(projectRoot: string): string {
+  const key = SESSION_PREFIX + projectRoot;
+  const stored = localStorage.getItem(key);
   if (stored) return stored;
   const id = crypto.randomUUID();
-  localStorage.setItem(SESSION_KEY, id);
+  localStorage.setItem(key, id);
   return id;
 }
 
-export function useChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const stored = sessionStorage.getItem(MESSAGES_KEY);
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
-  });
+function loadMessages(projectRoot: string): ChatMessage[] {
+  try {
+    const stored = sessionStorage.getItem(MESSAGES_PREFIX + projectRoot);
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+}
+
+export function useChat(projectRoot: string) {
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessages(projectRoot));
   const [loading, setLoading] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirmation | null>(null);
-  const sessionId = useRef(getOrCreateSessionId());
+  const sessionId = useRef(getOrCreateSessionId(projectRoot));
+  const projectRootRef = useRef(projectRoot);
+
+  // Reload messages when project changes
+  useEffect(() => {
+    if (projectRoot === projectRootRef.current) return;
+    projectRootRef.current = projectRoot;
+    setMessages(loadMessages(projectRoot));
+    sessionId.current = getOrCreateSessionId(projectRoot);
+    setLoading(false);
+    setPendingConfirm(null);
+  }, [projectRoot]);
 
   // Persist messages to sessionStorage on change
   useEffect(() => {
     if (messages.length > 0) {
-      sessionStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
+      sessionStorage.setItem(MESSAGES_PREFIX + projectRootRef.current, JSON.stringify(messages));
     }
   }, [messages]);
 
@@ -134,10 +148,11 @@ export function useChat() {
 
   const clearMessages = useCallback(() => {
     setMessages([]);
-    sessionStorage.removeItem(MESSAGES_KEY);
+    sessionStorage.removeItem(MESSAGES_PREFIX + projectRootRef.current);
+    const key = SESSION_PREFIX + projectRootRef.current;
     const newId = crypto.randomUUID();
     sessionId.current = newId;
-    localStorage.setItem(SESSION_KEY, newId);
+    localStorage.setItem(key, newId);
   }, []);
 
   const respondConfirm = useCallback(async (confirmed: boolean) => {
