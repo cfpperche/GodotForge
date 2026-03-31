@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { existsSync } from "fs";
+import { existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
+import { homedir } from "os";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
 import { EventLog } from "./events.js";
@@ -55,6 +56,17 @@ export class HttpServer {
     setWebhookDispatcher(this.webhooks);
     setConfirmationManager(this.confirmations);
     setGuardrailMode(chatEngine.getSettings().guardrail_mode || "normal");
+
+    // Write active project so all processes (stdio MCP, HTTP) stay in sync
+    this.writeActiveProject(projectRoot);
+  }
+
+  private writeActiveProject(root: string): void {
+    try {
+      const dir = join(homedir(), ".godotforge");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "active-project"), root, "utf-8");
+    } catch { /* non-critical */ }
   }
 
   async start(): Promise<number> {
@@ -273,6 +285,7 @@ export class HttpServer {
             handleSwitchProject(res, body, this.deps);
             // sync back mutated projectRoot
             this.projectRoot = this.deps.projectRoot;
+            this.writeActiveProject(this.projectRoot);
           } else {
             sendJson(res, 405, { error: "Method not allowed" });
           }
