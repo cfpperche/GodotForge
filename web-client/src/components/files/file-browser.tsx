@@ -137,7 +137,7 @@ export function FileBrowser() {
           {rightTab === "preview" ? (
             /* Preview mode: full-width preview of selected file */
             selectedFile ? (
-              <FilePreview entry={selectedFile} parentPath={currentPath} />
+              <FilePreview entry={selectedFile.entry} parentPath={selectedFile.parentPath} />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
                 <Eye className="h-10 w-10 text-muted-foreground/30" />

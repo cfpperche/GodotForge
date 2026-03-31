@@ -161,10 +161,10 @@ function FileListRow({ entry, parentPath, onClick, onDoubleClick, selected }: Fi
 interface FileListProps {
   entries: FileEntry[];
   currentPath: string;
-  selectedFile: FileEntry | null;
+  selectedFile: { entry: FileEntry; parentPath: string } | null;
   viewMode: "grid" | "list";
   onNavigate: (path: string) => void;
-  onSelectFile: (entry: FileEntry) => void;
+  onSelectFile: (entry: FileEntry, parentPath?: string) => void;
 }
 
 export function FileList({
@@ -217,7 +217,7 @@ export function FileList({
             key={entry.name}
             entry={entry}
             parentPath={currentPath}
-            selected={selectedFile?.name === entry.name}
+            selected={selectedFile?.entry.name === entry.name}
             onClick={() => handleClick(entry)}
             onDoubleClick={() => handleDoubleClick(entry)}
           />
@@ -233,7 +233,7 @@ export function FileList({
           key={entry.name}
           entry={entry}
           parentPath={currentPath}
-          selected={selectedFile?.name === entry.name}
+          selected={selectedFile?.entry.name === entry.name}
           onClick={() => handleClick(entry)}
           onDoubleClick={() => handleDoubleClick(entry)}
         />

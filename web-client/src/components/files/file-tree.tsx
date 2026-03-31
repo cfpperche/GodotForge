@@ -39,7 +39,7 @@ interface TreeNodeProps {
   path: string;
   currentPath: string;
   onNavigate: (path: string) => void;
-  onSelectFile: (entry: FileEntry) => void;
+  onSelectFile: (entry: FileEntry, parentPath: string) => void;
   depth: number;
 }
 
@@ -113,7 +113,7 @@ function TreeNode({ name, path, currentPath, onNavigate, onSelectFile, depth }: 
               <button
                 key={child.name}
                 style={{ paddingLeft: `${(depth + 1) * 12 + 8 + 12}px` }}
-                onClick={() => onSelectFile(child)}
+                onClick={() => onSelectFile(child, path)}
                 className="flex items-center gap-1.5 w-full py-1 pr-2 text-[13px] rounded transition-colors text-left text-muted-foreground hover:bg-muted/40 hover:text-foreground"
               >
                 {fileIcon(child)}
@@ -135,7 +135,7 @@ function TreeNode({ name, path, currentPath, onNavigate, onSelectFile, depth }: 
 interface FileTreeProps {
   currentPath: string;
   onNavigate: (path: string) => void;
-  onSelectFile: (entry: FileEntry) => void;
+  onSelectFile: (entry: FileEntry, parentPath: string) => void;
 }
 
 export function FileTree({ currentPath, onNavigate, onSelectFile }: FileTreeProps) {

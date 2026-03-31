@@ -7,10 +7,15 @@ const WS_BASE = (import.meta.env.VITE_API_URL || "http://localhost:6980")
 
 export type ViewMode = "grid" | "list";
 
+export interface SelectedFile {
+  entry: FileEntry;
+  parentPath: string;
+}
+
 export function useFiles(projectRoot: string) {
   const [currentPath, setCurrentPath] = useState<string>("");
   const [entries, setEntries] = useState<FileEntry[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileEntry | null>(null);
+  const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [loading, setLoading] = useState(false);
 
@@ -90,9 +95,9 @@ export function useFiles(projectRoot: string) {
     setSelectedFile(null);
   }, []);
 
-  const selectFile = useCallback((entry: FileEntry) => {
-    setSelectedFile(entry);
-  }, []);
+  const selectFile = useCallback((entry: FileEntry, parentPath?: string) => {
+    setSelectedFile({ entry, parentPath: parentPath ?? currentPath });
+  }, [currentPath]);
 
   const toggleView = useCallback(() => {
     setViewMode((prev) => (prev === "grid" ? "list" : "grid"));
