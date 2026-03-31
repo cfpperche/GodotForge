@@ -1,4 +1,4 @@
-import { useContext, useState, useCallback } from "react";
+import { useContext, useState, useCallback, useRef } from "react";
 import { ProjectContext } from "@/app";
 import { useFiles } from "@/hooks/use-files";
 import { FileTree } from "./file-tree";
@@ -72,6 +72,30 @@ export function FileBrowser() {
   } = useFiles(projectRoot);
 
   const [rightTab, setRightTab] = useState<RightTab>("preview");
+  const [treeWidth, setTreeWidth] = useState(224);
+  const dragging = useRef(false);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    const startX = e.clientX;
+    const startWidth = treeWidth;
+    const onMove = (ev: MouseEvent) => {
+      const newWidth = Math.max(150, Math.min(500, startWidth + ev.clientX - startX));
+      setTreeWidth(newWidth);
+    };
+    const onUp = () => {
+      dragging.current = false;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, [treeWidth]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedFile) return;
@@ -86,7 +110,7 @@ export function FileBrowser() {
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left: file tree */}
-      <aside className="w-56 shrink-0 border-r border-border/40 bg-card/30 overflow-y-auto">
+      <aside className="shrink-0 border-r border-border/40 bg-card/30 overflow-y-auto" style={{ width: treeWidth }}>
         <div className="sticky top-0 z-10 px-3 py-2 border-b border-border/30 bg-card/60 backdrop-blur-sm">
           <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Project Files</p>
         </div>
@@ -97,6 +121,12 @@ export function FileBrowser() {
           refreshKey={refreshKey}
         />
       </aside>
+
+      {/* Resize handle */}
+      <div
+        onMouseDown={handleMouseDown}
+        className="w-1 shrink-0 cursor-col-resize hover:bg-primary/30 active:bg-primary/50 transition-colors"
+      />
 
       {/* Right: main area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
