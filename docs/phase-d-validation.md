@@ -17,7 +17,7 @@
 |---------|-------|--------|-------------|
 | **Meshy** | 8 | No free API tier — requires prepaid credits | Buy credits at meshy.ai, set `MESHY_API_KEY` |
 | **Blockade Labs** | 3 | API requires Essential plan ($24/mo minimum) | Subscribe at skybox.blockadelabs.com, set `BLOCKADE_LABS_API_KEY` |
-| **Rodin (Hyper3D)** | 2 | ~30 free credits on signup | Sign up at hyper3d.ai, set `RODIN_API_KEY` |
+| **Rodin (Hyper3D)** | 2 | API requires Business subscription (no free tier) | Subscribe at hyper3d.ai, set `RODIN_API_KEY` |
 | **OpenAI DALL-E** | 3 | Requires OpenAI API credits | Add credits at platform.openai.com, set `OPENAI_API_KEY` |
 | **Suno** | 4 | Third-party wrapper API (sunoapi.org), paid | Buy credits at sunoapi.org, set `SUNO_API_KEY` |
 
