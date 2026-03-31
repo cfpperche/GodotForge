@@ -4,7 +4,7 @@
  */
 
 const BASE_URL = "https://router.huggingface.co";
-const DEFAULT_MODEL = "black-forest-labs/FLUX.1-dev";
+const DEFAULT_MODEL = "stabilityai/stable-diffusion-xl-base-1.0";
 
 // --- Types ---
 
