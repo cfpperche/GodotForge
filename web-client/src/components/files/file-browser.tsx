@@ -1,12 +1,14 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { ProjectContext } from "@/app";
 import { useFiles } from "@/hooks/use-files";
 import { FileTree } from "./file-tree";
 import { FileList } from "./file-list";
 import { FilePreview } from "./file-preview";
 import { cn } from "@/lib/utils";
-import { ChevronRight, LayoutGrid, List, RefreshCw, X } from "lucide-react";
+import { ChevronRight, Eye, LayoutGrid, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+type RightTab = "preview" | "browse";
 
 function Breadcrumb({
   currentPath,
@@ -64,14 +66,15 @@ export function FileBrowser() {
     loading,
     navigate,
     selectFile,
-    toggleView,
     refresh,
   } = useFiles(projectRoot);
+
+  const [rightTab, setRightTab] = useState<RightTab>("preview");
 
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left: file tree */}
-      <aside className="w-56 shrink-0 border-r border-border/40 bg-card/30 overflow-y-auto hidden md:block">
+      <aside className="w-56 shrink-0 border-r border-border/40 bg-card/30 overflow-y-auto">
         <div className="sticky top-0 z-10 px-3 py-2 border-b border-border/30 bg-card/60 backdrop-blur-sm">
           <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Project Files</p>
         </div>
@@ -98,64 +101,68 @@ export function FileBrowser() {
             >
               <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-7 w-7", viewMode === "grid" && "text-primary bg-primary/10")}
-              onClick={() => viewMode !== "grid" && toggleView()}
-              title="Grid view"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn("h-7 w-7", viewMode === "list" && "text-primary bg-primary/10")}
-              onClick={() => viewMode !== "list" && toggleView()}
-              title="List view"
-            >
-              <List className="h-3.5 w-3.5" />
-            </Button>
+
+            {/* Tab toggle: Preview / Browse */}
+            <div className="flex items-center gap-0.5 bg-muted/30 rounded-lg p-0.5 ml-2">
+              <button
+                onClick={() => setRightTab("preview")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors",
+                  rightTab === "preview"
+                    ? "bg-primary/15 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Eye className="h-3 w-3" />
+                Preview
+              </button>
+              <button
+                onClick={() => setRightTab("browse")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-colors",
+                  rightTab === "browse"
+                    ? "bg-primary/15 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <LayoutGrid className="h-3 w-3" />
+                Browse
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Content area: file list + optional preview panel */}
-        <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* File list */}
-          <div className={cn("overflow-y-auto", selectedFile ? "flex-1" : "w-full")}>
-            {loading && entries.length === 0 ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                Loading...
-              </div>
+        {/* Content */}
+        <div className="flex-1 overflow-hidden min-h-0">
+          {rightTab === "preview" ? (
+            /* Preview mode: full-width preview of selected file */
+            selectedFile ? (
+              <FilePreview entry={selectedFile} parentPath={currentPath} />
             ) : (
-              <FileList
-                entries={entries}
-                currentPath={currentPath}
-                selectedFile={selectedFile}
-                viewMode={viewMode}
-                onNavigate={navigate}
-                onSelectFile={selectFile}
-              />
-            )}
-          </div>
-
-          {/* Preview panel */}
-          {selectedFile && (
-            <div className="w-72 xl:w-80 shrink-0 border-l border-border/40 bg-card/20 flex flex-col overflow-hidden">
-              <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border/30 bg-card/40">
-                <span className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Preview</span>
-                <button
-                  onClick={() => selectFile(null!)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Close preview"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
+                <Eye className="h-10 w-10 text-muted-foreground/30" />
+                <p className="text-sm">Select a file from the tree to preview</p>
+                <p className="text-xs text-muted-foreground/60">Supports images, audio, video, 3D models, code, and markdown</p>
               </div>
-              <div className="flex-1 overflow-hidden min-h-0">
-                <FilePreview entry={selectedFile} parentPath={currentPath} />
-              </div>
+            )
+          ) : (
+            /* Browse mode: grid/list of files in current directory */
+            <div className="h-full overflow-y-auto">
+              {loading && entries.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+                  Loading...
+                </div>
+              ) : (
+                <FileList
+                  entries={entries}
+                  currentPath={currentPath}
+                  selectedFile={selectedFile}
+                  viewMode={viewMode}
+                  onNavigate={navigate}
+                  onSelectFile={selectFile}
+                />
+              )}
             </div>
           )}
         </div>
