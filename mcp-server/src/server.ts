@@ -17,6 +17,7 @@ import { registerPipelineTools } from "./tools/pipeline.js";
 import { registerMeshyTools } from "./tools/ai/meshy.js";
 import { registerStabilityTools } from "./tools/ai/stability.js";
 import { registerOtherAITools } from "./tools/ai/other.js";
+import { registerFalTools } from "./tools/ai/fal.js";
 
 export interface ServerHandle {
   server: McpServer;
@@ -66,6 +67,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   registerMeshyTools(ctx);
   registerStabilityTools(ctx);
   registerOtherAITools(ctx);
+  registerFalTools(ctx);
 
   return {
     server,

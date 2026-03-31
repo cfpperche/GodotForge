@@ -41,6 +41,7 @@ export interface ServiceKeys {
   suno: string;
   blockade_labs: string; // Skybox
   huggingface: string;
+  fal: string; // fal.ai unified AI gateway
 }
 
 /** Env var names mapped to service keys. */
@@ -57,6 +58,7 @@ const ENV_MAP: Record<keyof ServiceKeys, string> = {
   suno: "SUNO_API_KEY",
   blockade_labs: "BLOCKADE_LABS_API_KEY",
   huggingface: "HUGGINGFACE_API_KEY",
+  fal: "FAL_KEY",
 };
 
 /** System-level paths. */

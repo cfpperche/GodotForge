@@ -140,6 +140,19 @@ const RISK_MAP: Record<string, RiskLevel> = {
   "ai.suno_credits": "safe",
   // Hugging Face
   "ai.huggingface_text_to_image": "moderate",
+  // fal.ai gateway
+  "ai.fal_flux_pro": "moderate",
+  "ai.fal_flux_schnell": "moderate",
+  "ai.fal_sd35": "moderate",
+  "ai.fal_sdxl": "moderate",
+  "ai.fal_rodin": "moderate",
+  "ai.fal_tripo": "moderate",
+  "ai.fal_trellis": "moderate",
+  "ai.fal_hunyuan3d": "moderate",
+  "ai.fal_stable_audio": "moderate",
+  "ai.fal_kokoro_tts": "moderate",
+  "ai.fal_upscale": "moderate",
+  "ai.fal_remove_bg": "moderate",
 
   // Critical — arbitrary code execution or project-wide settings
   execute_editor_script: "critical",

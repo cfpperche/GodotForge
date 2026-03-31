@@ -180,6 +180,26 @@ export async function executeToolInner(
     }
   }
 
+  // AI generation tools (fal.ai gateway)
+  if (toolName.startsWith("ai.fal_")) {
+    const cfg = config ?? new ConfigManager(root);
+    const f = await import("../ai/fal-handlers.js");
+    switch (toolName) {
+      case "ai.fal_flux_pro": return f.handleFalFluxPro(args, root, cfg);
+      case "ai.fal_flux_schnell": return f.handleFalFluxSchnell(args, root, cfg);
+      case "ai.fal_sd35": return f.handleFalSD35(args, root, cfg);
+      case "ai.fal_sdxl": return f.handleFalSDXL(args, root, cfg);
+      case "ai.fal_rodin": return f.handleFalRodin(args, root, cfg);
+      case "ai.fal_tripo": return f.handleFalTripo(args, root, cfg);
+      case "ai.fal_trellis": return f.handleFalTrellis(args, root, cfg);
+      case "ai.fal_hunyuan3d": return f.handleFalHunyuan3D(args, root, cfg);
+      case "ai.fal_stable_audio": return f.handleFalStableAudio(args, root, cfg);
+      case "ai.fal_kokoro_tts": return f.handleFalKokoroTTS(args, root, cfg);
+      case "ai.fal_upscale": return f.handleFalUpscale(args, root, cfg);
+      case "ai.fal_remove_bg": return f.handleFalRemoveBg(args, root, cfg);
+    }
+  }
+
   // Blender docs tools
   if (toolName === "search_blender_docs" || toolName === "get_blender_class") {
     try {
