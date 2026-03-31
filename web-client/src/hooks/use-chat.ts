@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { api } from "@/lib/api";
+import { api, authFetch } from "@/lib/api";
 import type { ChatMessage, ToolCallLog } from "@/types/api";
 
 export interface PendingConfirmation {
@@ -159,7 +159,7 @@ export function useChat(projectRoot: string) {
     if (!pendingConfirm) return;
     const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
     try {
-      await fetch(`${BASE_URL}/chat/confirm`, {
+      await authFetch(`${BASE_URL}/chat/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: pendingConfirm.id, confirmed }),

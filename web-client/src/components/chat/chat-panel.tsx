@@ -1,4 +1,5 @@
 import { useEffect, useRef, useContext, useState, useCallback } from "react";
+import { authFetch } from "@/lib/api";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@/components/ui/button";
 import { Message } from "./message";
@@ -29,7 +30,7 @@ export function ChatPanel() {
 
   useEffect(() => {
     if (!isValid) return;
-    fetch(`${BASE_URL}/skills`).then((r) => r.json()).then((data) => {
+    authFetch(`${BASE_URL}/skills`).then((r) => r.json()).then((data) => {
       if (Array.isArray(data)) setSkills(data);
     }).catch(() => {});
   }, [isValid]);

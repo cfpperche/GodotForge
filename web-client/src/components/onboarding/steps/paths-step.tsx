@@ -47,7 +47,9 @@ export function PathsStep({ onNext, onSkip }: { onNext: () => void; onSkip: () =
 
 
   useEffect(() => {
-    fetch(`${BASE_URL}/paths`).then(r => r.json()).then(d => setPaths(d.paths || {})).catch(() => {});
+    import("@/lib/api").then(({ authFetch }) =>
+      authFetch(`${BASE_URL}/paths`).then(r => r.json()).then(d => setPaths(d.paths || {})).catch(() => {})
+    );
   }, []);
 
   const allConfigured = PATHS.every(p => paths[p.key]?.value);
@@ -55,12 +57,13 @@ export function PathsStep({ onNext, onSkip }: { onNext: () => void; onSkip: () =
   const handleSave = async (key: string) => {
     const value = edits[key]?.trim();
     if (!value) return;
-    await fetch(`${BASE_URL}/paths`, {
+    const { authFetch } = await import("@/lib/api");
+    await authFetch(`${BASE_URL}/paths`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ key, value }),
     });
-    const res = await fetch(`${BASE_URL}/paths`);
+    const res = await authFetch(`${BASE_URL}/paths`);
     const data = await res.json();
     setPaths(data.paths || {});
     setEdits(prev => ({ ...prev, [key]: "" }));

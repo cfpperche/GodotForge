@@ -6,7 +6,7 @@ import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap } from "@codemirror/view";
-import { api } from "@/lib/api";
+import { api, authFetch } from "@/lib/api";
 import { toast } from "sonner";
 import { Save } from "lucide-react";
 
@@ -47,7 +47,7 @@ export function CodeEditor({ url, filePath, extension }: CodeEditorProps) {
   useEffect(() => {
     setContent(null);
     setError(false);
-    fetch(url)
+    authFetch(url)
       .then((r) => r.text())
       .then((text) => {
         setContent(text);

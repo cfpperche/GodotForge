@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, authFetch } from "@/lib/api";
 import type { FileEntry } from "@/types/api";
 import { Box, File, Trash2, Download } from "lucide-react";
 import { CodeEditor } from "./previews/code-editor";
@@ -33,7 +33,7 @@ function MarkdownPreview({ url }: MarkdownPreviewProps) {
   useEffect(() => {
     setContent(null);
     setError(false);
-    fetch(url)
+    authFetch(url)
       .then((r) => r.text())
       .then(setContent)
       .catch(() => setError(true));

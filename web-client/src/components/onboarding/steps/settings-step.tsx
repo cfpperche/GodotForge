@@ -50,7 +50,8 @@ export function SettingsStep({ onNext, onSkip }: { onNext: () => void; onSkip: (
     setSelected(preset.id);
     setSaving(true);
     try {
-      await fetch(`${BASE_URL}/settings`, {
+      const { authFetch } = await import("@/lib/api");
+      await authFetch(`${BASE_URL}/settings`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

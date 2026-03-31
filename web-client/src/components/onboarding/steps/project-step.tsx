@@ -39,7 +39,8 @@ export function ProjectStep({ onNext }: { onNext: () => void }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${BASE_URL}/project`, {
+      const { authFetch } = await import("@/lib/api");
+      const res = await authFetch(`${BASE_URL}/project`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_root: path.trim() }),
@@ -58,7 +59,8 @@ export function ProjectStep({ onNext }: { onNext: () => void }) {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${BASE_URL}/project`, {
+      const { authFetch } = await import("@/lib/api");
+      const res = await authFetch(`${BASE_URL}/project`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_root: fullPath, create: true, project_name: name.trim() }),

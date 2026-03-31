@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Save, RotateCcw, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { authFetch } from "@/lib/api";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
@@ -16,7 +17,7 @@ export function ConfigEditor() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`${BASE_URL}/config`);
+      const res = await authFetch(`${BASE_URL}/config`);
       const data = await res.json();
       const json = JSON.stringify(data, null, 2);
       setValue(json);
@@ -41,7 +42,7 @@ export function ConfigEditor() {
 
     setSaving(true);
     try {
-      const res = await fetch(`${BASE_URL}/config`, {
+      const res = await authFetch(`${BASE_URL}/config`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(parsed),

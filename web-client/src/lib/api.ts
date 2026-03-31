@@ -27,6 +27,16 @@ async function bootstrapToken(): Promise<string> {
   return "";
 }
 
+/** Authenticated fetch — use for raw fetch calls outside the api object. */
+export async function authFetch(url: string, options?: RequestInit): Promise<Response> {
+  const token = await bootstrapToken();
+  const headers = new Headers(options?.headers);
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(url, { ...options, headers });
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = await bootstrapToken();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -45,6 +55,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => request<HealthResponse>("/health"),
+  connections: () => request<Record<string, unknown>>("/connections"),
 
   chat: (message: string, sessionId: string) =>
     request<ChatResponse>("/chat", {

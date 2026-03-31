@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FolderOpen, Plus, Check, Gamepad2, Loader2 } from "lucide-react";
 import { ProjectContext } from "@/app";
+import { authFetch } from "@/lib/api";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
@@ -26,7 +27,7 @@ export function ProjectSelector() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/project`);
+      const res = await authFetch(`${BASE_URL}/project`);
       setProject(await res.json());
     } catch { /* ignore */ }
   }, []);
@@ -39,7 +40,7 @@ export function ProjectSelector() {
     setError("");
 
     try {
-      const res = await fetch(`${BASE_URL}/project`, {
+      const res = await authFetch(`${BASE_URL}/project`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_root: path.trim() }),
@@ -68,7 +69,7 @@ export function ProjectSelector() {
 
     try {
       // Create project via MCP — init directory + project.godot
-      const res = await fetch(`${BASE_URL}/project`, {
+      const res = await authFetch(`${BASE_URL}/project`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_root: fullPath, create: true, project_name: projectName.trim() }),

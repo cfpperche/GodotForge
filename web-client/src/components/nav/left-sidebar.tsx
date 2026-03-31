@@ -40,7 +40,8 @@ export function LeftSidebar({ activeView, onNavigate }: LeftSidebarProps) {
     if (!endpoint) return;
     setUpdating(key);
     try {
-      const res = await fetch(`${BASE_URL}${endpoint}`, { method: "POST" });
+      const { authFetch } = await import("@/lib/api");
+      const res = await authFetch(`${BASE_URL}${endpoint}`, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         toast.success(`${CONNECTION_LABELS[key]} plugin updated`);

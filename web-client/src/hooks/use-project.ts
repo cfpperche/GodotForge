@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { authFetch } from "@/lib/api";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
@@ -14,7 +15,7 @@ export function useProject() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/project`);
+      const res = await authFetch(`${BASE_URL}/project`);
       const data = await res.json();
       setProject(data);
     } catch {

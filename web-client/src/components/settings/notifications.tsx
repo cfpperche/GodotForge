@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { authFetch } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -47,7 +48,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
   const editWebhook = useCallback(async (name: string) => {
     // Fetch full config to get the webhook details (events list)
     try {
-      const res = await fetch(`${BASE_URL}/config`);
+      const res = await authFetch(`${BASE_URL}/config`);
       const config = await res.json() as Record<string, unknown>;
       const whs = (config.webhooks || []) as Array<Record<string, unknown>>;
       const wh = whs.find((w) => w.name === name);
@@ -71,7 +72,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
 
   const fetchWebhooks = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/webhooks`);
+      const res = await authFetch(`${BASE_URL}/webhooks`);
       const data = await res.json();
       setWebhooks(Array.isArray(data) ? data : []);
     } catch { /* ignore */ }
@@ -86,7 +87,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
     setTelegramError("");
 
     try {
-      const res = await fetch(`${BASE_URL}/webhooks/telegram/setup`, {
+      const res = await authFetch(`${BASE_URL}/webhooks/telegram/setup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: telegramToken.trim(), events: telegramEvents }),
@@ -117,7 +118,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
 
     try {
       // Read current config, add webhook, save
-      const configRes = await fetch(`${BASE_URL}/config`);
+      const configRes = await authFetch(`${BASE_URL}/config`);
       const config = await configRes.json() as Record<string, unknown>;
       const existing = ((config.webhooks || []) as Record<string, unknown>[]).filter(
         (w) => w.name !== customName.trim()
@@ -129,7 +130,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
         format: "custom",
       });
 
-      await fetch(`${BASE_URL}/config`, {
+      await authFetch(`${BASE_URL}/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...config, webhooks: existing }),
@@ -145,12 +146,12 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
 
   const removeWebhook = async (name: string) => {
     try {
-      const configRes = await fetch(`${BASE_URL}/config`);
+      const configRes = await authFetch(`${BASE_URL}/config`);
       const config = await configRes.json() as Record<string, unknown>;
       const filtered = ((config.webhooks || []) as Record<string, unknown>[]).filter(
         (w) => w.name !== name
       );
-      await fetch(`${BASE_URL}/config`, {
+      await authFetch(`${BASE_URL}/config`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...config, webhooks: filtered }),
@@ -164,7 +165,7 @@ export function Notifications({ onSaved }: { onSaved?: () => void }) {
     setTestingName(name);
     setTestResult(null);
     try {
-      const res = await fetch(`${BASE_URL}/webhooks/test`, {
+      const res = await authFetch(`${BASE_URL}/webhooks/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),

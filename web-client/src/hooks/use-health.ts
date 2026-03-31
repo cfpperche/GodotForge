@@ -14,8 +14,6 @@ interface Connections {
   blender: ConnectionEntry;
 }
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
-
 export function useHealth() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [connected, setConnected] = useState(false);
@@ -37,8 +35,7 @@ export function useHealth() {
       }
 
       try {
-        const res = await fetch(`${BASE_URL}/connections`);
-        const data = await res.json();
+        const data = await api.connections();
         setConnections(data);
       } catch { /* keep previous state */ }
     };

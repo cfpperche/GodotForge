@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { FolderOpen, FileText, Save } from "lucide-react";
+import { authFetch } from "@/lib/api";
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
@@ -25,7 +26,7 @@ export function SystemPaths({ onSaved }: { onSaved?: () => void } = {}) {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/paths`);
+      const res = await authFetch(`${BASE_URL}/paths`);
       const data = await res.json();
       setPaths(data.paths || {});
     } catch { /* ignore */ }
@@ -37,7 +38,7 @@ export function SystemPaths({ onSaved }: { onSaved?: () => void } = {}) {
     if (!value.trim()) return;
     setSaving(key);
     try {
-      await fetch(`${BASE_URL}/paths`, {
+      await authFetch(`${BASE_URL}/paths`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key, value: value.trim() }),
