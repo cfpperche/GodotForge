@@ -2,6 +2,8 @@ import { GodotBridge } from "./bridge.js";
 import { BlenderBridge } from "./blender-bridge.js";
 import { ConfigManager } from "./config.js";
 import { join } from "path";
+import { writeFileSync, mkdirSync } from "fs";
+import { homedir } from "os";
 import { loadSkills, type SkillInfo } from "./studio/skills.js";
 import { loadAgents, type AgentInfo } from "./studio/agents.js";
 import { loadTemplates, type TemplateInfo } from "./studio/templates.js";
@@ -52,6 +54,13 @@ export class ChatEngine {
     this.bridge = bridge;
     this.blenderBridge = blenderBridge || new BlenderBridge(root);
     this.configManager = new ConfigManager(root);
+
+    // Write initial active project
+    try {
+      const dir = join(homedir(), ".godotforge");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "active-project"), root, "utf-8");
+    } catch { /* non-critical */ }
 
     const persisted = this.configManager.getChatSettings();
     if (persisted.model) this.settings.model = persisted.model;
@@ -107,6 +116,12 @@ export class ChatEngine {
     this.sessions.clear();
     this.sdkSessionIds.clear();
     this.configManager.addRecentProject(newRoot);
+    // Write active project to shared file so all processes (HTTP + stdio) stay in sync
+    try {
+      const dir = join(homedir(), ".godotforge");
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, "active-project"), newRoot, "utf-8");
+    } catch { /* non-critical */ }
     this.onProjectSwitch?.(newRoot);
     console.error(`[GodotForge Chat] Switched project to: ${newRoot}`);
   }

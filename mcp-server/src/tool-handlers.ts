@@ -8,6 +8,8 @@ import { ConfirmationManager } from "./confirmations.js";
 import { executeToolInner } from "./tool-handlers/dispatch.js";
 import { broadcastFileChange } from "./http/files.js";
 import { join } from "path";
+import { readFileSync, existsSync } from "fs";
+import { homedir } from "os";
 
 // Shared instances — set once from index.ts or http.ts
 let _eventLog: EventLog | null = null;
@@ -62,6 +64,21 @@ export async function editorTool(
   }
 }
 
+/**
+ * Read the active project root from ~/.godotforge/active-project.
+ * Written by ChatEngine.switchProject() so all processes (HTTP + stdio) stay in sync.
+ */
+function getActiveProjectRoot(fallback: string): string {
+  try {
+    const activeFile = join(homedir(), ".godotforge", "active-project");
+    if (existsSync(activeFile)) {
+      const active = readFileSync(activeFile, "utf-8").trim();
+      if (active && existsSync(active)) return active;
+    }
+  } catch { /* fallback */ }
+  return fallback;
+}
+
 export async function executeTool(
   toolName: string,
   args: Record<string, unknown>,
@@ -70,6 +87,9 @@ export async function executeTool(
   blenderBridge?: BlenderBridge,
   config?: ConfigManager
 ): Promise<ToolResult> {
+  // Use active project root (synced across processes)
+  root = getActiveProjectRoot(root);
+
   // Guardrails check
   const guard = checkGuardrails(toolName, args);
   if (!guard.allowed) {
