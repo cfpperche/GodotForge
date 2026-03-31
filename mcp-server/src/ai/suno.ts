@@ -19,10 +19,12 @@ export type SunoTaskStatus = "pending" | "processing" | "completed" | "failed";
 
 export interface SunoTrack {
   id: string;
-  title: string;
+  title?: string;
+  audioUrl?: string;
   audio_url?: string;
+  sourceAudioUrl?: string;
   duration?: number;
-  status: SunoTaskStatus;
+  status?: SunoTaskStatus;
   error_message?: string;
 }
 
@@ -30,6 +32,8 @@ export interface SunoTask {
   taskId: string;
   status: SunoTaskStatus;
   tracks?: SunoTrack[];
+  // Raw API response fields
+  response?: { sunoData?: SunoTrack[] };
 }
 
 export interface SunoGenerateParams {
@@ -115,7 +119,17 @@ export async function generateLyrics(apiKey: string, prompt: string): Promise<st
 }
 
 export async function getTaskStatus(apiKey: string, taskId: string): Promise<SunoTask> {
-  return apiGet<SunoTask>(apiKey, `/api/v1/generate/record-info?taskId=${encodeURIComponent(taskId)}`);
+  const raw = await apiGet<{ taskId: string; response?: { sunoData?: SunoTrack[] }; data?: SunoTrack[] }>(
+    apiKey, `/api/v1/generate/record-info?taskId=${encodeURIComponent(taskId)}`
+  );
+  // Normalize: API returns tracks in response.sunoData or data[]
+  const tracks = raw.response?.sunoData || raw.data || [];
+  const hasAudio = tracks.some((t: SunoTrack) => t.audioUrl || t.audio_url);
+  return {
+    taskId: raw.taskId || taskId,
+    status: hasAudio ? "completed" : "processing",
+    tracks,
+  };
 }
 
 export async function getCredits(apiKey: string): Promise<unknown> {

@@ -94,10 +94,11 @@ export async function handleSunoGenerate(
     const saved: string[] = [];
 
     for (const track of tracks) {
-      if (!track.audio_url) continue;
+      const trackUrl = track.audioUrl || track.audio_url;
+      if (!trackUrl) continue;
       const filename = `${track.id ?? taskId}_${track.title?.replace(/\s+/g, "_") ?? "track"}.mp3`;
       const destPath = join(destDir, filename);
-      await downloadAudio(track.audio_url, destPath);
+      await downloadAudio(trackUrl, destPath);
       saved.push(`res://assets/audio/music/${filename}`);
     }
 
@@ -154,7 +155,8 @@ export async function handleSunoCheckTask(
     if (task.tracks) {
       for (const track of task.tracks) {
         lines.push(`  Track: ${track.title ?? track.id}`);
-        if (track.audio_url) lines.push(`    Audio: ${track.audio_url}`);
+        const url = track.audioUrl || track.audio_url;
+        if (url) lines.push(`    Audio: ${url}`);
         if (track.duration) lines.push(`    Duration: ${track.duration}s`);
         if (track.error_message) lines.push(`    Error: ${track.error_message}`);
       }
