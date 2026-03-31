@@ -2,8 +2,13 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { existsSync, writeFileSync, mkdirSync, statSync, rmSync } from "fs";
 import { join, resolve, basename } from "path";
 import { homedir } from "os";
+import { randomUUID } from "crypto";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { createServer as createMcpServer } from "./server.js";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
+import { BlenderBridge } from "./blender-bridge.js";
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
@@ -48,6 +53,8 @@ export class HttpServer {
   private isHttpOnly: boolean;
   private rateLimiter = new RateLimiter();
   private authToken: string;
+  private mcpTransports = new Map<string, StreamableHTTPServerTransport>();
+  private blenderBridge: BlenderBridge;
 
   private static readonly CORS_ORIGINS = new Set([
     "http://localhost:5173",
@@ -56,11 +63,12 @@ export class HttpServer {
     "http://127.0.0.1:4173",
   ]);
 
-  constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager, httpOnly = false) {
+  constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager, httpOnly = false, blenderBridge?: BlenderBridge) {
     this.isHttpOnly = httpOnly;
     this.chatEngine = chatEngine;
     this.projectRoot = projectRoot;
     this.config = config || new ConfigManager(projectRoot);
+    this.blenderBridge = blenderBridge || new BlenderBridge(projectRoot);
     this.eventLog = new EventLog(projectRoot);
     this.webhooks = new WebhookDispatcher(this.config);
     this.confirmations = new ConfirmationManager();
@@ -163,7 +171,67 @@ export class HttpServer {
     });
   }
 
+  /** Handle MCP Streamable HTTP transport at /mcp. */
+  private async handleMcpTransport(req: IncomingMessage, res: ServerResponse, body: string): Promise<void> {
+    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+
+    if (req.method === "POST") {
+      let parsedBody: unknown;
+      try { parsedBody = JSON.parse(body); } catch {
+        sendJson(res, 400, { jsonrpc: "2.0", error: { code: -32700, message: "Parse error" }, id: null });
+        return;
+      }
+
+      if (sessionId && this.mcpTransports.has(sessionId)) {
+        // Existing session
+        await this.mcpTransports.get(sessionId)!.handleRequest(req, res, parsedBody);
+      } else if (!sessionId && isInitializeRequest(parsedBody)) {
+        // New session — create transport + MCP server
+        const transports = this.mcpTransports;
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: () => randomUUID(),
+          onsessioninitialized: (sid: string) => {
+            transports.set(sid, transport);
+            console.error(`[GodotForge MCP] Streamable HTTP session: ${sid}`);
+          },
+        });
+        transport.onclose = () => {
+          const sid = transport.sessionId;
+          if (sid) transports.delete(sid);
+        };
+        const { server: mcpServer } = createMcpServer(this.projectRoot, this.blenderBridge, this.config);
+        await mcpServer.connect(transport);
+        await transport.handleRequest(req, res, parsedBody);
+      } else {
+        sendJson(res, 400, { jsonrpc: "2.0", error: { code: -32000, message: "Bad Request: missing or invalid session" }, id: null });
+      }
+    } else if (req.method === "GET") {
+      // SSE stream for server-initiated messages
+      if (sessionId && this.mcpTransports.has(sessionId)) {
+        await this.mcpTransports.get(sessionId)!.handleRequest(req, res);
+      } else {
+        sendJson(res, 404, { error: "Session not found" });
+      }
+    } else if (req.method === "DELETE") {
+      // Session termination
+      if (sessionId && this.mcpTransports.has(sessionId)) {
+        await this.mcpTransports.get(sessionId)!.handleRequest(req, res);
+        this.mcpTransports.delete(sessionId);
+      } else {
+        sendJson(res, 404, { error: "Session not found" });
+      }
+    } else {
+      sendJson(res, 405, { error: "Method not allowed" });
+    }
+  }
+
   stop(): void {
+    // Close MCP transport sessions
+    for (const transport of this.mcpTransports.values()) {
+      transport.close().catch(() => {});
+    }
+    this.mcpTransports.clear();
+
     if (this.server) {
       this.server.close();
       removePortFile(this.portFilePath);
@@ -235,6 +303,12 @@ export class HttpServer {
     const body = await readBody(req);
 
     try {
+      // MCP Streamable HTTP transport
+      if (urlPath === "/mcp") {
+        await this.handleMcpTransport(req, res, body);
+        return;
+      }
+
       if (urlPath.startsWith("/file/")) {
         const fileSuffix = urlPath.slice("/file/".length);
         if (req.method === "DELETE") {

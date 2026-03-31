@@ -38,7 +38,7 @@ async function main(): Promise<void> {
 
   // Always start the HTTP server (for native chat panel)
   const chatEngine = new ChatEngine(root, bridge, blenderBridge, repoRoot);
-  const httpServer = new HttpServer(chatEngine, root, config, httpOnly);
+  const httpServer = new HttpServer(chatEngine, root, config, httpOnly, blenderBridge);
   const httpPort = await httpServer.start();
 
   // Start MCP stdio transport (unless --http-only)
