@@ -104,7 +104,7 @@ export function FileBrowser() {
       : `${selectedFile.parentPath}/${selectedFile.entry.name}`;
     if (!confirm(`Delete "${selectedFile.entry.name}"?`)) return;
     const ok = await api.deleteFile(fullPath);
-    if (ok) selectFile(null as never);
+    if (ok) selectFile(null);
   }, [selectedFile, selectFile]);
 
   return (

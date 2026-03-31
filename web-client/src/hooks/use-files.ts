@@ -105,7 +105,8 @@ export function useFiles(projectRoot: string) {
     setSelectedFile(null);
   }, []);
 
-  const selectFile = useCallback((entry: FileEntry, parentPath?: string) => {
+  const selectFile = useCallback((entry: FileEntry | null, parentPath?: string) => {
+    if (!entry) { setSelectedFile(null); return; }
     setSelectedFile({ entry, parentPath: parentPath ?? currentPath });
   }, [currentPath]);
 
