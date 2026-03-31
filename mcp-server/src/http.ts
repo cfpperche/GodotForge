@@ -43,7 +43,10 @@ export class HttpServer {
   private projectRoot: string;
   private _cachedWinUser: { value: string | null | undefined } = { value: undefined };
 
-  constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager) {
+  private isHttpOnly: boolean;
+
+  constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager, httpOnly = false) {
+    this.isHttpOnly = httpOnly;
     this.chatEngine = chatEngine;
     this.projectRoot = projectRoot;
     this.config = config || new ConfigManager(projectRoot);
@@ -57,8 +60,8 @@ export class HttpServer {
     setConfirmationManager(this.confirmations);
     setGuardrailMode(chatEngine.getSettings().guardrail_mode || "normal");
 
-    // Write active project so all processes (stdio MCP, HTTP) stay in sync
-    this.writeActiveProject(projectRoot);
+    // Only the dedicated HTTP-only server writes the active project
+    if (this.isHttpOnly) this.writeActiveProject(projectRoot);
   }
 
   private writeActiveProject(root: string): void {
@@ -285,7 +288,7 @@ export class HttpServer {
             handleSwitchProject(res, body, this.deps);
             // sync back mutated projectRoot
             this.projectRoot = this.deps.projectRoot;
-            this.writeActiveProject(this.projectRoot);
+            if (this.isHttpOnly) this.writeActiveProject(this.projectRoot);
           } else {
             sendJson(res, 405, { error: "Method not allowed" });
           }
