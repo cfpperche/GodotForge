@@ -1,9 +1,10 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useCallback } from "react";
 import { ProjectContext } from "@/app";
 import { useFiles } from "@/hooks/use-files";
 import { FileTree } from "./file-tree";
 import { FileList } from "./file-list";
 import { FilePreview } from "./file-preview";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ChevronRight, Eye, LayoutGrid, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -72,6 +73,16 @@ export function FileBrowser() {
 
   const [rightTab, setRightTab] = useState<RightTab>("preview");
 
+  const handleDelete = useCallback(async () => {
+    if (!selectedFile) return;
+    const fullPath = selectedFile.parentPath === ""
+      ? selectedFile.entry.name
+      : `${selectedFile.parentPath}/${selectedFile.entry.name}`;
+    if (!confirm(`Delete "${selectedFile.entry.name}"?`)) return;
+    const ok = await api.deleteFile(fullPath);
+    if (ok) selectFile(null as never);
+  }, [selectedFile, selectFile]);
+
   return (
     <div className="flex h-full overflow-hidden">
       {/* Left: file tree */}
@@ -139,7 +150,7 @@ export function FileBrowser() {
           {rightTab === "preview" ? (
             /* Preview mode: full-width preview of selected file */
             selectedFile ? (
-              <FilePreview entry={selectedFile.entry} parentPath={selectedFile.parentPath} />
+              <FilePreview entry={selectedFile.entry} parentPath={selectedFile.parentPath} onDelete={handleDelete} />
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-3">
                 <Eye className="h-10 w-10 text-muted-foreground/30" />

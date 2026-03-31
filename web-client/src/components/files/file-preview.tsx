@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { FileEntry } from "@/types/api";
-import { Box, File } from "lucide-react";
+import { Box, File, Trash2, Download } from "lucide-react";
 import "@google/model-viewer";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -77,9 +77,10 @@ function MarkdownPreview({ url }: MarkdownPreviewProps) {
 interface FilePreviewProps {
   entry: FileEntry;
   parentPath: string;
+  onDelete?: () => void;
 }
 
-export function FilePreview({ entry, parentPath }: FilePreviewProps) {
+export function FilePreview({ entry, parentPath, onDelete }: FilePreviewProps) {
   const fullPath = parentPath === "" ? entry.name : `${parentPath}/${entry.name}`;
   const url = api.getFileUrl(fullPath);
   const ext = entry.extension.startsWith(".") ? entry.extension.toLowerCase() : `.${entry.extension.toLowerCase()}`;
@@ -194,6 +195,16 @@ export function FilePreview({ entry, parentPath }: FilePreviewProps) {
             <span className="uppercase tracking-wide">{entry.extension.replace(".", "")}</span>
           </>
         )}
+        <div className="ml-auto flex items-center gap-1">
+          <a href={url} download={entry.name} className="p-1 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors" title="Download">
+            <Download className="h-3.5 w-3.5" />
+          </a>
+          {onDelete && (
+            <button onClick={onDelete} className="p-1 rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors" title="Delete file">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

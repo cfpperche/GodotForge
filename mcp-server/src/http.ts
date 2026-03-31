@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { existsSync, writeFileSync, mkdirSync } from "fs";
-import { join } from "path";
+import { existsSync, writeFileSync, mkdirSync, statSync, rmSync } from "fs";
+import { join, resolve, basename } from "path";
 import { homedir } from "os";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
@@ -9,7 +9,7 @@ import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
 import { setEventLog, setWebhookDispatcher, setConfirmationManager, setGuardrailMode } from "./tool-handlers.js";
 import { sendJson, writePortFile, removePortFile } from "./http/utils.js";
-import { readBody, attachFileWatcher, serveProjectFile } from "./http/files.js";
+import { readBody, attachFileWatcher, serveProjectFile, broadcastFileChange } from "./http/files.js";
 import { getVersionStatus, provisionGodotPlugin, provisionBlenderAddon } from "./http/provision.js";
 import {
   handleChat,
@@ -62,6 +62,31 @@ export class HttpServer {
 
     // Only the dedicated HTTP-only server writes the active project
     if (this.isHttpOnly) this.writeActiveProject(projectRoot);
+  }
+
+  private handleDeleteFile(res: ServerResponse, filePath: string): void {
+    const safePath = resolve(join(this.projectRoot, decodeURIComponent(filePath)));
+    if (!safePath.startsWith(this.projectRoot)) {
+      sendJson(res, 403, { error: "Path traversal rejected" });
+      return;
+    }
+    const name = basename(safePath);
+    if (name === ".env" || name === "config.json" || name === "project.godot") {
+      sendJson(res, 403, { error: "Cannot delete protected file" });
+      return;
+    }
+    if (!existsSync(safePath)) {
+      sendJson(res, 404, { error: "File not found" });
+      return;
+    }
+    try {
+      const isDir = statSync(safePath).isDirectory();
+      rmSync(safePath, { recursive: true });
+      broadcastFileChange(this.projectRoot, safePath, "deleted");
+      sendJson(res, 200, { deleted: filePath, isDir });
+    } catch (e) {
+      sendJson(res, 500, { error: `Delete failed: ${(e as Error).message}` });
+    }
   }
 
   private writeActiveProject(root: string): void {
@@ -150,6 +175,10 @@ export class HttpServer {
     try {
       const urlPath = new URL(url, "http://localhost").pathname;
       if (urlPath.startsWith("/file/")) {
+        if (req.method === "DELETE") {
+          this.handleDeleteFile(res, urlPath.slice("/file/".length));
+          return;
+        }
         serveProjectFile(res, this.projectRoot, urlPath.slice("/file/".length), sendJson);
         return;
       }

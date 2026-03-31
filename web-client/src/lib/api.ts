@@ -62,6 +62,11 @@ export const api = {
     return `${BASE_URL}/file/${encodeURIComponent(path)}`;
   },
 
+  deleteFile: async (path: string): Promise<boolean> => {
+    const res = await fetch(`${BASE_URL}/file/${encodeURIComponent(path)}`, { method: "DELETE" });
+    return res.ok;
+  },
+
   chatStream: async (
     message: string,
     sessionId: string,
