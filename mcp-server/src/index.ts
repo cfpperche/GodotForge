@@ -42,12 +42,19 @@ async function main(): Promise<void> {
   const httpPort = await httpServer.start();
 
   // Start MCP stdio transport (unless --http-only)
+  let updateMcpRoot: ((newRoot: string) => void) | null = null;
   if (!httpOnly) {
-    const mcpServer = createServer(projectRoot, blenderBridge, config);
+    const { server: mcpServer, updateProjectRoot } = createServer(projectRoot, blenderBridge, config);
+    updateMcpRoot = updateProjectRoot;
     const transport = new StdioServerTransport();
     await mcpServer.connect(transport);
     console.error("[GodotForge MCP] stdio transport started");
   }
+
+  // Wire project switching to update MCP stdio root
+  chatEngine.onProjectSwitch = (newRoot: string) => {
+    updateMcpRoot?.(newRoot);
+  };
 
   console.error(`[GodotForge] Project root: ${root}`);
   console.error(`[GodotForge] HTTP server: http://127.0.0.1:${httpPort}`);

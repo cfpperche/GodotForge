@@ -41,6 +41,7 @@ export class ChatEngine {
   };
   private root: string;
   private repoRoot: string;
+  onProjectSwitch: ((newRoot: string) => void) | null = null;
   private bridge: GodotBridge;
   private blenderBridge: BlenderBridge;
   private configManager: ConfigManager;
@@ -106,6 +107,7 @@ export class ChatEngine {
     this.sessions.clear();
     this.sdkSessionIds.clear();
     this.configManager.addRecentProject(newRoot);
+    this.onProjectSwitch?.(newRoot);
     console.error(`[GodotForge Chat] Switched project to: ${newRoot}`);
   }
 

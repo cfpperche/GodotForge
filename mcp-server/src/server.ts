@@ -18,14 +18,19 @@ import { registerMeshyTools } from "./tools/ai/meshy.js";
 import { registerStabilityTools } from "./tools/ai/stability.js";
 import { registerOtherAITools } from "./tools/ai/other.js";
 
-export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge, configManager?: ConfigManager): McpServer {
+export interface ServerHandle {
+  server: McpServer;
+  updateProjectRoot: (newRoot: string) => void;
+}
+
+export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge, configManager?: ConfigManager): ServerHandle {
   const bridge = new GodotBridge(projectRoot);
   const blender = blenderBridge || new BlenderBridge(projectRoot);
-  const root = projectRoot || process.cwd();
-  const config = configManager || new ConfigManager(root);
+  const state = { root: projectRoot || process.cwd() };
+  const config = configManager || new ConfigManager(state.root);
 
   // Initialize guardrails, event log, webhooks, confirmations
-  const eventLog = new EventLog(root);
+  const eventLog = new EventLog(state.root);
   const webhooks = new WebhookDispatcher(config);
   const confirmations = new ConfirmationManager();
   confirmations.setWebhooks(webhooks);
@@ -37,7 +42,7 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const runTool = async (name: string, args: Record<string, unknown>): Promise<any> => {
-    const result = await executeTool(name, args, root, bridge, blender, config);
+    const result = await executeTool(name, args, state.root, bridge, blender, config);
     return { content: result.content, isError: result.isError };
   };
 
@@ -56,11 +61,14 @@ export function createServer(projectRoot?: string, blenderBridge?: BlenderBridge
   registerRuntimeTools(ctx);
   registerLocalTools(ctx);
   registerAssetTools(ctx);
-  registerBlenderTools(ctx, blender, root, bridge, config);
+  registerBlenderTools(ctx, blender, state.root, bridge, config);
   registerPipelineTools(ctx);
   registerMeshyTools(ctx);
   registerStabilityTools(ctx);
   registerOtherAITools(ctx);
 
-  return server;
+  return {
+    server,
+    updateProjectRoot: (newRoot: string) => { state.root = newRoot; },
+  };
 }
