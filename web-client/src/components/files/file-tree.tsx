@@ -41,15 +41,23 @@ interface TreeNodeProps {
   onNavigate: (path: string) => void;
   onSelectFile: (entry: FileEntry, parentPath: string) => void;
   depth: number;
+  refreshKey: number;
 }
 
-function TreeNode({ name, path, currentPath, onNavigate, onSelectFile, depth }: TreeNodeProps) {
+function TreeNode({ name, path, currentPath, onNavigate, onSelectFile, depth, refreshKey }: TreeNodeProps) {
   const [expanded, setExpanded] = useState(false);
   const [children, setChildren] = useState<FileEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const isActive = currentPath === path;
+
+  // Re-fetch children when refreshKey changes (polling detected changes)
+  useEffect(() => {
+    if (expanded && loaded) {
+      api.listFiles(path).then(setChildren).catch(() => {});
+    }
+  }, [refreshKey, expanded, loaded, path]);
 
   const toggle = useCallback(async () => {
     if (!expanded && !loaded) {
@@ -108,6 +116,7 @@ function TreeNode({ name, path, currentPath, onNavigate, onSelectFile, depth }: 
                 onNavigate={onNavigate}
                 onSelectFile={onSelectFile}
                 depth={depth + 1}
+                refreshKey={refreshKey}
               />
             ) : (
               <button
@@ -136,14 +145,15 @@ interface FileTreeProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   onSelectFile: (entry: FileEntry, parentPath: string) => void;
+  refreshKey: number;
 }
 
-export function FileTree({ currentPath, onNavigate, onSelectFile }: FileTreeProps) {
+export function FileTree({ currentPath, onNavigate, onSelectFile, refreshKey }: FileTreeProps) {
   const [roots, setRoots] = useState<FileEntry[]>([]);
 
   useEffect(() => {
     api.listFiles("").then(setRoots).catch(() => setRoots([]));
-  }, []);
+  }, [refreshKey]);
 
   return (
     <div className="py-2 space-y-0.5">
@@ -172,6 +182,7 @@ export function FileTree({ currentPath, onNavigate, onSelectFile }: FileTreeProp
             onNavigate={onNavigate}
             onSelectFile={onSelectFile}
             depth={0}
+            refreshKey={refreshKey}
           />
         ))}
     </div>

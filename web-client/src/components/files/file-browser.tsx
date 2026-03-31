@@ -64,6 +64,7 @@ export function FileBrowser() {
     selectedFile,
     viewMode,
     loading,
+    refreshKey,
     navigate,
     selectFile,
     refresh,
@@ -82,6 +83,7 @@ export function FileBrowser() {
           currentPath={currentPath}
           onNavigate={navigate}
           onSelectFile={selectFile}
+          refreshKey={refreshKey}
         />
       </aside>
 

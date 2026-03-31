@@ -18,6 +18,7 @@ export function useFiles(projectRoot: string) {
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [loading, setLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const currentPathRef = useRef(currentPath);
   currentPathRef.current = currentPath;
@@ -39,10 +40,11 @@ export function useFiles(projectRoot: string) {
     loadEntries(currentPath);
   }, [currentPath, loadEntries]);
 
-  // Polling fallback — refresh current directory every 3s (fs.watch unreliable on WSL2)
+  // Polling fallback — refresh current directory + tree every 3s (fs.watch unreliable on WSL2)
   useEffect(() => {
     const interval = setInterval(() => {
       loadEntries(currentPathRef.current);
+      setRefreshKey((k) => k + 1);
     }, 3000);
     return () => clearInterval(interval);
   }, [loadEntries]);
@@ -125,6 +127,7 @@ export function useFiles(projectRoot: string) {
   return {
     currentPath,
     entries,
+    refreshKey,
     selectedFile,
     viewMode,
     loading,
