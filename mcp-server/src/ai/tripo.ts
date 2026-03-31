@@ -16,8 +16,11 @@ const DEFAULT_MAX_WAIT_MS = 600_000; // 10 minutes
 export type TripoTaskStatus = "queued" | "running" | "success" | "failed" | "cancelled" | "unknown";
 
 export interface TripoTaskOutput {
-  model?: { url: string };
-  rendered_image?: { url: string };
+  model?: { type: string; url: string } | string;
+  pbr_model?: string;
+  rendered_image?: { type: string; url: string } | string;
+  generated_image?: string;
+  [key: string]: unknown;
 }
 
 export interface TripoTask {

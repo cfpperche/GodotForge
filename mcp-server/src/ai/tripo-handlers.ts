@@ -59,8 +59,10 @@ async function downloadAndRescan(
   subdir: string,
   projectRoot: string
 ): Promise<string> {
-  const glbUrl = task.output?.model?.url;
-  if (!glbUrl) throw new Error("No model URL in task output");
+  const output = task.output || {};
+  const m = output.model;
+  const glbUrl = output.pbr_model || (typeof m === "string" ? m : m?.url) || null;
+  if (!glbUrl) throw new Error("No model URL in task output: " + JSON.stringify(Object.keys(output)));
 
   const destDir = join(projectRoot, "assets", "models", "tripo", subdir);
   const destPath = join(destDir, `${task.task_id}.glb`);
@@ -283,8 +285,12 @@ export async function handleTripoCheckTask(
       `Status: ${task.status}`,
     ];
     if (task.progress !== undefined) lines.push(`Progress: ${task.progress}%`);
-    if (task.output?.model?.url) lines.push(`Model URL: ${task.output.model.url}`);
-    if (task.output?.rendered_image?.url) lines.push(`Preview: ${task.output.rendered_image.url}`);
+    const m = task.output?.model;
+    const modelUrl = task.output?.pbr_model || (typeof m === "string" ? m : m?.url) || null;
+    if (modelUrl) lines.push(`Model URL: ${String(modelUrl).slice(0, 80)}...`);
+    const renderedImg = task.output?.rendered_image;
+    if (typeof renderedImg === "string") lines.push(`Preview: ${renderedImg.slice(0, 80)}...`);
+    else if (renderedImg && typeof renderedImg === "object" && "url" in renderedImg) lines.push(`Preview: ${renderedImg.url}`);
 
     return ok(lines.join("\n"));
   } catch (e) {
