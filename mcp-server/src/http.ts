@@ -64,6 +64,27 @@ export class HttpServer {
     if (this.isHttpOnly) this.writeActiveProject(projectRoot);
   }
 
+  private handleSaveFile(res: ServerResponse, filePath: string, content: string): void {
+    const safePath = resolve(join(this.projectRoot, decodeURIComponent(filePath)));
+    if (!safePath.startsWith(this.projectRoot)) {
+      sendJson(res, 403, { error: "Path traversal rejected" });
+      return;
+    }
+    const name = basename(safePath);
+    if (name === ".env" || name === "config.json" || name === "project.godot") {
+      sendJson(res, 403, { error: "Cannot edit protected file" });
+      return;
+    }
+    try {
+      mkdirSync(join(safePath, ".."), { recursive: true });
+      writeFileSync(safePath, content, "utf-8");
+      broadcastFileChange(this.projectRoot, safePath, "modified");
+      sendJson(res, 200, { saved: filePath });
+    } catch (e) {
+      sendJson(res, 500, { error: `Save failed: ${(e as Error).message}` });
+    }
+  }
+
   private handleDeleteFile(res: ServerResponse, filePath: string): void {
     const safePath = resolve(join(this.projectRoot, decodeURIComponent(filePath)));
     if (!safePath.startsWith(this.projectRoot)) {
@@ -175,11 +196,16 @@ export class HttpServer {
     try {
       const urlPath = new URL(url, "http://localhost").pathname;
       if (urlPath.startsWith("/file/")) {
+        const fileSuffix = urlPath.slice("/file/".length);
         if (req.method === "DELETE") {
-          this.handleDeleteFile(res, urlPath.slice("/file/".length));
+          this.handleDeleteFile(res, fileSuffix);
           return;
         }
-        serveProjectFile(res, this.projectRoot, urlPath.slice("/file/".length), sendJson);
+        if (req.method === "PUT") {
+          this.handleSaveFile(res, fileSuffix, body);
+          return;
+        }
+        serveProjectFile(res, this.projectRoot, fileSuffix, sendJson);
         return;
       }
 

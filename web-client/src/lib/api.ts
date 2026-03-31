@@ -67,6 +67,15 @@ export const api = {
     return res.ok;
   },
 
+  saveFile: async (path: string, content: string): Promise<boolean> => {
+    const res = await fetch(`${BASE_URL}/file/${encodeURIComponent(path)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/plain" },
+      body: content,
+    });
+    return res.ok;
+  },
+
   chatStream: async (
     message: string,
     sessionId: string,

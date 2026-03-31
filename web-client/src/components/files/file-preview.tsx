@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import type { FileEntry } from "@/types/api";
 import { Box, File, Trash2, Download } from "lucide-react";
+import { CodeEditor } from "./previews/code-editor";
 import "@google/model-viewer";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -20,32 +21,6 @@ const MODEL_EXTS = new Set([".glb", ".gltf", ".fbx", ".obj", ".blend"]);
 const CODE_EXTS = new Set([".gd", ".gdshader", ".tscn", ".tres", ".json", ".cfg", ".ts", ".tsx", ".js", ".py", ".txt", ".rst", ".yaml", ".yml", ".toml", ".ini", ".uid", ".import", ".godot", ".csv", ".log"]);
 const MARKDOWN_EXTS = new Set([".md", ".mdx"]);
 
-interface TextPreviewProps {
-  url: string;
-}
-
-function TextPreview({ url }: TextPreviewProps) {
-  const [content, setContent] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    setContent(null);
-    setError(false);
-    fetch(url)
-      .then((r) => r.text())
-      .then(setContent)
-      .catch(() => setError(true));
-  }, [url]);
-
-  if (error) return <p className="text-destructive text-sm p-4">Failed to load file content.</p>;
-  if (content === null) return <p className="text-muted-foreground text-sm p-4 animate-pulse">Loading...</p>;
-
-  return (
-    <pre className="font-mono text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap break-words p-4 overflow-auto h-full">
-      {content}
-    </pre>
-  );
-}
 
 interface MarkdownPreviewProps {
   url: string;
@@ -149,7 +124,7 @@ export function FilePreview({ entry, parentPath, onDelete }: FilePreviewProps) {
     }
 
     if (CODE_EXTS.has(ext)) {
-      return <TextPreview url={url} />;
+      return <CodeEditor url={url} filePath={fullPath} extension={ext} />;
     }
 
     // Unknown type — metadata only
