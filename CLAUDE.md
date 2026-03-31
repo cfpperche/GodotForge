@@ -2,7 +2,7 @@
 
 ## What is GodotForge
 
-GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 91 tools, memory, and context.
+GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI generators) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 154 tools, memory, and context.
 
 ## Environment
 
@@ -28,7 +28,9 @@ Blender Chat Panel ──► MCP (HTTP :6980)──┤──► Blender Addon TC
                                          ├── Context Builder (8K token budget)
                                          ├── ConfigManager (env vars + config.json)
                                          ├── Asset Services (Poly Haven, Sketchfab, OpenGameArt)
+                                         ├── AI Generators (10 services + fal.ai gateway, 55 tools)
                                          ├── Pipeline (Blender → Godot asset flow)
+                                         ├── File Browser (tree + preview + CodeMirror editor)
                                          └── Web Dashboard (/dashboard)
 ```
 
@@ -62,18 +64,34 @@ addons/godotforge/
 
 mcp-server/src/
   index.ts                        → Dual transport: stdio + HTTP, --http-only flag
-  server.ts                       → MCP server (32 tools via @modelcontextprotocol/sdk)
+  server.ts                       → MCP server (154 tools via @modelcontextprotocol/sdk)
   chat.ts                         → LLM conversation engine (API key + Claude CLI modes)
-  http.ts                         → HTTP server on :6980 (/chat, /settings, /context)
-  tool-handlers.ts                → Shared tool execution logic (editor + blender + local)
+  http.ts                         → HTTP server on :6980 (/chat, /settings, /context, /files)
+  tool-handlers.ts                → Shared tool execution logic (editor + blender + local + AI)
   bridge.ts                       → HTTP client → Godot plugin :6970
   blender-bridge.ts               → TCP socket client → Blender addon :8400
   blender-tools.ts                → Blender tool definitions (39 tools)
   pipeline.ts                     → Blender → Godot asset pipeline (4 tools)
-  config.ts                       → API key manager (env + config.json, 12 services)
+  config.ts                       → API key manager (env + config.json, 14 services)
   tools.ts                        → Tool metadata constants
   assets/                         → Asset service clients
     polyhaven.ts / sketchfab.ts / opengameart.ts / handlers.ts
+  ai/                             → AI generator clients (10 services + fal.ai gateway)
+    meshy.ts / meshy-handlers.ts           → 8 tools (text/image-to-3D, refine, remesh, retexture)
+    stability.ts / stability-handlers.ts   → 13 tools (SD3, Ultra, Core, inpaint, outpaint, etc.)
+    elevenlabs.ts / elevenlabs-handlers.ts → 4 tools (TTS, SFX, voices, models)
+    tripo.ts / tripo-handlers.ts           → 7 tools (text/image-to-3D, refine, animate, stylize)
+    suno.ts / suno-handlers.ts             → 4 tools (music gen, lyrics, check, credits)
+    openai-dalle.ts / openai-dalle-handlers.ts → 3 tools (generate, edit, variation)
+    blockade.ts / blockade-handlers.ts     → 3 tools (skybox, styles, check)
+    rodin.ts / rodin-handlers.ts           → 2 tools (generate, check)
+    huggingface.ts / huggingface-handlers.ts → 1 tool (text-to-image)
+    fal.ts / fal-handlers.ts               → 12 tools (FLUX, SD3.5, SDXL, Rodin, Tripo, Trellis, Hunyuan3D, Stable Audio, Kokoro TTS, ESRGAN, BiRefNet)
+    poll.ts                                → Shared polling utility
+  http/
+    files.ts                      → File browser API + WebSocket live updates
+  tools/ai/                       → Tool registration (zod schemas)
+    meshy.ts / stability.ts / other.ts / fal.ts
   docs/                           → Docs engine (SQLite FTS5, 912 Godot + 3800 Blender classes)
     types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts / blender-docs.ts
   studio/                         → .claude/ integration (skills router, agents context, templates)
@@ -91,13 +109,14 @@ blender-addon/godotforge/
 
 web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4 + shadcn/ui)
   src/app.tsx                     → Two-column layout: chat + sidebar
-  src/hooks/                      → use-chat, use-health, use-settings, use-keys
+  src/hooks/                      → use-chat, use-health, use-settings, use-keys, use-files
   src/components/chat/            → chat-panel, message, tool-call, chat-input
-  src/components/sidebar/         → sidebar, connection-status, api-keys
+  src/components/sidebar/         → sidebar, connection-status, api-keys (7 categories, 13 services)
+  src/components/files/           → file-browser, file-tree, file-preview, code-editor (CodeMirror 6)
   src/lib/api.ts                  → HTTP client to MCP :6980
 ```
 
-## 91 Tools
+## 146 Tools
 
 ### Editor Tools (28 — run in plugin via EditorInterface)
 | Tool | Description |
@@ -171,7 +190,7 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 | `pipeline.sync_collision` | Generate collision hints → export for Godot auto-detect |
 | `pipeline.batch_import` | Batch import multiple 3D files into Godot project |
 
-### Asset Tools (7 — external asset services)
+### Asset Tools (15 — external asset services + local generation)
 | Tool | Description |
 |------|-------------|
 | `assets.search_polyhaven` | Search 750+ free textures, models, HDRIs |
@@ -181,11 +200,41 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 | `assets.search_opengameart` | Search sprites, sounds, music, 3D |
 | `assets.download_asset` | Generic URL download + auto Godot rescan |
 | `assets.list_local` | List project assets by type/directory |
+| `assets.search_ambientcg` | Search 2000+ free PBR materials, HDRIs (CC0) |
+| `assets.download_ambientcg` | Download PBR material ZIP + extract |
+| `assets.search_godot_library` | Search official Godot Asset Library |
+| `assets.download_godot_library` | Download + extract addon/project |
+| `assets.search_freesound` | Search 500K+ sounds (requires API key) |
+| `assets.preview_freesound` | Download HQ preview MP3/OGG |
+| `assets.download_freesound` | Download original (requires OAuth2) |
+| `assets.generate_sfx` | Generate retro SFX locally via jsfxr |
 
 ### Config Tool (1)
 | Tool | Description |
 |------|-------------|
 | `get_service_status` | Check which services have API keys configured |
+
+### AI Generator Tools (55 — external AI services, fully parameterized)
+
+**Meshy (8)**: `ai.meshy_text_to_3d`, `ai.meshy_image_to_3d`, `ai.meshy_multi_image_to_3d`, `ai.meshy_refine`, `ai.meshy_remesh`, `ai.meshy_retexture`, `ai.meshy_check_task`, `ai.meshy_balance`
+
+**Stability AI (13)**: `ai.stability_generate` (SD3), `ai.stability_generate_ultra`, `ai.stability_generate_core`, `ai.stability_inpaint`, `ai.stability_outpaint`, `ai.stability_search_replace`, `ai.stability_recolor`, `ai.stability_erase`, `ai.stability_remove_bg`, `ai.stability_upscale_fast`, `ai.stability_sketch`, `ai.stability_style`, `ai.stability_balance`
+
+**ElevenLabs (4)**: `ai.elevenlabs_tts`, `ai.elevenlabs_sound_effect`, `ai.elevenlabs_list_voices`, `ai.elevenlabs_list_models`
+
+**Tripo AI (7)**: `ai.tripo_text_to_3d`, `ai.tripo_image_to_3d`, `ai.tripo_refine`, `ai.tripo_animate`, `ai.tripo_stylize`, `ai.tripo_check_task`, `ai.tripo_balance`
+
+**Suno (4)**: `ai.suno_generate` (music), `ai.suno_lyrics`, `ai.suno_check_task`, `ai.suno_credits`
+
+**DALL-E (3)**: `ai.dalle_generate`, `ai.dalle_edit`, `ai.dalle_variation`
+
+**Blockade Labs (3)**: `ai.blockade_generate_skybox`, `ai.blockade_list_styles`, `ai.blockade_check_task`
+
+**Rodin / Hyper3D (2)**: `ai.rodin_generate`, `ai.rodin_check_task`
+
+**Hugging Face (1)**: `ai.huggingface_text_to_image`
+
+**fal.ai Gateway (12)**: `ai.fal_flux_pro`, `ai.fal_flux_schnell`, `ai.fal_sd35`, `ai.fal_sdxl`, `ai.fal_rodin`, `ai.fal_tripo`, `ai.fal_trellis`, `ai.fal_hunyuan3d`, `ai.fal_stable_audio`, `ai.fal_kokoro_tts`, `ai.fal_upscale`, `ai.fal_remove_bg`
 
 ## Completed Features
 
@@ -234,12 +283,17 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 - **Per-project Chat Context**: Messages and sessions isolated per project in web copilot. Switching projects loads that project's conversation history.
 - **Scroll Virtualization**: @tanstack/react-virtual for chat messages — only renders visible messages + overscan. Smart auto-scroll (only scrolls if near bottom).
 - **Dungeon of Echoes Demo**: Top-down 2D RPG demo — player, slimes AI, NPC dialogue, pickups, HUD. Built entirely via 30+ tools.
+- **Phase D — AI Generators**: 10 direct AI services + fal.ai gateway = 55 AI tools. All fully parameterized (every API parameter exposed). Services: Meshy (8), Stability AI (13), ElevenLabs (4), Tripo (7), Suno (4), DALL-E (3), Blockade Labs (3), Rodin (2), Hugging Face (1), fal.ai (12).
+- **Phase D2 — Asset Library Expansion**: +8 asset tools. ambientCG (2000+ PBR materials CC0), Godot Asset Library (official addons), Freesound (500K+ sounds), jsfxr (local retro SFX generation).
+- **File Browser**: Tree view + preview panel + CodeMirror 6 editor. Live updates via WebSocket + polling fallback. Supports images, audio, video, 3D (model-viewer), code editing with Ctrl+S save. Delete with confirmation.
+- **Active Project Sync**: `~/.godotforge/active-project` shared file ensures tools save to correct project directory across stdio + HTTP processes.
 
 ### E2E Validations
 - ✅ Flappy Bird (2D game, 32 Godot tools)
 - ✅ Red metallic cube (Blender → GLB → Godot 3D scene)
 - ✅ Rigged robot character (armature + walk animation + collision → Godot)
 - ✅ Poly Haven textured scene (PBR textures + Blender rocks → Godot)
+- ✅ Phase D AI Generators — 6 services validated E2E (Stability AI, ElevenLabs, Tripo, Hugging Face, Suno, Poly Haven), 3 auth-only (DALL-E, fal.ai, OpenGameArt), 3 require paid (Meshy, Blockade Labs, Rodin)
 
 ## Languages & Conventions
 

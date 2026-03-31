@@ -31,6 +31,9 @@ const RISK_MAP: Record<string, RiskLevel> = {
   "assets.search_sketchfab": "safe",
   "assets.search_opengameart": "safe",
   "assets.list_local": "safe",
+  "assets.search_ambientcg": "safe",
+  "assets.search_godot_library": "safe",
+  "assets.search_freesound": "safe",
   blender_get_scene_objects: "safe",
   blender_get_object_properties: "safe",
   blender_get_blender_info: "safe",
@@ -78,6 +81,11 @@ const RISK_MAP: Record<string, RiskLevel> = {
   "assets.download_polyhaven": "moderate",
   "assets.download_sketchfab": "moderate",
   "assets.download_asset": "moderate",
+  "assets.download_ambientcg": "moderate",
+  "assets.download_godot_library": "moderate",
+  "assets.preview_freesound": "moderate",
+  "assets.download_freesound": "moderate",
+  "assets.generate_sfx": "moderate",
 
   // Destructive — removes content or changes critical state
   remove_node: "destructive",

@@ -3,7 +3,15 @@ import { BlenderBridge } from "../blender-bridge.js";
 import { blenderHandlerName } from "../blender-tools.js";
 import { blenderToGodot, blenderToGodotAnimated, syncCollision, batchImport } from "../pipeline.js";
 import { ConfigManager } from "../config.js";
-import { handleSearchPolyHaven, handleDownloadPolyHaven, handleSearchSketchfab, handleDownloadSketchfab, handleSearchOpenGameArt, handleDownloadAsset, handleListLocalAssets } from "../assets/handlers.js";
+import {
+  handleSearchPolyHaven, handleDownloadPolyHaven,
+  handleSearchSketchfab, handleDownloadSketchfab,
+  handleSearchOpenGameArt, handleDownloadAsset, handleListLocalAssets,
+  handleSearchAmbientCG, handleDownloadAmbientCG,
+  handleSearchGodotLibrary, handleDownloadGodotLibrary,
+  handleSearchFreesound, handlePreviewFreesound, handleDownloadFreesound,
+  handleGenerateSfx,
+} from "../assets/handlers.js";
 import { editorTool, EDITOR_TOOL_NAMES } from "../tool-handlers.js";
 import type { ToolResult } from "../tool-handlers.js";
 import {
@@ -71,6 +79,14 @@ export async function executeToolInner(
   if (toolName === "assets.search_opengameart") return handleSearchOpenGameArt(args);
   if (toolName === "assets.download_asset") return handleDownloadAsset(args, root);
   if (toolName === "assets.list_local") return handleListLocalAssets(args, root);
+  if (toolName === "assets.search_ambientcg") return handleSearchAmbientCG(args);
+  if (toolName === "assets.download_ambientcg") return handleDownloadAmbientCG(args, root);
+  if (toolName === "assets.search_godot_library") return handleSearchGodotLibrary(args);
+  if (toolName === "assets.download_godot_library") return handleDownloadGodotLibrary(args, root);
+  if (toolName === "assets.search_freesound") return handleSearchFreesound(args, cfg);
+  if (toolName === "assets.preview_freesound") return handlePreviewFreesound(args, root, cfg);
+  if (toolName === "assets.download_freesound") return handleDownloadFreesound(args, root, cfg);
+  if (toolName === "assets.generate_sfx") return handleGenerateSfx(args, root);
 
   // AI generation tools (Meshy)
   if (toolName.startsWith("ai.meshy_")) {

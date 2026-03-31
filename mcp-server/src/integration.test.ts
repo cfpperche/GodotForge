@@ -30,9 +30,9 @@ describe("Tool Registry Integration", () => {
     clearRegistry();
   });
 
-  it("registers all 134 tools after createServer", () => {
+  it("registers all 154 tools after createServer", () => {
     createServer("/tmp");
-    expect(getToolCount()).toBe(134);
+    expect(getToolCount()).toBe(154);
   });
 
   it("registers tools from every category", () => {
