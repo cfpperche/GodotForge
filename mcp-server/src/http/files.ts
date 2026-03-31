@@ -1,7 +1,7 @@
 import { type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, statSync, createReadStream, watch as fsWatch } from "fs";
-import { join, extname, resolve, basename } from "path";
-import { WebSocketServer } from "ws";
+import { join, extname, resolve, basename, relative } from "path";
+import { WebSocketServer, WebSocket } from "ws";
 
 export function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((res) => {
@@ -40,6 +40,29 @@ export function getContentType(ext: string): string {
   return map[ext] || "application/octet-stream";
 }
 
+// Global set of connected WebSocket clients for broadcasting
+const wsClients = new Set<WebSocket>();
+
+/**
+ * Broadcast a file change event to all connected WebSocket clients.
+ * Call this from tool handlers after creating/modifying/deleting files.
+ */
+export function broadcastFileChange(
+  projectRoot: string,
+  filePath: string,
+  type: "created" | "modified" | "deleted" = "created"
+): void {
+  if (wsClients.size === 0) return;
+  const relPath = filePath.startsWith(projectRoot)
+    ? relative(projectRoot, filePath)
+    : filePath.replace(/^res:\/\//, "");
+  const isDir = existsSync(filePath) && statSync(filePath).isDirectory();
+  const msg = JSON.stringify({ type, path: relPath, isDir });
+  for (const ws of wsClients) {
+    if (ws.readyState === ws.OPEN) ws.send(msg);
+  }
+}
+
 export function attachFileWatcher(
   server: import("node:http").Server,
   projectRoot: string
@@ -56,6 +79,7 @@ export function attachFileWatcher(
   });
 
   wss.on("connection", (ws) => {
+    wsClients.add(ws);
     const debounce = new Map<string, NodeJS.Timeout>();
 
     const watcher = fsWatch(projectRoot, { recursive: true }, (eventType, filename) => {
@@ -81,6 +105,7 @@ export function attachFileWatcher(
     });
 
     ws.on("close", () => {
+      wsClients.delete(ws);
       watcher.close();
       for (const t of debounce.values()) clearTimeout(t);
     });

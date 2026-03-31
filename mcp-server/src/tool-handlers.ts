@@ -6,6 +6,8 @@ import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
 import { executeToolInner } from "./tool-handlers/dispatch.js";
+import { broadcastFileChange } from "./http/files.js";
+import { join } from "path";
 
 // Shared instances — set once from index.ts or http.ts
 let _eventLog: EventLog | null = null;
@@ -106,6 +108,16 @@ export async function executeTool(
     result_preview: result.content[0]?.text?.slice(0, 200),
   });
   _webhooks?.notify(`tool_call.${toolName}`, { tool: toolName, success: !result.isError, duration_ms: duration });
+
+  // Broadcast file changes to WebSocket clients for live file browser updates
+  if (!result.isError) {
+    const text = result.content[0]?.text || "";
+    const resPathMatches = text.matchAll(/res:\/\/([^\s\n"]+)/g);
+    for (const match of resPathMatches) {
+      const filePath = join(root, match[1]);
+      broadcastFileChange(root, filePath, "created");
+    }
+  }
 
   return result;
 }

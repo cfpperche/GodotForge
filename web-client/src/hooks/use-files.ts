@@ -39,6 +39,14 @@ export function useFiles(projectRoot: string) {
     loadEntries(currentPath);
   }, [currentPath, loadEntries]);
 
+  // Polling fallback — refresh current directory every 3s (fs.watch unreliable on WSL2)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadEntries(currentPathRef.current);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [loadEntries]);
+
   // WebSocket file-watch with auto-reconnect
   useEffect(() => {
     let ws: WebSocket | null = null;
