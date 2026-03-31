@@ -53,6 +53,12 @@ const CATEGORIES: { id: string; label: string; services: ServiceDef[] }[] = [
     ],
   },
   {
+    id: "gateway", label: "AI Gateway",
+    services: [
+      { key: "fal", label: "fal.ai", url: "https://fal.ai/dashboard/keys", desc: "Unified AI gateway — FLUX, Rodin, Trellis, Stable Audio, Kokoro TTS, ESRGAN" },
+    ],
+  },
+  {
     id: "other", label: "Other",
     services: [
       { key: "blockade_labs", label: "Blockade Labs", url: "https://www.blockadelabs.com", desc: "AI skybox and environment generation", planned: true },
