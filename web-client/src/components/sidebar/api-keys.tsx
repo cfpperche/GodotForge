@@ -49,7 +49,7 @@ const CATEGORIES: { id: string; label: string; services: ServiceDef[] }[] = [
     id: "audio", label: "Audio",
     services: [
       { key: "elevenlabs", label: "ElevenLabs", url: "https://elevenlabs.io", desc: "AI voice and speech synthesis", planned: true },
-      { key: "suno", label: "Suno", url: "https://suno.com", desc: "AI music generation", planned: true },
+      { key: "suno", label: "Suno", url: "https://sunoapi.org", desc: "AI music generation (via sunoapi.org wrapper)", planned: true },
     ],
   },
   {
