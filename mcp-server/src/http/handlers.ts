@@ -68,7 +68,7 @@ export async function handleChatStream(res: ServerResponse, body: string, deps: 
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
     Connection: "keep-alive",
-    "Access-Control-Allow-Origin": "*",
+    // CORS already set by handleRequest — don't override
   });
 
   deps.confirmations.setSSECallback((event) => {
@@ -189,6 +189,7 @@ export function handleWriteConfig(res: ServerResponse, body: string, deps: Handl
 
   try {
     deps.config.writeFullConfig(parsed);
+    deps.eventLog?.emit({ type: "config", action: "config_updated" });
     sendJson(res, 200, { result: "Config saved", config: deps.config.getFullConfig() });
   } catch (error) {
     sendJson(res, 422, { error: error instanceof Error ? error.message : "Failed to save config" });
@@ -295,6 +296,7 @@ export function handleSetKey(res: ServerResponse, body: string, deps: HandlerDep
 
   try {
     deps.config.setKey(service as keyof import("../config.js").ServiceKeys, key);
+    deps.eventLog?.emit({ type: "config", action: "key_set", service });
     sendJson(res, 200, { result: `Key saved for ${service}` });
   } catch (error) {
     sendJson(res, 422, { error: `Failed to save key: ${error instanceof Error ? error.message : error}` });
@@ -317,6 +319,7 @@ export function handleRemoveKey(res: ServerResponse, body: string, deps: Handler
   }
 
   deps.config.removeKey(service as keyof import("../config.js").ServiceKeys);
+  deps.eventLog?.emit({ type: "config", action: "key_removed", service });
   sendJson(res, 200, { result: `Key removed for ${service}` });
 }
 

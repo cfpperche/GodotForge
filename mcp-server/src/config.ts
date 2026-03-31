@@ -10,9 +10,11 @@
  *   - Per-project, lives in the game repo
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, chmodSync } from "fs";
 import { join } from "path";
 import { execSync as execSyncFn } from "child_process";
+import { createCipheriv, createDecipheriv, pbkdf2Sync, randomBytes } from "crypto";
+import { hostname, userInfo } from "os";
 
 const CONFIG_DIR = ".godotforge";
 const CONFIG_FILE = "config.json";
@@ -42,6 +44,7 @@ export interface ServiceKeys {
   blockade_labs: string; // Skybox
   huggingface: string;
   fal: string; // fal.ai unified AI gateway
+  freesound: string; // Freesound.org
 }
 
 /** Env var names mapped to service keys. */
@@ -59,6 +62,7 @@ const ENV_MAP: Record<keyof ServiceKeys, string> = {
   blockade_labs: "BLOCKADE_LABS_API_KEY",
   huggingface: "HUGGINGFACE_API_KEY",
   fal: "FAL_KEY",
+  freesound: "FREESOUND_API_KEY",
 };
 
 /** System-level paths. */
@@ -210,21 +214,79 @@ export class ConfigManager {
     }
   }
 
+  // --- Encryption ---
+
+  private deriveEncryptionKey(): Buffer {
+    const identity = `${hostname()}:${userInfo().username}:godotforge-salt`;
+    return pbkdf2Sync(identity, "godotforge-key-v1", 100_000, 32, "sha256");
+  }
+
+  private encryptValue(plaintext: string): string {
+    const key = this.deriveEncryptionKey();
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintext, "utf-8"), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    return `enc:v1:${iv.toString("hex")}:${authTag.toString("hex")}:${encrypted.toString("hex")}`;
+  }
+
+  private decryptValue(encrypted: string): string {
+    const parts = encrypted.split(":");
+    if (parts.length !== 5 || parts[0] !== "enc" || parts[1] !== "v1") {
+      throw new Error("Invalid encrypted value format");
+    }
+    const key = this.deriveEncryptionKey();
+    const iv = Buffer.from(parts[2], "hex");
+    const authTag = Buffer.from(parts[3], "hex");
+    const ciphertext = Buffer.from(parts[4], "hex");
+    const decipher = createDecipheriv("aes-256-gcm", key, iv);
+    decipher.setAuthTag(authTag);
+    return decipher.update(ciphertext).toString("utf-8") + decipher.final("utf-8");
+  }
+
+  private isEncrypted(value: string): boolean {
+    return value.startsWith("enc:v1:");
+  }
+
+  /** Migrate any plaintext keys to encrypted format. */
+  private migrateKeys(): void {
+    const config = this.readConfig();
+    if (!config.keys) return;
+    let migrated = false;
+    for (const [service, value] of Object.entries(config.keys)) {
+      if (value && typeof value === "string" && !this.isEncrypted(value)) {
+        (config.keys as Record<string, string>)[service] = this.encryptValue(value);
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      this.writeConfig(config);
+      console.error("[Config] Migrated plaintext API keys to encrypted storage");
+    }
+  }
+
   /**
    * Get a service API key. Priority: env var → config file → empty string.
    */
   getKey(service: keyof ServiceKeys): string {
-    // 1. Check env var
+    // 1. Check env var (stays plaintext — user controls env)
     const envName = ENV_MAP[service];
     const envVal = process.env[envName];
     if (envVal) return envVal;
 
-    // 2. Check config file
+    // 2. Check config file (may be encrypted)
     const config = this.readConfig();
     const fileVal = config.keys?.[service];
-    if (fileVal) return fileVal;
+    if (!fileVal) return "";
 
-    return "";
+    if (this.isEncrypted(fileVal)) {
+      try { return this.decryptValue(fileVal); }
+      catch { console.error(`[Config] Failed to decrypt key for ${service}. If you moved config.json to a new machine, re-enter the key — encryption is machine-bound.`); return ""; }
+    }
+
+    // Plaintext — trigger migration
+    this.migrateKeys();
+    return fileVal;
   }
 
   /**
@@ -240,7 +302,7 @@ export class ConfigManager {
   setKey(service: keyof ServiceKeys, value: string): void {
     const config = this.readConfig();
     if (!config.keys) config.keys = {};
-    config.keys[service] = value;
+    config.keys[service] = this.encryptValue(value);
     this.writeConfig(config);
   }
 
@@ -290,12 +352,32 @@ export class ConfigManager {
   }
 
   getFullConfig(): Record<string, unknown> {
-    return { ...this.readConfig() };
+    const config = { ...this.readConfig() };
+    // Mask key values — never expose encrypted or plaintext keys via API
+    if (config.keys && typeof config.keys === "object") {
+      const masked: Record<string, string> = {};
+      for (const [k, v] of Object.entries(config.keys as Record<string, string>)) {
+        masked[k] = v ? "***" : "";
+      }
+      config.keys = masked;
+    }
+    return config;
   }
 
   writeFullConfig(config: Record<string, unknown>): void {
     if (typeof config !== "object" || config === null || Array.isArray(config)) {
       throw new Error("Config must be a JSON object");
+    }
+    // Preserve encrypted keys — don't let masked "***" values overwrite real keys
+    const existing = this.readConfig();
+    if (config.keys && existing.keys) {
+      const incoming = config.keys as Record<string, string>;
+      const current = existing.keys as Record<string, string>;
+      for (const [k, v] of Object.entries(incoming)) {
+        if (v === "***" && current[k]) {
+          incoming[k] = current[k]; // Keep existing encrypted value
+        }
+      }
     }
     this.writeConfig(config);
   }
@@ -325,6 +407,7 @@ export class ConfigManager {
       mkdirSync(dir, { recursive: true });
     }
     writeFileSync(this.globalConfigPath, JSON.stringify(config, null, 2), "utf-8");
+    try { chmodSync(this.globalConfigPath, 0o600); } catch { /* Windows doesn't support chmod */ }
     this.configCache = null;
   }
 }

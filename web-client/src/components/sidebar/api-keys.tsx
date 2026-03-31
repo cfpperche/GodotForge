@@ -28,28 +28,31 @@ const CATEGORIES: { id: string; label: string; services: ServiceDef[] }[] = [
       { key: "sketchfab", label: "Sketchfab", url: "https://sketchfab.com/settings/password", desc: "Downloadable 3D models (GLTF)" },
       { key: "polyhaven", label: "Poly Haven", url: "https://polyhaven.com", desc: "Free textures, HDRIs, 3D models", noKey: true },
       { key: "opengameart", label: "OpenGameArt", url: "https://opengameart.org", desc: "Free sprites, sounds, music, 3D", noKey: true },
+      { key: "ambientcg", label: "ambientCG", url: "https://ambientcg.com", desc: "Free PBR materials, HDRIs, 3D models (CC0)", noKey: true },
+      { key: "godot_library", label: "Godot Asset Library", url: "https://godotengine.org/asset-library", desc: "Official Godot addons and project templates", noKey: true },
     ],
   },
   {
     id: "3d", label: "3D Generation",
     services: [
-      { key: "meshy", label: "Meshy", url: "https://www.meshy.ai", desc: "AI 3D model generation from text/image", planned: true },
-      { key: "tripo", label: "Tripo", url: "https://www.tripo3d.ai", desc: "AI 3D model generation", planned: true },
-      { key: "rodin", label: "Rodin (Hyper3D)", url: "https://hyperhuman.deemos.com", desc: "AI 3D model generation with high detail", planned: true },
+      { key: "meshy", label: "Meshy", url: "https://www.meshy.ai", desc: "AI 3D model generation from text/image" },
+      { key: "tripo", label: "Tripo", url: "https://www.tripo3d.ai", desc: "AI 3D model generation" },
+      { key: "rodin", label: "Rodin (Hyper3D)", url: "https://hyperhuman.deemos.com", desc: "AI 3D model generation with high detail" },
     ],
   },
   {
     id: "image", label: "Image",
     services: [
-      { key: "stability", label: "Stability AI", url: "https://platform.stability.ai/account/keys", desc: "Stable Diffusion — texture and image generation", planned: true },
-      { key: "openai", label: "OpenAI", url: "https://platform.openai.com/api-keys", desc: "DALL-E — image generation from text", planned: true },
+      { key: "stability", label: "Stability AI", url: "https://platform.stability.ai/account/keys", desc: "Stable Diffusion — texture and image generation" },
+      { key: "openai", label: "OpenAI", url: "https://platform.openai.com/api-keys", desc: "DALL-E — image generation from text" },
     ],
   },
   {
     id: "audio", label: "Audio",
     services: [
-      { key: "elevenlabs", label: "ElevenLabs", url: "https://elevenlabs.io", desc: "AI voice and speech synthesis", planned: true },
-      { key: "suno", label: "Suno", url: "https://sunoapi.org", desc: "AI music generation (via sunoapi.org wrapper)", planned: true },
+      { key: "elevenlabs", label: "ElevenLabs", url: "https://elevenlabs.io", desc: "AI voice and speech synthesis" },
+      { key: "suno", label: "Suno", url: "https://sunoapi.org", desc: "AI music generation (via sunoapi.org wrapper)" },
+      { key: "freesound", label: "Freesound", url: "https://freesound.org/apiv2/apply", desc: "500K+ sound effects and music (API key for search, OAuth2 for downloads)" },
     ],
   },
   {
@@ -61,8 +64,8 @@ const CATEGORIES: { id: string; label: string; services: ServiceDef[] }[] = [
   {
     id: "other", label: "Other",
     services: [
-      { key: "blockade_labs", label: "Blockade Labs", url: "https://www.blockadelabs.com", desc: "AI skybox and environment generation", planned: true },
-      { key: "huggingface", label: "Hugging Face", url: "https://huggingface.co/settings/tokens", desc: "ML model inference hub", planned: true },
+      { key: "blockade_labs", label: "Blockade Labs", url: "https://www.blockadelabs.com", desc: "AI skybox and environment generation" },
+      { key: "huggingface", label: "Hugging Face", url: "https://huggingface.co/settings/tokens", desc: "ML model inference hub" },
     ],
   },
 ];

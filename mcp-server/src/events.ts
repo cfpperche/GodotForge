@@ -3,7 +3,7 @@ import { join } from "path";
 
 export interface EventEntry {
   ts: string;
-  type: "chat" | "tool_call" | "tool_result" | "guardrail" | "webhook" | "session" | "error";
+  type: "chat" | "tool_call" | "tool_result" | "guardrail" | "webhook" | "session" | "error" | "config";
   [key: string]: unknown;
 }
 

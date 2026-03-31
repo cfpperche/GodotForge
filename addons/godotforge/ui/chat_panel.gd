@@ -19,6 +19,7 @@ var _http_request: HTTPRequest
 
 # MCP connection
 var _mcp_port: int = 0
+var _mcp_token: String = ""
 var _session_id: String = ""
 
 
@@ -115,6 +116,16 @@ func _discover_mcp() -> void:
 		if file:
 			_mcp_port = file.get_as_text().strip_edges().to_int()
 
+	# Read auth token from ~/.godotforge/http-token
+	var home_dir := OS.get_environment("HOME")
+	if home_dir == "":
+		home_dir = OS.get_environment("USERPROFILE")
+	var token_file := home_dir.path_join(".godotforge/http-token")
+	if FileAccess.file_exists(token_file):
+		var tfile := FileAccess.open(token_file, FileAccess.READ)
+		if tfile:
+			_mcp_token = tfile.get_as_text().strip_edges()
+
 	if _mcp_port > 0:
 		_status_label.text = "Connected to MCP server (port %d)" % _mcp_port
 	else:
@@ -144,7 +155,7 @@ func _on_send_pressed() -> void:
 	})
 
 	var url := "http://127.0.0.1:%d/chat" % _mcp_port
-	var headers := PackedStringArray(["Content-Type: application/json"])
+	var headers := PackedStringArray(["Content-Type: application/json", "Authorization: Bearer %s" % _mcp_token])
 	var err := _http_request.request(url, headers, HTTPClient.METHOD_POST, body)
 	if err != OK:
 		_set_busy(false)
@@ -235,7 +246,7 @@ func _on_settings_changed(settings: Dictionary) -> void:
 	var req := HTTPRequest.new()
 	add_child(req)
 	var url := "http://127.0.0.1:%d/settings" % _mcp_port
-	var headers := PackedStringArray(["Content-Type: application/json"])
+	var headers := PackedStringArray(["Content-Type: application/json", "Authorization: Bearer %s" % _mcp_token])
 	req.request(url, headers, HTTPClient.METHOD_POST, JSON.stringify(payload))
 	req.request_completed.connect(func(_r, _c, _h, _b): req.queue_free())
 

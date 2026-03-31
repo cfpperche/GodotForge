@@ -11,6 +11,8 @@ import { setEventLog, setWebhookDispatcher, setConfirmationManager, setGuardrail
 import { sendJson, writePortFile, removePortFile } from "./http/utils.js";
 import { readBody, attachFileWatcher, serveProjectFile, broadcastFileChange } from "./http/files.js";
 import { getVersionStatus, provisionGodotPlugin, provisionBlenderAddon } from "./http/provision.js";
+import { RateLimiter, getCategory } from "./http/rate-limiter.js";
+import { getOrCreateToken, validateRequest, isExempt } from "./http/auth.js";
 import {
   handleChat,
   handleChatStream,
@@ -44,6 +46,15 @@ export class HttpServer {
   private _cachedWinUser: { value: string | null | undefined } = { value: undefined };
 
   private isHttpOnly: boolean;
+  private rateLimiter = new RateLimiter();
+  private authToken: string;
+
+  private static readonly CORS_ORIGINS = new Set([
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+  ]);
 
   constructor(chatEngine: ChatEngine, projectRoot: string, config?: ConfigManager, httpOnly = false) {
     this.isHttpOnly = httpOnly;
@@ -59,6 +70,8 @@ export class HttpServer {
     setWebhookDispatcher(this.webhooks);
     setConfirmationManager(this.confirmations);
     setGuardrailMode(chatEngine.getSettings().guardrail_mode || "normal");
+
+    this.authToken = getOrCreateToken();
 
     // Only the dedicated HTTP-only server writes the active project
     if (this.isHttpOnly) this.writeActiveProject(projectRoot);
@@ -180,9 +193,16 @@ export class HttpServer {
   }
 
   private async handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    res.setHeader("Access-Control-Allow-Origin", "*");
+    // CORS — restrict to known origins
+    const origin = req.headers.origin;
+    if (origin && HttpServer.CORS_ORIGINS.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    } else if (!origin) {
+      // Non-browser requests (curl, Godot plugin) — allow
+      res.setHeader("Access-Control-Allow-Origin", "*");
+    }
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
     if (req.method === "OPTIONS") {
       res.writeHead(200);
@@ -191,10 +211,30 @@ export class HttpServer {
     }
 
     const url = req.url || "/";
+    const method = req.method || "GET";
+    const urlPath = new URL(url, "http://localhost").pathname;
+
+    // Auth — Bearer token required (except exempt paths)
+    if (!isExempt(method, urlPath) && !validateRequest(req, this.authToken)) {
+      this.eventLog.emit({ type: "guardrail", action: "auth_failed", path: urlPath, method });
+      sendJson(res, 401, { error: "Unauthorized. Include Authorization: Bearer <token> header." });
+      return;
+    }
+
+    // Rate limiting (exempt /health)
+    if (urlPath !== "/health") {
+      const category = getCategory(urlPath, method);
+      const limit = this.rateLimiter.check(category);
+      if (!limit.allowed) {
+        res.setHeader("Retry-After", String(Math.ceil(limit.retryAfterMs / 1000)));
+        sendJson(res, 429, { error: "Too many requests", retry_after_ms: limit.retryAfterMs });
+        return;
+      }
+    }
+
     const body = await readBody(req);
 
     try {
-      const urlPath = new URL(url, "http://localhost").pathname;
       if (urlPath.startsWith("/file/")) {
         const fileSuffix = urlPath.slice("/file/".length);
         if (req.method === "DELETE") {
@@ -215,14 +255,21 @@ export class HttpServer {
           serveDashboard(res);
           break;
 
-        case "/health":
-          sendJson(res, 200, {
+        case "/health": {
+          const qs = new URL(url, "http://localhost").searchParams;
+          const resp: Record<string, unknown> = {
             status: "ok",
             service: "godotforge-mcp",
             version: "0.1.0",
             port: this.port,
-          });
+          };
+          // Token bootstrap for web copilot (localhost only)
+          if (qs.get("include_token") === "1") {
+            resp.token = this.authToken;
+          }
+          sendJson(res, 200, resp);
           break;
+        }
 
         case "/chat":
           if (req.method !== "POST") { sendJson(res, 405, { error: "Method not allowed" }); break; }

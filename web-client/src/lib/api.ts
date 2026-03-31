@@ -9,9 +9,31 @@ import type {
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:6980";
 
+/** Auth token — bootstrapped from /health on first request. */
+let authToken: string | null = null;
+
+async function bootstrapToken(): Promise<string> {
+  if (authToken) return authToken;
+  try {
+    const res = await fetch(`${BASE_URL}/health?include_token=1`);
+    if (res.ok) {
+      const data = await res.json() as { token?: string };
+      if (data.token) {
+        authToken = data.token;
+        return authToken;
+      }
+    }
+  } catch { /* server not ready */ }
+  return "";
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = await bootstrapToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
   const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { "Content-Type": "application/json" },
+    headers,
     ...options,
   });
   if (!res.ok) {
@@ -53,7 +75,10 @@ export const api = {
     }),
 
   listFiles: async (path = ""): Promise<FileEntry[]> => {
-    const res = await fetch(`${BASE_URL}/files?path=${encodeURIComponent(path)}`);
+    const token = await bootstrapToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${BASE_URL}/files?path=${encodeURIComponent(path)}`, { headers });
     if (!res.ok) return [];
     return res.json() as Promise<FileEntry[]>;
   },
@@ -63,14 +88,20 @@ export const api = {
   },
 
   deleteFile: async (path: string): Promise<boolean> => {
-    const res = await fetch(`${BASE_URL}/file/${encodeURIComponent(path)}`, { method: "DELETE" });
+    const token = await bootstrapToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${BASE_URL}/file/${encodeURIComponent(path)}`, { method: "DELETE", headers });
     return res.ok;
   },
 
   saveFile: async (path: string, content: string): Promise<boolean> => {
+    const token = await bootstrapToken();
+    const headers: Record<string, string> = { "Content-Type": "text/plain" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`${BASE_URL}/file/${encodeURIComponent(path)}`, {
       method: "PUT",
-      headers: { "Content-Type": "text/plain" },
+      headers,
       body: content,
     });
     return res.ok;
@@ -81,9 +112,12 @@ export const api = {
     sessionId: string,
     onEvent: (event: StreamEvent) => void,
   ): Promise<void> => {
+    const token = await bootstrapToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`${BASE_URL}/chat/stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ message, session_id: sessionId }),
     });
 
