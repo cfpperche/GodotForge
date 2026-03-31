@@ -9,6 +9,7 @@ import { createServer as createMcpServer } from "./server.js";
 import { ChatEngine } from "./chat.js";
 import { ConfigManager } from "./config.js";
 import { BlenderBridge } from "./blender-bridge.js";
+import { TaskRegistry } from "./tasks.js";
 import { EventLog } from "./events.js";
 import { WebhookDispatcher } from "./webhooks.js";
 import { ConfirmationManager } from "./confirmations.js";
@@ -55,6 +56,7 @@ export class HttpServer {
   private authToken: string;
   private mcpTransports = new Map<string, StreamableHTTPServerTransport>();
   private blenderBridge: BlenderBridge;
+  private taskRegistry = new TaskRegistry();
 
   private static readonly CORS_ORIGINS = new Set([
     "http://localhost:5173",
@@ -309,6 +311,21 @@ export class HttpServer {
         return;
       }
 
+      if (urlPath.startsWith("/tasks/")) {
+        const taskId = urlPath.slice("/tasks/".length);
+        if (req.method === "GET") {
+          const task = this.taskRegistry.get(taskId);
+          if (task) sendJson(res, 200, task);
+          else sendJson(res, 404, { error: "Task not found" });
+        } else if (req.method === "DELETE") {
+          const cancelled = this.taskRegistry.cancel(taskId);
+          sendJson(res, 200, { cancelled, task_id: taskId });
+        } else {
+          sendJson(res, 405, { error: "Method not allowed" });
+        }
+        return;
+      }
+
       if (urlPath.startsWith("/file/")) {
         const fileSuffix = urlPath.slice("/file/".length);
         if (req.method === "DELETE") {
@@ -388,6 +405,15 @@ export class HttpServer {
             if (!sid) { sendJson(res, 400, { error: "Missing 'session_id'" }); break; }
             this.chatEngine.deleteSession(sid);
             sendJson(res, 200, { deleted: sid });
+          } else {
+            sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+        }
+
+        case "/tasks": {
+          if (req.method === "GET") {
+            sendJson(res, 200, this.taskRegistry.list());
           } else {
             sendJson(res, 405, { error: "Method not allowed" });
           }
