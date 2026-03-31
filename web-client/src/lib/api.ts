@@ -56,6 +56,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 export const api = {
   health: () => request<HealthResponse>("/health"),
   connections: () => request<Record<string, unknown>>("/connections"),
+  chatHistory: async (sessionId: string): Promise<Array<{ role: string; content: unknown }>> => {
+    try {
+      const data = await request<{ messages: Array<{ role: string; content: unknown }> }>(`/chat/history?session_id=${encodeURIComponent(sessionId)}`);
+      return data.messages || [];
+    } catch { return []; }
+  },
 
   chat: (message: string, sessionId: string) =>
     request<ChatResponse>("/chat", {

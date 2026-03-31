@@ -21,7 +21,7 @@ function getOrCreateSessionId(projectRoot: string): string {
   return id;
 }
 
-function loadMessages(projectRoot: string): ChatMessage[] {
+function loadMessagesLocal(projectRoot: string): ChatMessage[] {
   try {
     const stored = sessionStorage.getItem(MESSAGES_PREFIX + projectRoot);
     return stored ? JSON.parse(stored) : [];
@@ -29,17 +29,50 @@ function loadMessages(projectRoot: string): ChatMessage[] {
 }
 
 export function useChat(projectRoot: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessages(projectRoot));
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadMessagesLocal(projectRoot));
   const [loading, setLoading] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirmation | null>(null);
   const sessionId = useRef(getOrCreateSessionId(projectRoot));
   const projectRootRef = useRef(projectRoot);
 
+  // Load from server if local is empty (crash recovery / page refresh)
+  useEffect(() => {
+    const sid = sessionId.current;
+    const local = loadMessagesLocal(projectRoot);
+    if (local.length > 0) return; // already have local messages
+
+    api.chatHistory(sid).then((serverMessages) => {
+      if (serverMessages.length > 0) {
+        const mapped: ChatMessage[] = serverMessages.map((m: { role: string; content: unknown }, i: number) => {
+          let text: string;
+          if (typeof m.content === "string") {
+            text = m.content;
+          } else if (Array.isArray(m.content)) {
+            // Extract text from content blocks (assistant messages have [{type:"text",text:"..."}])
+            text = (m.content as Array<Record<string, unknown>>)
+              .filter((b) => b.type === "text" && typeof b.text === "string")
+              .map((b) => b.text as string)
+              .join("\n\n") || "[tool interaction]";
+          } else {
+            text = String(m.content);
+          }
+          return {
+            id: `server-${i}`,
+            role: m.role as "user" | "assistant",
+            content: text,
+            timestamp: Date.now() - (serverMessages.length - i) * 1000,
+          };
+        });
+        setMessages(mapped);
+      }
+    }).catch(() => { /* server not ready */ });
+  }, [projectRoot]);
+
   // Reload messages when project changes
   useEffect(() => {
     if (projectRoot === projectRootRef.current) return;
     projectRootRef.current = projectRoot;
-    setMessages(loadMessages(projectRoot));
+    setMessages(loadMessagesLocal(projectRoot));
     sessionId.current = getOrCreateSessionId(projectRoot);
     setLoading(false);
     setPendingConfirm(null);

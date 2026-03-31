@@ -26,6 +26,8 @@ export interface ApiModeContext {
   blenderBridge: BlenderBridge;
   configManager: ConfigManager;
   sessions: Map<string, Message[]>;
+  persistSession?: (sessionId: string) => void;
+  getOrLoadSession?: (sessionId: string) => Message[];
 }
 
 /** Summarize old messages, keep COMPACTION_KEEP_RECENT most recent. */
@@ -70,8 +72,10 @@ export async function chatViaApi(
     };
   }
 
+  // Load from DB if not in memory
   if (!ctx.sessions.has(sessionId)) {
-    ctx.sessions.set(sessionId, []);
+    const persisted = ctx.getOrLoadSession?.(sessionId) ?? [];
+    ctx.sessions.set(sessionId, persisted);
   }
   const messages = ctx.sessions.get(sessionId)!;
   messages.push({ role: "user", content: message });
@@ -143,6 +147,7 @@ export async function chatViaApi(
         compactSession(sessionId, messages);
       }
 
+      ctx.persistSession?.(sessionId);
       return { response: responseText, tool_calls: toolCalls };
     }
 
@@ -170,6 +175,7 @@ export async function chatViaApi(
     messages.push({ role: "user", content: toolResults });
   }
 
+  ctx.persistSession?.(sessionId);
   return {
     response: "Tool execution limit reached.",
     tool_calls: toolCalls,

@@ -27,6 +27,8 @@ export interface AgentSdkContext {
   configManager: ConfigManager;
   sessions: Map<string, Message[]>;
   sdkSessionIds: Map<string, string>;
+  persistSession?: (sessionId: string) => void;
+  getOrLoadSession?: (sessionId: string) => Message[];
 }
 
 function resolveMcpDistPath(root: string): string {
@@ -266,6 +268,13 @@ export async function streamViaAgentSdk(
       ctx.sdkSessionIds.set(sessionId, newSdkSessionId);
     }
     appendSessionLog(ctx.root, "assistant", response.slice(0, 500));
+
+    // Persist session for crash recovery
+    if (!ctx.sessions.has(sessionId)) ctx.sessions.set(sessionId, []);
+    const msgs = ctx.sessions.get(sessionId)!;
+    msgs.push({ role: "user", content: message });
+    msgs.push({ role: "assistant", content: response });
+    ctx.persistSession?.(sessionId);
   } catch (error) {
     onEvent({ type: "error", content: error instanceof Error ? error.message : String(error) });
   }
@@ -373,6 +382,13 @@ export async function chatViaAgentSdk(
     }
 
     appendSessionLog(ctx.root, "assistant", response.slice(0, 500));
+
+    // Persist session for crash recovery
+    if (!ctx.sessions.has(sessionId)) ctx.sessions.set(sessionId, []);
+    const msgs = ctx.sessions.get(sessionId)!;
+    msgs.push({ role: "user", content: message });
+    msgs.push({ role: "assistant", content: response });
+    ctx.persistSession?.(sessionId);
 
     return { response, tool_calls: toolCalls };
   } catch (error) {

@@ -297,6 +297,29 @@ export class HttpServer {
           break;
         }
 
+        case "/chat/history": {
+          const qs = new URL(url, "http://localhost").searchParams;
+          const sid = qs.get("session_id") || "default";
+          const messages = this.chatEngine.getSessionHistory(sid);
+          sendJson(res, 200, { session_id: sid, messages });
+          break;
+        }
+
+        case "/chat/sessions": {
+          if (req.method === "GET") {
+            sendJson(res, 200, this.chatEngine.listSessions());
+          } else if (req.method === "DELETE") {
+            const p = JSON.parse(body || "{}") as Record<string, unknown>;
+            const sid = p.session_id as string;
+            if (!sid) { sendJson(res, 400, { error: "Missing 'session_id'" }); break; }
+            this.chatEngine.deleteSession(sid);
+            sendJson(res, 200, { deleted: sid });
+          } else {
+            sendJson(res, 405, { error: "Method not allowed" });
+          }
+          break;
+        }
+
         case "/settings":
           if (req.method === "POST") {
             handleUpdateSettings(res, body, this.deps);

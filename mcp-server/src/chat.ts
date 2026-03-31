@@ -20,6 +20,7 @@ import {
   type AgentSdkContext,
 } from "./chat/agent-sdk.js";
 import { getBundledClaudeDir } from "./chat/studio.js";
+import { SessionStore } from "./chat/session-store.js";
 
 export type { StreamEvent, StreamCallback, ChatResponse } from "./chat/types.js";
 
@@ -45,9 +46,11 @@ export class ChatEngine {
   private bridge: GodotBridge;
   private blenderBridge: BlenderBridge;
   private configManager: ConfigManager;
+  private sessionStore: SessionStore;
 
   constructor(root: string, bridge: GodotBridge, blenderBridge?: BlenderBridge, repoRoot?: string) {
     this.root = root;
+    this.sessionStore = new SessionStore(root);
     this.repoRoot = repoRoot || root;
     this.bridge = bridge;
     this.blenderBridge = blenderBridge || new BlenderBridge(root);
@@ -95,17 +98,59 @@ export class ChatEngine {
   clearSession(sessionId: string): void {
     this.sessions.delete(sessionId);
     this.sdkSessionIds.delete(sessionId);
+    this.sessionStore.delete(sessionId);
   }
 
   getProjectRoot(): string {
     return this.root;
   }
 
+  /** Load session from memory or DB. Returns messages or empty array. */
+  getOrLoadSession(sessionId: string): Message[] {
+    if (this.sessions.has(sessionId)) return this.sessions.get(sessionId)!;
+    const persisted = this.sessionStore.load(sessionId);
+    if (persisted) {
+      this.sessions.set(sessionId, persisted);
+      return persisted;
+    }
+    return [];
+  }
+
+  /** Save session to DB (write-through). */
+  persistSession(sessionId: string): void {
+    const messages = this.sessions.get(sessionId);
+    if (messages && messages.length > 0) {
+      this.sessionStore.save(sessionId, messages);
+    }
+  }
+
+  /** Get session history for HTTP endpoint. */
+  getSessionHistory(sessionId: string): Message[] {
+    return this.getOrLoadSession(sessionId);
+  }
+
+  /** List all persisted sessions. */
+  listSessions(): Array<{ id: string; messageCount: number; updatedAt: string }> {
+    return this.sessionStore.list();
+  }
+
+  /** Delete a persisted session. */
+  deleteSession(sessionId: string): void {
+    this.sessions.delete(sessionId);
+    this.sdkSessionIds.delete(sessionId);
+    this.sessionStore.delete(sessionId);
+  }
+
   switchProject(newRoot: string): void {
+    // Persist current sessions before switching
+    for (const id of this.sessions.keys()) {
+      this.persistSession(id);
+    }
     this.configManager.addRecentProject(this.root);
     this.root = newRoot;
     this.sessions.clear();
     this.sdkSessionIds.clear();
+    this.sessionStore = new SessionStore(newRoot);
     this.configManager.addRecentProject(newRoot);
     this.onProjectSwitch?.(newRoot);
     console.error(`[GodotForge Chat] Switched project to: ${newRoot}`);
@@ -121,6 +166,8 @@ export class ChatEngine {
       configManager: this.configManager,
       sessions: this.sessions,
       sdkSessionIds: this.sdkSessionIds,
+      persistSession: (id: string) => this.persistSession(id),
+      getOrLoadSession: (id: string) => this.getOrLoadSession(id),
     };
   }
 
@@ -133,6 +180,8 @@ export class ChatEngine {
       blenderBridge: this.blenderBridge,
       configManager: this.configManager,
       sessions: this.sessions,
+      persistSession: (id: string) => this.persistSession(id),
+      getOrLoadSession: (id: string) => this.getOrLoadSession(id),
     };
   }
 
