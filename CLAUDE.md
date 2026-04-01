@@ -316,10 +316,12 @@ web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4
 
 1. **MCP server is the unified backend.** Plugin is thin UI + EditorInterface bridge.
 2. **Dual auth**: Claude CLI (Max/Pro plan, no API key) or API key (pay-per-token). Auto-detected.
-3. **Dual transport**: stdio (Claude Code/Cursor) + HTTP :6980 (native chat panel).
+3. **Dual transport**: stdio (Claude Code/Cursor) + Streamable HTTP :6980/mcp + custom HTTP :6980/* (app API).
 4. **Port discovery**: Plugin → `.godot/godotforge.port`, MCP → `.godotforge/mcp.port`.
 5. **Plugin auto-spawns MCP** in `--http-only` mode if not already running.
 6. **GDScript puro** — no C#, no GDExtensions in the plugin.
+7. **Skills use dynamic tags** (`{{TEXTURE_SERVICES}}`, `{{AI_3D_SERVICES}}`, etc.) — resolved at runtime from tool registry. Never hardcode service names in skills.
+8. **Always use `/forge-skill-creator`** to create or update skills. Never write SKILL.md files manually.
 
 ## Adding a New Editor Tool
 
