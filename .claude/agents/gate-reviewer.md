@@ -72,10 +72,11 @@ Bash: curl -s -H "Authorization: Bearer $(cat ~/.godotforge/http-token)" http://
 - For code: compare against gdscript-standards rule
 - For scenes: compare against scene-architecture rule
 
-### Step 4: Visual Check (if screenshots exist)
-- Read the image file
-- Describe what you see objectively
-- Compare against GDD §5 Art Direction
+### Step 4: Visual Check (use judgment on when needed)
+- **When to request screenshots:** Phases 5 (scenes built), 8 (polish applied), 9 (validation). NOT needed for phases 0-4 (no visual output yet).
+- **When screenshots exist:** Read the image file, describe what you see objectively, compare against GDD §5 Art Direction.
+- **When screenshots SHOULD exist but don't:** Flag as BLOCKER — the producing agent should have captured them via `take_screenshot` or `take_game_screenshot`.
+- **When no visual output expected:** Skip this step (phases 0-4, 6, 7). Don't ask for screenshots of text files or code.
 - Flag: missing elements, wrong colors, broken layout, z-fighting, missing lighting
 
 ### Step 5: Independence Check
