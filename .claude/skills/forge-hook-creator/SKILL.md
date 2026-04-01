@@ -1,12 +1,45 @@
 ---
 name: forge-hook-creator
-description: "Create or update Claude Code hooks — event-driven automation that fires on tool use, prompt submit, session lifecycle, and 22 other events. Supports command (shell), http, prompt (LLM), and agent handler types. Use when: user wants to automate validation, enforce policies, add context injection, log actions, block dangerous commands, format code on save, or integrate external services into Claude Code workflow."
+description: "Create, update, or audit Claude Code hooks. Use --audit flag to self-improve: fetch latest hook spec from web, audit all existing hooks against checklist, test scripts, and auto-fix. Supports 25 events, 4 handler types (command, http, prompt, agent)."
 user_invocable: true
 ---
 
-# /forge-hook-creator [description]
+# /forge-hook-creator [description or --audit]
 
-Create or update Claude Code hooks following the official specification (25 events, 4 handler types).
+Create, update, or audit Claude Code hooks following the official specification (25 events, 4 handler types).
+
+## Audit Mode (`--audit`)
+
+When invoked as `/forge-hook-creator --audit`, skip creation and run self-improvement:
+
+### Phase A: Self-Update
+1. WebFetch `https://code.claude.com/docs/en/hooks` — get latest event list
+2. WebSearch "claude code hooks new events 2026", "claude code hooks specification update"
+3. Compare findings against `references/events.md`
+4. If new events found: update events.md
+5. If patterns changed: update `references/anti-patterns.md` and `references/checklist.md`
+
+### Phase B: Audit All Hooks
+1. `Glob .claude/hooks/*` — list all hook scripts
+2. Read `.claude/settings.json` — get hook registrations
+3. Read `references/checklist.md`
+4. For each hook, check: Shebang? Pipefail? stdin handling? Quoted vars? $CLAUDE_PROJECT_DIR? Exit codes? Registered? Executable?
+5. Test each: `echo '{}' | .claude/hooks/script.sh; echo "Exit: $?"`
+6. Generate report:
+
+```
+## Hook Audit Report
+| Hook | Event | Shebang | Pipefail | stdin | Quoted | Registered | Test | Issues |
+|------|-------|---------|----------|-------|--------|------------|------|--------|
+```
+
+### Phase C: Auto-Fix (with user approval)
+1. Present report. Ask: "Fix all issues automatically?"
+2. If yes: fix scripts + update settings. If no: save to `docs/hook-audit-report.md`
+
+**Gate:** All hooks pass checklist + tests after fixes.
+
+---
 
 **CRITICAL:** Before writing any hook, read `references/events.md` for the full event list and `references/checklist.md` for quality validation. Never guess event names or input schemas — consult the reference.
 

@@ -1,10 +1,58 @@
 ---
 name: forge-skill-creator
-description: Guide for creating effective skills. This skill should be used when users want to create a new skill (or update an existing skill) that extends Claude's capabilities with specialized knowledge, workflows, or tool integrations.
-license: Complete terms in LICENSE.txt
+description: "Guide for creating or auditing skills. Use --audit flag to self-improve: research web for latest patterns, audit all existing skills against checklist, and auto-fix issues. Use without flag to create/update skills."
+user_invocable: true
 ---
 
 # Skill Creator
+
+## Audit Mode (`--audit`)
+
+When invoked as `/forge-skill-creator --audit`, skip creation and run self-improvement:
+
+### Phase A: Self-Update
+1. WebSearch "claude code skills best practices 2026", "TIDD-EC pattern updates", "skill authoring latest patterns"
+2. Compare findings against current skill creation process in this file
+3. If new patterns found: update this SKILL.md with improvements
+4. Update references/ files if checklist or anti-patterns are outdated
+
+### Phase B: Audit All Skills
+1. `Glob .claude/skills/*/SKILL.md` — list all skills
+2. Read each SKILL.md
+3. For each skill, check:
+   - Has frontmatter (name, description, user_invocable)?
+   - Has progress checklist?
+   - Has freedom annotations (🔒/🔓/🟢)?
+   - References triad exists (anti-patterns.md, checklist.md, examples.md)?
+   - Under 500 lines?
+   - Uses `{{TAGS}}` instead of hardcoded service names (skill-authoring rule)?
+   - Has eval scenarios?
+   - Has Do/Don't section?
+   - MANDATORY READS in each step?
+4. Generate report:
+
+```
+## Skill Audit Report
+
+| Skill | Lines | Frontmatter | Checklist | Freedom | Refs Triad | Tags | Evals | Issues |
+|-------|-------|-------------|-----------|---------|------------|------|-------|--------|
+
+### Issues Found
+1. skill-name: [description]
+
+### Self-Update Applied
+- [what was updated in this skill's own files]
+```
+
+### Phase C: Auto-Fix (with user approval)
+1. Present audit report
+2. Ask: "Fix all issues automatically?"
+3. If approved: rewrite non-compliant skills
+4. If declined: save report to `docs/skill-audit-report.md`
+
+**Gate:** All skills pass audit after fixes. Re-audit to confirm.
+
+---
 
 This skill provides guidance for creating effective skills.
 

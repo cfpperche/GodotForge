@@ -1,12 +1,42 @@
 ---
 name: forge-agent-creator
-description: "Create or update Claude Code agents (.claude/agents/*.md) following best practices from Anthropic, Manus, and industry research. Use when: user wants to create a new agent, update an existing agent, audit agent quality, or design a multi-agent team. Handles frontmatter, system prompt, workflow, guardrails, failure handling, and eval scenarios."
+description: "Create or update Claude Code agents (.claude/agents/*.md) following best practices from Anthropic, Manus, and industry research. Use when: user wants to create a new agent, update an existing agent, audit agent quality, or design a multi-agent team. Handles frontmatter, system prompt, workflow, guardrails, failure handling, and eval scenarios. Supports --audit flag to self-update references and audit all existing agents for compliance."
 user_invocable: true
 ---
 
-# /forge-agent-creator [description or existing agent name]
+# /forge-agent-creator [description or --audit]
 
-Create or update a Claude Code agent following research-backed best practices.
+Create, update, or audit Claude Code agents following research-backed best practices.
+
+## Audit Mode (`--audit`)
+
+When invoked as `/forge-agent-creator --audit`, skip creation and run self-improvement:
+
+### Phase A: Self-Update
+1. WebSearch "claude code agents best practices 2026", "AI agent design patterns latest", "anthropic subagent guidelines"
+2. Compare findings against `references/checklist.md` and `references/anti-patterns.md`
+3. If new patterns found: update reference files
+4. If this SKILL.md is outdated: update it
+
+### Phase B: Audit All Agents
+1. `Glob .claude/agents/*.md` — list all agents
+2. Read each agent file + read `references/checklist.md`
+3. For each agent, check: Identity? Scope? MANDATORY READS? Workflow? Output Format? Failure Protocol? HALT? Under 300 lines? Min tools?
+4. Generate report:
+
+```
+## Agent Audit Report
+| Agent | Lines | Scope | Reads | Halt | Failure | Issues |
+|-------|-------|-------|-------|------|---------|--------|
+```
+
+### Phase C: Auto-Fix (with user approval)
+1. Present report. Ask: "Fix all issues automatically?"
+2. If yes: rewrite non-compliant agents. If no: save to `docs/agent-audit-report.md`
+
+**Gate:** All agents pass checklist after fixes.
+
+---
 
 **CRITICAL: No shortcuts.** Before writing any agent, read the existing agents in `.claude/agents/` to understand project conventions, and read the checklist in `references/checklist.md`.
 
