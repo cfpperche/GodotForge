@@ -8,6 +8,8 @@ user_invocable: true
 
 Full game creation pipeline — 10 phases with gates. Every phase produces artifacts saved to disk. No phase proceeds without passing its gate.
 
+**CRITICAL: No shortcuts.** Every phase that references a rule, template, or Godot class MUST read the actual file/doc before producing content. Never rely on training data when project references exist.
+
 ## Progress Checklist
 
 Copy and track:
@@ -44,46 +46,49 @@ Create or select the Godot project.
    ```
 3. Save `docs/project-brief.md` — one-paragraph summary of what we're building
 
-**Gate:** `get_project_context` returns valid project. `list_files` confirms directory structure. Active project points here.
+**Gate:** `list_files` confirms directory structure. Active project points here.
 
 ---
 
-## Phase 1: Game Design Document — 🔓 Medium freedom: follow 8-section standard, content varies by game
+## Phase 1: Game Design Document — 🔓 Medium freedom: follow template structure, content varies by game
 
-Generate GDD following the `game-design-docs` rule (8 mandatory sections).
+### MANDATORY READS (do these BEFORE writing anything):
+1. `read_file .claude/templates/game-design-document.md` — the GDD template with all sections
+2. `read_file .claude/rules/game-design-docs.md` — the 8-section standard per gameplay system
+3. `search_docs` for every Godot class the game will use (CharacterBody3D, NavigationAgent3D, Area3D, Camera3D, etc.) — verify class names, properties, and methods are correct for current Godot version
 
+### Then write:
 1. Parse the game description — identify: genre, 2D vs 3D, core mechanic, theme, art style
-2. If description is vague, **ask clarifying questions** before writing (see references/examples.md counter-example)
-3. Write `docs/gdd.md` via `create_script` with:
-   - Overview + vision statement
-   - Player Fantasy (MDA aesthetics)
-   - Detailed Rules (precise mechanics, not hand-waving)
-   - Formulas (damage, speed, gravity — with ranges)
-   - Edge Cases (what happens when X?)
-   - Dependencies (system interactions)
-   - Tuning Knobs (all @export values with safe ranges)
-   - Acceptance Criteria (testable conditions for Phase 9)
-4. Include: input action list, collision layer assignments, game state diagram
+2. If description is vague, **ask clarifying questions** before writing (see references/examples.md)
+3. Write `docs/gdd.md` following the **template structure** (10 sections from template, with 8-section standard applied to each gameplay system):
+   - §1 Overview (vision, pillars)
+   - §2 Gameplay (core loop, mechanics with 8 subsections each, progression, game states)
+   - §3 World & Narrative (setting, characters)
+   - §4 Level Design (level list, flow)
+   - §5 Art Direction (style, camera, UI, VFX)
+   - §6 Audio Design (music, SFX, ambience, voice)
+   - §7 UI/UX (screen flow, HUD elements, input mapping)
+   - §8 Technical Requirements (engine version, FPS target, platforms)
+   - §9 Monetization (if applicable, or "N/A — demo")
+   - §10 Appendices (links to art bible, sound bible if created)
+4. Each gameplay system (movement, combat, puzzle, AI) MUST have the 8 subsections from the rule
 
-**Gate:** `read_file` confirms `docs/gdd.md` exists with all 8 sections. Present summary to user. **Do NOT proceed without user approval.**
+**Gate:** `read_file docs/gdd.md` confirms file exists with all 10 sections. Each gameplay system has 8 subsections. Present summary to user. **Do NOT proceed without user approval.**
 
 ---
 
 ## Phase 2: Asset Manifest — 🔓 Medium freedom: format is fixed, content varies by game
 
-Derive every asset the game needs from the GDD.
+### MANDATORY READS:
+1. `get_service_status` — check which services have API keys configured
+2. `read_file docs/gdd.md` sections §5 Art Direction and §6 Audio Design — derive asset needs from these
 
-1. Write `docs/asset-manifest.md` via `create_script` with this table:
+### Then write:
+1. Write `docs/asset-manifest.md` with this table:
 
-```markdown
 | Asset | Type | Source | Priority | Status |
 |-------|------|--------|----------|--------|
-| stone_floor | PBR texture | ambientCG | Must | pending |
-| player_model | 3D model | Blender | Must | pending |
-| sword_swing | SFX | Freesound | Must | pending |
-| pickup_coin | SFX | jsfxr | Must | pending |
-| dungeon_theme | Music | Suno | Should | pending |
-```
+| (name) | PBR texture / 3D model / SFX / Music / Voice / Sprite | (specific service) | Must / Should / Nice | pending |
 
 2. Source selection (resolved from tool registry at runtime):
    - **PBR textures:** {{TEXTURE_SERVICES}}
@@ -94,143 +99,153 @@ Derive every asset the game needs from the GDD.
    - **2D sprites/images:** {{IMAGE_GEN_SERVICES}}
    - **Addons:** Godot Asset Library (`assets.search_godot_library`)
 
-3. Check `get_service_status` — if a source service has no API key, fallback to free alternatives. Mark skipped items as "nice-to-have, skipped (no key)"
+3. If a source service has no API key (from step 1), fallback to free alternatives or mark as "skipped (no key)"
 
-**Gate:** `read_file` confirms `docs/asset-manifest.md` exists. All "Must" assets have a source. Present manifest to user. **Do NOT proceed without user approval.**
+**Gate:** `read_file docs/asset-manifest.md` confirms file exists. All "Must" assets have a valid source (not a service without API key). Present manifest to user. **Do NOT proceed without user approval.**
 
 ---
 
 ## Phase 3: Engine Setup — 🔒 Low freedom: exact settings required
 
-Configure Godot project settings from GDD.
+### MANDATORY READS:
+1. `read_file docs/gdd.md` §7 UI/UX → input mapping table
+2. `read_file docs/gdd.md` §8 Technical Requirements → window size, FPS target
+3. `read_file .claude/rules/gameplay-code.md` — input action pattern
+4. `read_file .claude/rules/gdscript-standards.md` — file structure standard
 
-1. `set_project_setting` — window size, stretch mode, main scene path
-2. `set_project_setting` — register all input actions from GDD (move_left, move_right, jump, attack, interact, pause)
-3. Document collision layers (from GDD): `set_project_setting` for layer names
-4. Create autoloads via `create_script`:
-   - `scripts/game_manager.gd` — game state, score, lives (@export values from GDD)
-   - `scripts/event_bus.gd` — signal hub (player_hit, item_collected, enemy_died, level_completed)
+### Then configure:
+1. `set_project_setting` — window size, stretch mode from GDD §8
+2. `set_project_setting` — register ALL input actions from GDD §7 input mapping table
+3. `set_project_setting` — collision layer names from GDD
+4. Create autoloads via `create_script` following gdscript-standards file structure:
+   - `scripts/game_manager.gd` — game state, score, @export values from GDD tuning knobs
+   - `scripts/event_bus.gd` — signal hub for all gameplay events
    - `scripts/audio_manager.gd` — play SFX/music by name
 
-**Gate:** `get_project_context` shows autoloads registered. `read_script` confirms game_manager.gd has @export values matching GDD tuning knobs.
+**Gate:** `read_script scripts/game_manager.gd` confirms @export values match GDD tuning knobs. Input actions from GDD §7 all registered.
 
 ---
 
 ## Phase 4: Asset Acquisition — 🟢 High freedom: order and tools vary by manifest
 
-Execute the asset manifest. Update status column as each asset is acquired.
+### MANDATORY READS:
+1. `read_file docs/asset-manifest.md` — the manifest drives this entire phase
+2. `get_service_status` — confirm which services are available
+
+### Then execute manifest line by line:
 
 ### 4a. Textures & Materials
-- Search and download from free services first (ambientCG, Poly Haven)
-- Generate custom textures if not found (Stability AI, Hugging Face)
-- For each downloaded asset, update manifest status → "acquired"
+- Search free services first (ambientCG, Poly Haven)
+- Generate if not found (Stability AI, Hugging Face)
+- Update manifest status → "acquired" after each download
 
 ### 4b. 3D Models (if 3D game)
-- **Blender pipeline:** `blender.create_mesh` → materials → UV → `pipeline.blender_to_godot`
-- **Animated:** add armature, bones, animation → `pipeline.blender_to_godot_animated`
-- **AI generation** (if keys available): Tripo, Meshy, fal.ai Trellis
+- **Blender pipeline:** create_mesh → materials → UV → pipeline.blender_to_godot
+- **Animated:** armature → bones → animation → pipeline.blender_to_godot_animated
+- **AI generation** (if keys): Tripo, Meshy, fal.ai Trellis
 - **Download:** Sketchfab search + download
 
 ### 4c. 2D Assets (if 2D game)
-- OpenGameArt search, Hugging Face SDXL generate, generic download
+- OpenGameArt search, Hugging Face SDXL generate
 
 ### 4d. Sound Effects
-- `assets.generate_sfx` for retro SFX (instant, free) — jump, pickup, hit, explosion
+- `assets.generate_sfx` for retro SFX (instant, free)
 - `assets.search_freesound` + `assets.preview_freesound` for realistic SFX
 
 ### 4e. Music (if keys available)
-- `ai.suno_generate` — specify genre, mood, tempo from GDD art direction
+- `ai.suno_generate` — genre/mood/tempo from GDD §6
 
 ### 4f. Voice (if keys available)
-- `ai.elevenlabs_tts` — NPC dialogue lines from GDD
+- `ai.elevenlabs_tts` — dialogue lines from GDD §3
 
 ### 4g. Update manifest
 - Rewrite `docs/asset-manifest.md` with all statuses updated
 
-**Gate:** `assets.list_local` confirms all "Must" assets present. `read_file` on manifest shows no "Must" items with status "pending".
+**Gate:** `assets.list_local` confirms all "Must" assets present. `read_file docs/asset-manifest.md` shows no "Must" items with status "pending".
 
 ---
 
 ## Phase 5: Scene Building — 🔓 Medium freedom: hierarchy patterns are standard, layout is creative
 
-Build the game world from acquired assets.
+### MANDATORY READS:
+1. `read_file .claude/rules/scene-architecture.md` — hierarchy rules, node.owner, composition
+2. `search_docs CharacterBody3D` (3D) or `search_docs CharacterBody2D` (2D) — verify node setup
+3. `search_docs NavigationAgent3D` (if enemies with pathfinding)
+4. `read_file docs/gdd.md` §4 Level Design — layout reference
+
+### Then build:
 
 ### 5a. Main Scene
 - `create_scene` — root: Node3D (3D) or Node2D (2D)
-- Camera: Camera3D with follow script (3D) or Camera2D with smoothing (2D)
-- Lighting: DirectionalLight3D + WorldEnvironment (3D) or CanvasModulate (2D)
+- Camera, lighting, environment per GDD §5 Art Direction
 
 ### 5b. Level Layout
-- `add_node` + `set_property` — floors, walls, obstacles, spawn points
-- `add_scene_instance` — imported models/scenes
-- `add_resource` — collision shapes (BoxShape3D, CapsuleShape3D)
-- Follow `scene-architecture` rule: shallow hierarchy (max 4-5 levels), node.owner = root
+- `add_node` + `set_property` — floors, walls, obstacles
+- `add_scene_instance` — imported models
+- `add_resource` — collision shapes
+- Hierarchy: max 4-5 levels deep, node.owner = root always
 
 ### 5c. Player
 - CharacterBody3D/2D + CollisionShape + Mesh/Sprite child
-- Camera as child (3D) or follow target (2D)
 
 ### 5d. Enemies/NPCs (separate scenes)
-- NavigationAgent for pathfinding
-- Area3D/2D for detection range
-- Follow `ai-code` rule: perception → decision → action separation
+- NavigationAgent for pathfinding, Area3D for detection
 
 ### 5e. HUD
-- CanvasLayer → Control hierarchy
-- Labels for score/health, follow `ui-code` rule
+- CanvasLayer → Control hierarchy per GDD §7
 
-**Gate:** `get_scene_tree` confirms hierarchy. `take_screenshot` for visual check. Scene must have: root, camera, light, player, at least one level element.
+**Gate:** `get_scene_tree` confirms hierarchy matches scene-architecture rule. `take_screenshot` for visual check.
 
 ---
 
 ## Phase 6: Scripting — 🔓 Medium freedom: patterns are standard, logic varies by game
 
-Write gameplay code. Follow `gdscript-standards` and `gameplay-code` rules strictly.
+### MANDATORY READS:
+1. `read_file .claude/rules/gdscript-standards.md` — file structure, naming, typing
+2. `read_file .claude/rules/gameplay-code.md` — @export, delta, input, state machines
+3. `read_file .claude/rules/ai-code.md` — NPC behavior patterns (if enemies exist)
+4. `search_docs` for any Godot API used in scripts (Input, NavigationAgent3D, Area3D, etc.)
+5. `read_file docs/gdd.md` §2 Gameplay — mechanics with formulas and tuning knobs
 
-1. `create_script` for each system (one script per responsibility):
-   - `player.gd` — movement, input (@export speed, jump_force, gravity)
-   - `enemy.gd` — AI state machine (IDLE → PATROL → CHASE → ATTACK), NavigationAgent
-   - `game_manager.gd` — already created, add state machine (MENU → PLAYING → PAUSED → GAME_OVER)
-   - `pickup.gd` — Area.body_entered → emit signal → queue_free
-   - `hud.gd` — connect to EventBus signals, update labels
+### Then write:
+1. `create_script` per system (one script per responsibility):
+   - player.gd, enemy.gd, game_manager.gd, pickup.gd, hud.gd
+2. ALL values via @export matching GDD tuning knobs — zero hardcoded numbers
+3. `delta` for all time-dependent logic
+4. `Input.is_action_pressed()` with named actions from GDD §7
+5. Static typing everywhere
 
-2. Rules enforced:
-   - ALL values via `@export` — zero hardcoded numbers
-   - `delta` for all time-dependent logic
-   - Input via `Input.is_action_pressed()` — never raw keycodes
-   - Signals for upward communication
-   - Static typing everywhere
-
-**Gate:** `run_scene` succeeds (no crash). `get_editor_errors` shows zero errors. `get_game_status` confirms scene is running.
+**Gate:** `run_scene` succeeds. `get_editor_errors` shows zero errors. `get_game_status` confirms running.
 
 ---
 
 ## Phase 7: Audio Integration — 🔒 Low freedom: wiring pattern is standard
 
-Wire all audio to gameplay events.
+### MANDATORY READS:
+1. `read_file docs/gdd.md` §6 Audio Design — what sounds where
+2. `read_file docs/asset-manifest.md` — which audio files were acquired and their paths
+3. `assets.list_local` type=audio — confirm files exist on disk
 
-1. Add AudioStreamPlayer nodes (BGM: non-positional, SFX: positional 2D/3D)
-2. Load audio files via `add_resource` (AudioStreamMP3, AudioStreamWAV, AudioStreamOGG)
-3. Wire via signals in audio_manager.gd:
-   - EventBus.player_jumped → play jump SFX
-   - EventBus.item_collected → play pickup SFX
-   - EventBus.enemy_died → play death SFX
-   - Level start → play BGM
-4. Audio bus layout: Master → Music (volume control), Master → SFX
+### Then wire:
+1. Add AudioStreamPlayer nodes (BGM non-positional, SFX positional)
+2. Load audio files via `add_resource`
+3. Wire to EventBus signals in audio_manager.gd
+4. Audio bus: Master → Music, Master → SFX
 
-**Gate:** `run_scene` — audio plays on correct events. No orphan AudioStreamPlayer nodes.
+**Gate:** `run_scene` — audio plays on correct events.
 
 ---
 
 ## Phase 8: Polish — 🟢 High freedom: creative decisions
 
-Delegate to `/game-polish` skill, then add:
+### MANDATORY READS:
+1. `read_file docs/gdd.md` §5 Art Direction — VFX style reference
+2. Read `/game-polish` skill before delegating
 
-1. Camera polish: lerp follow, dead zone, screen shake on impact
-2. UI animations: score pop (tween scale), health bar (tween value), fade transitions
-3. Particles: death, collection, movement trail
-4. Post-processing (3D): bloom, ambient occlusion, tonemap
-5. Post-processing (2D): CanvasModulate for mood
+### Then apply:
+1. Delegate to `/game-polish`
+2. Camera polish, UI animations, particles
+3. Post-processing per art style (bloom, tonemap for 3D; CanvasModulate for 2D)
 
 **Gate:** `take_game_screenshot` during gameplay. Visual quality acceptable.
 
@@ -238,49 +253,76 @@ Delegate to `/game-polish` skill, then add:
 
 ## Phase 9: Validation — 🔒 Low freedom: exact verification steps
 
-Run the acceptance criteria from GDD Phase 1.
+### MANDATORY READS:
+1. `read_file docs/gdd.md` §2.2 each system's Acceptance Criteria
+2. `read_file` references/checklist.md — self-review all phases
 
+### Then verify:
 1. `run_scene` — game starts
-2. `get_game_status` — confirms running
-3. `simulate_input_sequence` — automated playtest (move around, interact, attack)
-4. `take_game_screenshot` — capture gameplay state
-5. `get_runtime_state` — verify positions, scores, visibility
-6. `get_editor_errors` — zero errors/warnings
-7. `stop_scene`
-8. Check each acceptance criterion from `docs/gdd.md`
-9. Write `docs/validation-report.md` — what passed, what failed, known issues
+2. `simulate_input_sequence` — automated playtest
+3. `take_game_screenshot` — capture gameplay
+4. `get_runtime_state` — verify state
+5. `get_editor_errors` — zero errors
+6. `stop_scene`
+7. Check each acceptance criterion from GDD
+8. Write `docs/validation-report.md`
 
 **Gate:** All "Must" acceptance criteria pass. Game starts, core loop works, no crashes.
+
+---
+
+## Do
+
+- READ every referenced file BEFORE producing content
+- SAVE every artifact to disk (docs/, scenes/, scripts/, assets/)
+- VERIFY via tool calls (get_scene_tree, read_file, assets.list_local)
+- ASK user when description is vague
+- USE search_docs for every Godot class before writing code that uses it
+- UPDATE asset manifest status after each acquisition
+
+## Don't
+
+- DON'T skip MANDATORY READS — ever
+- DON'T use training data for Godot API — use search_docs
+- DON'T hardcode gameplay values — use @export
+- DON'T proceed past a gate that fails
+- DON'T write code without reading gdscript-standards first
+- DON'T assume asset services are available — check get_service_status
+- DON'T write GDD from memory — read the template first
 
 ---
 
 ## Output
 
 Final report:
-1. **Game summary** — what was built, how to play (controls + objective)
-2. **Assets used** — count by source (ambientCG: 3, Freesound: 2, jsfxr: 5, Blender: 4...)
-3. **Documents created** — docs/gdd.md, docs/asset-manifest.md, docs/validation-report.md
-4. **Tool calls** — count by category
-5. **Known issues** — anything incomplete or needing manual fix
-6. **Next steps** — suggested improvements (more levels, better AI, multiplayer...)
+1. **Game summary** — what was built, how to play
+2. **Assets used** — count by source
+3. **Documents created** — list all docs/ files
+4. **References consulted** — list all rules/templates/docs read
+5. **Known issues** — anything incomplete
+6. **Next steps** — suggested improvements
 
 ---
 
 ## References
 
-- Anti-patterns: see `references/anti-patterns.md`
-- Self-review checklist: see `references/checklist.md`
-- Input/output examples: see `references/examples.md`
+- Anti-patterns: `references/anti-patterns.md`
+- Self-review checklist: `references/checklist.md`
+- Input/output examples: `references/examples.md`
 
 ## Rules Referenced
 
-- `game-design-docs` — 8-section GDD standard
+- `game-design-docs` — 8-section standard per gameplay system
 - `gdscript-standards` — code style, naming, typing
 - `gameplay-code` — @export values, delta time, input actions
 - `scene-architecture` — hierarchy, composition, node.owner
 - `ai-code` — NPC behavior, budget, LOD
 - `ui-code` — UI architecture, accessibility
 - `skill-authoring` — dynamic {{TAGS}} for service references
+
+## Templates Referenced
+
+- `game-design-document.md` — 10-section GDD template (the actual document structure)
 
 ## Skills Referenced
 

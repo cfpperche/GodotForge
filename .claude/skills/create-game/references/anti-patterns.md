@@ -14,3 +14,6 @@
 | Polish before validation | Run the game (Phase 9) before polish (Phase 8) — fix crashes first |
 | Save documents as chat output only | Write to real files: docs/gdd.md, docs/asset-manifest.md |
 | Mix 2D and 3D nodes incorrectly | 3D game = Node3D tree, 2D game = Node2D tree — never mix root types |
+| Write GDD/code from training data | ALWAYS read the template/rule/doc FIRST — `read_file .claude/templates/game-design-document.md` before writing GDD |
+| Assume Godot API from memory | ALWAYS `search_docs ClassName` before using any Godot class — APIs change between versions |
+| Skip MANDATORY READS section | Every phase lists required reads — these are NOT optional, they are prerequisites |
