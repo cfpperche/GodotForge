@@ -2,7 +2,7 @@
 
 ## What is GodotForge
 
-GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI generators) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 154 tools, memory, and context.
+GodotForge is an **AI game development hub** that orchestrates Godot Engine, Blender, and external services (assets, AI generators) through a unified MCP server. 4 interfaces (Claude Code, Godot chat, Blender chat, Web copilot) share the same 152 tools, memory, and context.
 
 ## Environment
 
@@ -23,305 +23,153 @@ Godot Chat Panel ──► MCP (HTTP :6980)──┤──► Godot Plugin HTTP 
 Blender Chat Panel ──► MCP (HTTP :6980)──┤──► Blender Addon TCP :8400
                                          │
                                          ├── Claude API / Claude CLI (LLM)
-                                         ├── Docs Engine (SQLite FTS5, 912 classes)
+                                         ├── Docs Engine (SQLite FTS5, 912 Godot + 3800 Blender classes)
                                          ├── Memory Engine (FTS5 + markdown, 50KB cap)
                                          ├── Context Builder (8K token budget)
-                                         ├── ConfigManager (env vars + config.json)
-                                         ├── Asset Services (Poly Haven, Sketchfab, OpenGameArt)
+                                         ├── ConfigManager (env vars + config.json, AES-256-GCM encrypted)
+                                         ├── Asset Services (Poly Haven, Sketchfab, OpenGameArt, ambientCG, Freesound, Godot Library, jsfxr)
                                          ├── AI Generators (10 services + fal.ai gateway, 55 tools)
+                                         ├── TaskRegistry (async AI operations, exponential backoff)
+                                         ├── SessionStore (SQLite, per-project persistence)
                                          ├── Pipeline (Blender → Godot asset flow)
                                          ├── File Browser (tree + preview + CodeMirror editor)
+                                         ├── Security (Bearer auth, rate limiting, CORS)
                                          └── Web Dashboard (/dashboard)
 ```
 
-- **MCP Server** (`mcp-server/`): Unified backend. Dual transport: stdio (MCP clients) + HTTP (native chat). Handles LLM, docs, memory, context, tool routing. Web dashboard at `/dashboard`.
-- **Plugin** (`addons/godotforge/`): Thin layer. UI (chat panel, settings) + EditorInterface bridge (24 editor tools on localhost:6970). Auto-spawns MCP server.
-- **Blender Addon** (`blender-addon/godotforge/`): Python addon for Blender. TCP socket server :8400 + sidebar chat panel (View3D > GodotForge).
-- **Web Copilot** (`web-client/`): React 19 + Tailwind v4 + shadcn/ui. Chat + settings sidebar + API key management.
-- **Port files**: Plugin writes `.godot/godotforge.port`, MCP writes `.godotforge/mcp.port`
+- **MCP Server** (`mcp-server/`): Unified backend. Dual transport: stdio + Streamable HTTP at `/mcp`. Custom HTTP API at `:6980/*`. Web dashboard at `/dashboard`.
+- **Plugin** (`addons/godotforge/`): Thin layer. UI (chat panel, settings) + EditorInterface bridge (28 editor tools on localhost:6970). Auto-spawns MCP server.
+- **Blender Addon** (`blender-addon/godotforge/`): Python addon. TCP socket :8400 + sidebar chat panel (View3D > GodotForge).
+- **Web Copilot** (`web-client/`): React 19 + Tailwind v4 + shadcn/ui. Chat + settings + API keys.
+- **Port files**: Plugin → `.godot/godotforge.port`, MCP → `.godotforge/mcp.port`
 
 ## Repository Structure
 
 ```
 addons/godotforge/
   plugin.cfg / plugin.gd          → Editor plugin entry + MCP auto-spawn
-  api/
-    http_server.gd                → TCPServer bridge (localhost:6970, 24 editor tools)
+  api/http_server.gd              → TCPServer bridge (localhost:6970, 28 editor tools)
   tools/
-    tool_registry.gd              → Dispatches to 5 handler classes (24 tools)
-    tool_base.gd                  → Base class with EditorInterface helpers
-    scene_tools.gd                → create_scene, get_scene_tree, open_scene
-    node_tools.gd                 → add/remove/rename/duplicate/move_node, set_property
-    script_tools.gd               → create/read/edit_script
-    runtime_tools.gd              → run/stop_scene, get_game_status, take_screenshot
-    editor_tools.gd               → execute_editor_script, add_resource, add_scene_instance,
-                                     save_scene, get_node_properties, connect_signal,
-                                     set_project_setting, get_editor_errors
+    tool_registry.gd              → Dispatches to 5 handler classes
+    tool_base.gd / scene_tools.gd / node_tools.gd / script_tools.gd
+    runtime_tools.gd / editor_tools.gd
   ui/
-    chat_panel.gd                 → Thin HTTP client → MCP /chat endpoint
-    settings_panel.gd             → Auth mode, model, tokens → MCP /settings
-    message_bubble.gd             → BBCode message rendering
+    chat_panel.gd / settings_panel.gd / message_bubble.gd
 
 mcp-server/src/
-  index.ts                        → Dual transport: stdio + HTTP, --http-only flag
-  server.ts                       → MCP server (154 tools via @modelcontextprotocol/sdk)
+  index.ts                        → Dual transport: stdio + Streamable HTTP, --http-only flag
+  server.ts                       → MCP server (152 tools via @modelcontextprotocol/sdk)
   chat.ts                         → LLM conversation engine (API key + Claude CLI modes)
-  http.ts                         → HTTP server on :6980 (/chat, /settings, /context, /files)
-  tool-handlers.ts                → Shared tool execution logic (editor + blender + local + AI)
+  http.ts                         → HTTP server :6980 (/chat, /settings, /context, /files, /mcp, /tasks)
+  tool-handlers.ts                → Shared tool execution (editor + blender + local + AI)
   bridge.ts                       → HTTP client → Godot plugin :6970
-  blender-bridge.ts               → TCP socket client → Blender addon :8400
-  blender-tools.ts                → Blender tool definitions (39 tools)
+  blender-bridge.ts / blender-tools.ts → Blender integration (39 tools)
   pipeline.ts                     → Blender → Godot asset pipeline (4 tools)
-  config.ts                       → API key manager (env + config.json, 14 services)
+  config.ts                       → API key manager (env + config.json, AES-256-GCM encryption)
+  tasks.ts                        → Async task registry (submit/get/cancel/list, exponential backoff)
   tools.ts                        → Tool metadata constants
-  assets/                         → Asset service clients
-    polyhaven.ts / sketchfab.ts / opengameart.ts / handlers.ts
-  ai/                             → AI generator clients (10 services + fal.ai gateway)
-    meshy.ts / meshy-handlers.ts           → 8 tools (text/image-to-3D, refine, remesh, retexture)
-    stability.ts / stability-handlers.ts   → 13 tools (SD3, Ultra, Core, inpaint, outpaint, etc.)
-    elevenlabs.ts / elevenlabs-handlers.ts → 4 tools (TTS, SFX, voices, models)
-    tripo.ts / tripo-handlers.ts           → 7 tools (text/image-to-3D, refine, animate, stylize)
-    suno.ts / suno-handlers.ts             → 4 tools (music gen, lyrics, check, credits)
-    openai-dalle.ts / openai-dalle-handlers.ts → 3 tools (generate, edit, variation)
-    blockade.ts / blockade-handlers.ts     → 3 tools (skybox, styles, check)
-    rodin.ts / rodin-handlers.ts           → 2 tools (generate, check)
-    huggingface.ts / huggingface-handlers.ts → 1 tool (text-to-image)
-    fal.ts / fal-handlers.ts               → 12 tools (FLUX, SD3.5, SDXL, Rodin, Tripo, Trellis, Hunyuan3D, Stable Audio, Kokoro TTS, ESRGAN, BiRefNet)
-    poll.ts                                → Shared polling utility
   http/
+    auth.ts                       → Bearer token auth (timing-safe, ~/.godotforge/http-token)
+    rate-limiter.ts               → Sliding window rate limiting per category
     files.ts                      → File browser API + WebSocket live updates
-  tools/ai/                       → Tool registration (zod schemas)
-    meshy.ts / stability.ts / other.ts / fal.ts
+  chat/
+    api-mode.ts                   → API key conversation mode
+    agent-sdk.ts                  → Agent SDK conversation mode
+    session-store.ts              → SQLite session persistence (WAL, 7-day TTL, per-project)
+  assets/
+    polyhaven.ts / sketchfab.ts / opengameart.ts / handlers.ts
+    ambientcg.ts / godot-library.ts / freesound.ts / sfxr.ts
+  ai/                             → AI generator clients (10 services + fal.ai gateway)
+    meshy.ts / stability.ts / elevenlabs.ts / tripo.ts / suno.ts
+    openai-dalle.ts / blockade.ts / rodin.ts / huggingface.ts / fal.ts
+    *-handlers.ts                 → Handler functions per service
+    poll.ts                       → Shared polling (exponential backoff, jitter, cancellation)
   docs/                           → Docs engine (SQLite FTS5, 912 Godot + 3800 Blender classes)
-    types.ts / db.ts / parser.ts / downloader.ts / indexer.ts / search.ts / blender-docs.ts
-  studio/                         → .claude/ integration (skills router, agents context, templates)
-    skills.ts / agents.ts / templates.ts
-  memory/                         → Memory engine (FTS5 + markdown)
-    store.ts / search.ts
-  context/                        → Context builder (token-budgeted)
-    builder.ts / scanner.ts
+  studio/                         → .claude/ integration (skills, agents, templates routing)
+  memory/                         → Memory engine (FTS5 + markdown, 50KB cap)
+  context/                        → Context builder (token-budgeted, auto-RAG)
 
 blender-addon/godotforge/
-  __init__.py                     → Blender addon entry point (register/unregister)
-  server.py                       → TCP socket server (:8400, JSON protocol)
-  handlers.py                     → 39 tool handlers (modeling, materials, animation, render, export)
-  panel.py                        → Sidebar chat panel (View3D > GodotForge)
+  __init__.py / server.py / handlers.py / panel.py
 
-web-client/                       → Web Copilot (React 19 + Vite + Tailwind v4 + shadcn/ui)
-  src/app.tsx                     → Two-column layout: chat + sidebar
-  src/hooks/                      → use-chat, use-health, use-settings, use-keys, use-files
-  src/components/chat/            → chat-panel, message, tool-call, chat-input
-  src/components/sidebar/         → sidebar, connection-status, api-keys (7 categories, 13 services)
-  src/components/files/           → file-browser, file-tree, file-preview, code-editor (CodeMirror 6)
-  src/lib/api.ts                  → HTTP client to MCP :6980
+web-client/src/
+  app.tsx / hooks/ / components/ / lib/api.ts
 ```
 
-## 146 Tools
+## 152 Tools
 
-### Editor Tools (28 — run in plugin via EditorInterface)
-| Tool | Description |
-|------|-------------|
-| `create_scene` | Create .tscn with root node |
-| `open_scene` | Open scene in editor |
-| `get_scene_tree` | Node hierarchy of current scene |
-| `add_node` | Add child node |
-| `remove_node` | Remove node |
-| `rename_node` | Rename node |
-| `duplicate_node` | Deep-copy node + children |
-| `move_node` | Reparent node |
-| `set_property` | Set node property (Vector2, Color, etc.) |
-| `create_script` | Create .gd file, optionally attach |
-| `read_script` | Read script content |
-| `edit_script` | Full rewrite or find-replace |
-| `run_scene` | Play scene |
-| `stop_scene` | Stop running scene |
-| `get_game_status` | Check if scene is playing |
-| `take_screenshot` | Capture editor viewport |
-| `execute_editor_script` | Run arbitrary GDScript in editor |
-| `add_resource` | Create + assign Resources (shapes, textures, materials) |
-| `add_scene_instance` | Instance .tscn as child node |
-| `save_scene` | Save current scene to disk |
-| `get_node_properties` | Read all properties of a node |
-| `connect_signal` | Wire signal → method |
-| `set_project_setting` | Set project.godot settings |
-| `get_editor_errors` | Read editor log errors/warnings |
-| `take_game_screenshot` | Capture running game window (not editor) via debugger IPC |
-| `get_runtime_state` | Runtime scene tree: positions, visibility, text, velocities |
-| `simulate_input` | Inject input action into running game (press + release) |
-| `simulate_input_sequence` | Execute timed sequence of inputs (single call, game-side timing) |
+| Category | Count | Where | Key Tools |
+|----------|-------|-------|-----------|
+| **Editor** | 28 | Godot plugin :6970 | create_scene, add_node, set_property, run_scene, take_screenshot, simulate_input, get_runtime_state |
+| **Local** | 10 | MCP server | search_docs, get_class_reference, save_memory, read_file, list_files |
+| **Blender** | 39 | Blender addon :8400 | create_mesh, create_material, create_armature, export_for_godot, render_image |
+| **Pipeline** | 4 | MCP → Blender → Godot | blender_to_godot, blender_to_godot_animated, sync_collision, batch_import |
+| **Assets** | 15 | MCP → external APIs | search/download: Poly Haven, Sketchfab, OpenGameArt, ambientCG, Godot Library, Freesound + generate_sfx (jsfxr) |
+| **AI Generators** | 55 | MCP → external APIs | Meshy (8), Stability AI (13), ElevenLabs (4), Tripo (7), Suno (4), DALL-E (3), Blockade (3), Rodin (2), HuggingFace (1), fal.ai (12) |
+| **Config** | 1 | MCP server | get_service_status |
 
-### Local Tools (10 — run in MCP server, no Godot needed)
-| Tool | Description |
-|------|-------------|
-| `get_project_context` | Project metadata (name, version, scenes, scripts) |
-| `read_file` | Read any project file |
-| `list_files` | List directory contents |
-| `search_docs` | FTS5 search across 912 Godot classes |
-| `get_class_reference` | Full Godot class reference |
-| `search_blender_docs` | FTS5 search across 3800 Blender bpy classes |
-| `get_blender_class` | Full bpy.types class reference |
-| `save_memory` | Persist fact/pattern/decision |
-| `search_memory` | FTS5 search over memory |
-| `get_project_memory` | Full memory contents |
+Full tool reference: see tool tables in `mcp-server/src/server.ts` (zod schemas) or `mcp-server/src/tools.ts` (metadata).
 
-### Blender Tools (39 — run in Blender addon via bpy)
+## Security
 
-**Modeling (11)**: `create_mesh`, `delete_object`, `duplicate_object`, `transform`, `modify`, `boolean`, `join_objects`, `extrude`, `subdivide`, `set_origin`, `separate_mesh`
+- **Authentication**: Bearer token auth on all HTTP endpoints. Token auto-generated at `~/.godotforge/http-token` (randomBytes 32 hex). Timing-safe comparison. `/health` exempt.
+- **API Key Encryption**: AES-256-GCM with machine-bound PBKDF2 key (hostname+username). Format: `enc:v1:<iv>:<authTag>:<ciphertext>`. Auto-migrates plaintext keys.
+- **Rate Limiting**: Sliding window per category — chat 20/min, config 10/min, files 200/min, default 100/min.
+- **CORS**: Restricted to known origins (localhost:5173, localhost:6980).
+- **Guardrails**: Server-side tool validation — 4 risk levels (safe/moderate/destructive/critical). Content scanning. Root node protection.
+- **Guardrail Modes**: yolo (skip all), normal (confirm destructive/critical), strict (confirm all non-read).
 
-**Materials (6)**: `create_material`, `assign_material`, `set_material_texture`, `bake_textures`, `delete_material`, `list_materials`
+## Session & Async
 
-**Animation (8)**: `create_armature`, `add_bone`, `parent_to_armature`, `insert_keyframe`, `create_animation`, `set_animation_range`, `auto_weight_paint`, `list_animations`
+- **Session Persistence**: SQLite `sessions.db` per project, write-through on every response, 7-day TTL, max 50 sessions.
+- **Async Tasks**: `TaskRegistry` for long-running AI operations. `GET /tasks`, `GET /tasks/:id`, `DELETE /tasks/:id`. In-memory, 30min TTL.
+- **Polling**: Exponential backoff (2s→4s→8s→16s→30s cap), ±20% jitter, `onProgress` + `isCancelled` callbacks.
+- **SSE Streaming**: `POST /chat/stream` returns Server-Sent Events (text, tool_use, tool_result, done).
 
-**Scene & Render (7)**: `set_camera`, `set_light`, `render_image`, `set_render_settings`, `get_scene_objects`, `get_object_properties`, `get_blender_info`
+## Forge Ecosystem
 
-**Export (4)**: `export_gltf`, `export_for_godot`, `export_with_animations`, `export_fbx`
+Skills and agents are managed by 3 meta-skills + an orchestration rule:
 
-**UV (1)**: `unwrap_uv`
+| Skill | Purpose |
+|-------|---------|
+| `/forge-skill-creator` | Create/update/audit skills. **Always use this — never write SKILL.md manually.** |
+| `/forge-agent-creator` | Create/update/audit agents (5-Block Architecture) |
+| `/forge-hook-creator` | Create/update/audit hooks (25 events, 4 handler types) |
 
-**Collision (1)**: `generate_collision_hints` (creates -col/-colonly/-trimesh objects for Godot auto-detect)
-
-**Script (1)**: `execute_python` (escape hatch)
-
-### Pipeline Tools (4 — orchestrate Blender → Godot)
-| Tool | Description |
-|------|-------------|
-| `pipeline.blender_to_godot` | Export Blender → GLB → Godot project |
-| `pipeline.blender_to_godot_animated` | Export with animations + armatures → Godot |
-| `pipeline.sync_collision` | Generate collision hints → export for Godot auto-detect |
-| `pipeline.batch_import` | Batch import multiple 3D files into Godot project |
-
-### Asset Tools (15 — external asset services + local generation)
-| Tool | Description |
-|------|-------------|
-| `assets.search_polyhaven` | Search 750+ free textures, models, HDRIs |
-| `assets.download_polyhaven` | Download with resolution/format + auto Godot rescan |
-| `assets.search_sketchfab` | Search downloadable 3D models |
-| `assets.download_sketchfab` | Download GLTF (requires API token) |
-| `assets.search_opengameart` | Search sprites, sounds, music, 3D |
-| `assets.download_asset` | Generic URL download + auto Godot rescan |
-| `assets.list_local` | List project assets by type/directory |
-| `assets.search_ambientcg` | Search 2000+ free PBR materials, HDRIs (CC0) |
-| `assets.download_ambientcg` | Download PBR material ZIP + extract |
-| `assets.search_godot_library` | Search official Godot Asset Library |
-| `assets.download_godot_library` | Download + extract addon/project |
-| `assets.search_freesound` | Search 500K+ sounds (requires API key) |
-| `assets.preview_freesound` | Download HQ preview MP3/OGG |
-| `assets.download_freesound` | Download original (requires OAuth2) |
-| `assets.generate_sfx` | Generate retro SFX locally via jsfxr |
-
-### Config Tool (1)
-| Tool | Description |
-|------|-------------|
-| `get_service_status` | Check which services have API keys configured |
-
-### AI Generator Tools (55 — external AI services, fully parameterized)
-
-**Meshy (8)**: `ai.meshy_text_to_3d`, `ai.meshy_image_to_3d`, `ai.meshy_multi_image_to_3d`, `ai.meshy_refine`, `ai.meshy_remesh`, `ai.meshy_retexture`, `ai.meshy_check_task`, `ai.meshy_balance`
-
-**Stability AI (13)**: `ai.stability_generate` (SD3), `ai.stability_generate_ultra`, `ai.stability_generate_core`, `ai.stability_inpaint`, `ai.stability_outpaint`, `ai.stability_search_replace`, `ai.stability_recolor`, `ai.stability_erase`, `ai.stability_remove_bg`, `ai.stability_upscale_fast`, `ai.stability_sketch`, `ai.stability_style`, `ai.stability_balance`
-
-**ElevenLabs (4)**: `ai.elevenlabs_tts`, `ai.elevenlabs_sound_effect`, `ai.elevenlabs_list_voices`, `ai.elevenlabs_list_models`
-
-**Tripo AI (7)**: `ai.tripo_text_to_3d`, `ai.tripo_image_to_3d`, `ai.tripo_refine`, `ai.tripo_animate`, `ai.tripo_stylize`, `ai.tripo_check_task`, `ai.tripo_balance`
-
-**Suno (4)**: `ai.suno_generate` (music), `ai.suno_lyrics`, `ai.suno_check_task`, `ai.suno_credits`
-
-**DALL-E (3)**: `ai.dalle_generate`, `ai.dalle_edit`, `ai.dalle_variation`
-
-**Blockade Labs (3)**: `ai.blockade_generate_skybox`, `ai.blockade_list_styles`, `ai.blockade_check_task`
-
-**Rodin / Hyper3D (2)**: `ai.rodin_generate`, `ai.rodin_check_task`
-
-**Hugging Face (1)**: `ai.huggingface_text_to_image`
-
-**fal.ai Gateway (12)**: `ai.fal_flux_pro`, `ai.fal_flux_schnell`, `ai.fal_sd35`, `ai.fal_sdxl`, `ai.fal_rodin`, `ai.fal_tripo`, `ai.fal_trellis`, `ai.fal_hunyuan3d`, `ai.fal_stable_audio`, `ai.fal_kokoro_tts`, `ai.fal_upscale`, `ai.fal_remove_bg`
-
-## Completed Features
-
-### V1 (Godot Copilot)
-- **Phase 1-8**: 32 Godot tools, docs engine (912 classes FTS5), memory engine, context builder, runtime tools, MCP server with dual transport (stdio + HTTP)
-- **Refactoring**: Unified MCP backend (plugin is thin client)
-- **Demo**: Flappy Bird game created entirely via tools (demo/)
-
-### V2 (Game Dev Hub)
-- **Phase A**: Blender addon (Python socket :8400) + BlenderBridge + 17 tools + pipeline.blender_to_godot
-- **Phase B**: +22 Blender tools (animation, armature, render, camera, light, collision) + 3 pipeline tools. Total: 39 Blender + 4 Pipeline
-- **Phase C**: Asset Services — Poly Haven (750+ textures), Sketchfab, OpenGameArt + generic download + list_local + auto-import (Godot rescan)
-- **ConfigManager**: API key management (env vars + .godotforge/config.json) for 12 services. HTTP endpoints + Web Dashboard
-- **Blender Copilot**: Sidebar chat panel (View3D > GodotForge) connected to MCP /chat
-- **Web Copilot**: React 19 + Tailwind v4 + shadcn/ui. Chat + settings + API keys at :5173
-- **Claude CLI Fix**: `--output-format json --mcp-config` for full tool execution via MCP protocol
-- **Memory cap**: 50KB limit + auto-archive to .godotforge/archive/
-- **Compaction**: Summarize old messages when session > 20, keep 6 recent
-- **Blender RAG**: bpy API extraction (3800 classes, 106K members), FTS5 index, auto-inject in context
-- **Auto-RAG**: Context builder detects Godot + Blender class names in messages, pre-loads docs
-- **Game dev rules**: gameplay-code, gdscript-standards, scene-architecture, shader-code, game-design-docs
-- **Phase E rules**: ai-code, network-code, ui-code, prototype-code, test-standards, data-files, narrative
-- **Game dev skills**: /create-game, /game-polish, /game-review
-- **Phase F skills**: /balance-check, /brainstorm, /perf-profile, /tech-debt, /sprint-plan, /playtest-report, /design-system, /reverse-document
-- **Phase G hooks**: session-start, session-stop, pre-compact, detect-gaps, validate-assets
-- **Phase H doc templates**: 25 game dev templates in `.claude/templates/` (GDD, TDD, art/sound bible, economy, balance, character, faction, sprint, milestone, ADR, test-plan, playtest, bug-report, changelog, release/patch notes, post-mortem, incident, risk, onboarding, concept, pillars, pitch, level-design)
-- **Phase I specialized agents**: 20 agents in `.claude/agents/` — 7 engineering (godot, gdscript, shader, gameplay, tools, performance, blender) + 4 design (economy, level, systems, prototyper) + 3 art/audio (tech-artist, sound-designer, audio-director) + 3 narrative (director, writer, world-builder) + 3 QA (lead, tester, accessibility)
-- **Phase J team orchestration**: 7 multi-agent pipeline skills — /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio, /team-release
-- **Phase K production skills**: 6 production skills — /milestone-review, /retrospective, /estimate, /gate-check, /localize, /map-systems
-- **Web Polish**: Config JSON editor, connection status (MCP/Godot/Blender health checks), service tabs (6 categories, 12 services)
-- **Auto-Provision**: Godot plugin auto-copied to project on create/switch, Blender addon auto-installed on startup, version comparison + auto-update
-- **Studio Integration**: MCP copilot reads .claude/ (rules, skills, agents, templates) — same quality as Claude Code CLI. Skill routing (/commands), agent context injection, template resolution. HTTP endpoints: /skills, /agents, /templates
-- **SSE Streaming**: POST /chat/stream returns Server-Sent Events (text, tool_use, tool_result, done). Web client renders incrementally via ReadableStream.
-- **Agent Isolation**: POST /chat/agent runs isolated LLM call with agent-specific system prompt. Team skills delegate to real agent sessions, not role injection.
-- **Guardrails**: Server-side tool validation — 4 risk levels (safe/moderate/destructive/critical), content scanning for dangerous patterns, root node protection
-- **Event Log**: JSONL audit log (.godotforge/events.jsonl) — tool_call, tool_result, guardrail, chat, error. 10MB rotation × 3. GET /events, /events/stats
-- **Webhooks**: Async notifications — Telegram (HTML formatted) + Custom (raw JSON). Configurable per event. 3 retries with backoff. GET /webhooks, POST /webhooks/test
-- **Continuation**: max_tokens 16384 + auto-continuation on truncation (max 3 rounds) in API mode
-- **Session persistence**: sessionId in localStorage, messages in sessionStorage — survives refresh
-- **Skill bar**: Chat panel shows clickable `/skill` buttons when empty, fetched from GET /skills
-- **Session management**: Agent SDK with session resume, rules injection from .claude/rules/*.md
-- **Onboarding wizard**: 5-step first-time setup (Welcome → Project → Paths → Settings → Done)
-- **Project switcher**: Header dropdown with recent projects, inline Open/New forms
-- **Settings page**: Full-screen 2-column grid + tabbed API keys + config editor
-- **Guardrail Modes**: 3 permission levels (yolo/normal/strict) — yolo skips all confirmations, normal confirms destructive/critical only, strict confirms all non-read actions. Configurable in settings UI.
-- **Per-project Chat Context**: Messages and sessions isolated per project in web copilot. Switching projects loads that project's conversation history.
-- **Scroll Virtualization**: @tanstack/react-virtual for chat messages — only renders visible messages + overscan. Smart auto-scroll (only scrolls if near bottom).
-- **Dungeon of Echoes Demo**: Top-down 2D RPG demo — player, slimes AI, NPC dialogue, pickups, HUD. Built entirely via 30+ tools.
-- **Phase D — AI Generators**: 10 direct AI services + fal.ai gateway = 55 AI tools. All fully parameterized (every API parameter exposed). Services: Meshy (8), Stability AI (13), ElevenLabs (4), Tripo (7), Suno (4), DALL-E (3), Blockade Labs (3), Rodin (2), Hugging Face (1), fal.ai (12).
-- **Phase D2 — Asset Library Expansion**: +8 asset tools. ambientCG (2000+ PBR materials CC0), Godot Asset Library (official addons), Freesound (500K+ sounds), jsfxr (local retro SFX generation).
-- **File Browser**: Tree view + preview panel + CodeMirror 6 editor. Live updates via WebSocket + polling fallback. Supports images, audio, video, 3D (model-viewer), code editing with Ctrl+S save. Delete with confirmation.
-- **Active Project Sync**: `~/.godotforge/active-project` shared file ensures tools save to correct project directory across stdio + HTTP processes.
-
-### E2E Validations
-- ✅ Flappy Bird (2D game, 32 Godot tools)
-- ✅ Red metallic cube (Blender → GLB → Godot 3D scene)
-- ✅ Rigged robot character (armature + walk animation + collision → Godot)
-- ✅ Poly Haven textured scene (PBR textures + Blender rocks → Godot)
-- ✅ Phase D AI Generators — 6 services validated E2E (Stability AI, ElevenLabs, Tripo, Hugging Face, Suno, Poly Haven), 3 auth-only (DALL-E, fal.ai, OpenGameArt), 3 require paid (Meshy, Blockade Labs, Rodin)
+- **Orchestration**: `.claude/rules/orchestration.md` — decision tree (skill → agent → self), mandatory routing tables
+- **Gate Reviewer**: `.claude/agents/gate-reviewer.md` — mandatory at every phase checkpoint, adversarial review with visual inspection
+- **Dynamic Tags**: Skills use `{{TEXTURE_SERVICES}}`, `{{AI_3D_SERVICES}}`, etc. — resolved at runtime from tool registry. See `.claude/rules/skill-authoring.md`.
+- **20 specialized agents** in `.claude/agents/` — engineering, design, art/audio, narrative, QA
+- **7 team pipeline skills** — /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio, /team-release
 
 ## Languages & Conventions
 
 ### GDScript (Plugin)
 - All plugin code is `@tool` (runs in editor)
-- Use `class_name` for classes referenced across files
+- Use `class_name` for cross-file references
 - Prefix private methods/vars with `_`
-- Use static typing everywhere
+- Static typing everywhere
 - `EditorInterface` is a singleton — access directly, never pass as parameter
 - Scene modifications must set `node.owner = root`
 
 ### TypeScript (MCP Server)
 - ESM modules (`"type": "module"`)
-- Use `zod` for input validation
-- Use native `fetch` (Node 22+)
+- `zod` for input validation
+- Native `fetch` (Node 22+)
 - All file paths validated against project root
 - Log to stderr (stdout is MCP transport)
 
 ## Key Design Decisions
 
 1. **MCP server is the unified backend.** Plugin is thin UI + EditorInterface bridge.
-2. **Dual auth**: Claude CLI (Max/Pro plan, no API key) or API key (pay-per-token). Auto-detected.
-3. **Dual transport**: stdio (Claude Code/Cursor) + Streamable HTTP :6980/mcp + custom HTTP :6980/* (app API).
+2. **Dual auth**: Claude CLI (Max/Pro plan) or API key (pay-per-token). Auto-detected.
+3. **Dual transport**: stdio (Claude Code/Cursor) + Streamable HTTP `:6980/mcp` + custom HTTP `:6980/*`.
 4. **Port discovery**: Plugin → `.godot/godotforge.port`, MCP → `.godotforge/mcp.port`.
 5. **Plugin auto-spawns MCP** in `--http-only` mode if not already running.
 6. **GDScript puro** — no C#, no GDExtensions in the plugin.
-7. **Skills use dynamic tags** (`{{TEXTURE_SERVICES}}`, `{{AI_3D_SERVICES}}`, etc.) — resolved at runtime from tool registry. Never hardcode service names in skills.
-8. **Always use `/forge-skill-creator`** to create or update skills. Never write SKILL.md files manually.
+7. **Skills use dynamic tags** — resolved at runtime. Never hardcode service names.
+8. **Always use `/forge-skill-creator`** to create or update skills. Never write SKILL.md manually.
+9. **Gate-reviewer at every phase checkpoint** — producing agent cannot approve its own work.
 
 ## Adding a New Editor Tool
 
@@ -365,10 +213,11 @@ echo '{"tool":"health","args":{}}' | nc -w 5 127.0.0.1 8400
 
 - **`node.owner = root`** — always set when adding nodes, or they won't serialize
 - **`@tool` required** — every GDScript file in the plugin
-- **`EditorInterface` singleton** — access directly, never pass as parameter
 - **Port file cleanup** — if Godot/MCP crashes, port files may be stale
 - **`--http-only` flag** — use when plugin spawns MCP (no stdio needed)
 - **Resources via `add_resource`** — use for shapes, textures, materials (set_property only handles primitives)
+- **Bearer auth required** — all HTTP endpoints except `/health` need `Authorization: Bearer <token>`
+- **Active project sync** — `~/.godotforge/active-project` must match current project for tools to save correctly
 
 ## Related Docs
 
@@ -376,3 +225,4 @@ echo '{"tool":"health","args":{}}' | nc -w 5 127.0.0.1 8400
 - `docs/godotforge-architecture-diagram.md` — Flow diagrams
 - `docs/godotforge-concept-brief.md` — Business model
 - `docs/decisions/` — Architecture Decision Records
+- `docs/CHANGELOG.md` — Feature history by phase
