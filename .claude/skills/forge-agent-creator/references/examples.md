@@ -1,13 +1,13 @@
 # Examples — Agent Creation
 
-## Example 1: Well-Structured Agent (gate-reviewer)
+## Example 1: Well-Structured Agent (qa-director)
 
 **Input:** "Create an agent that reviews deliverables and approves/rejects them"
 
 **Good agent definition:**
 ```yaml
 ---
-name: gate-reviewer
+name: qa-director
 description: Senior reviewer that audits deliverables from /create-game phases. Has visual inspection (reads screenshots), verifies files on disk, checks rule compliance. Delegate at every gate checkpoint.
 tools: Read, Grep, Glob, Bash
 model: opus

@@ -55,7 +55,7 @@ These agents MUST be delegated to — never do their specialized work yourself:
 
 | Domain | Agent | When to Delegate |
 |--------|-------|-----------------|
-| Phase gate reviews | `gate-reviewer` | At EVERY checkpoint in /create-game or any phased skill |
+| Phase gate reviews | `qa-director` | At EVERY checkpoint in /create-game or any phased skill |
 | GDScript code | `gdscript-specialist` | Complex GDScript refactoring or debugging |
 | Godot engine | `godot-specialist` | Scene architecture, node setup, editor features |
 | Shader code | `shader-specialist` | Writing or optimizing .gdshader files |
@@ -91,17 +91,17 @@ For complex multi-domain tasks, use team skills that orchestrate multiple agents
 | Audio system | `/team-audio` | audio-director → sound-designer → gameplay-programmer |
 | Release | `/team-release` | qa-lead → performance-analyst → tools-programmer |
 
-## Gate Reviewer Rule
+## QA Director Rule
 
-**The gate-reviewer agent MUST be called at every phase checkpoint in any phased skill.** This is not optional. The producing agent cannot approve its own work.
+**The qa-director agent MUST be called at every phase checkpoint in any phased skill.** This is not optional. The producing agent cannot approve its own work.
 
 Pattern:
 ```
 1. Complete phase work
-2. Delegate to gate-reviewer with phase number + artifacts
-3. If REJECTED: fix issues, re-submit to gate-reviewer
+2. Delegate to qa-director with phase number + artifacts
+3. If REJECTED: fix issues, re-submit to qa-director
 4. If APPROVED: proceed to next phase
-5. Never skip the gate-reviewer — even if you think the work is perfect
+5. Never skip the qa-director — even if you think the work is perfect
 ```
 
 ## When NOT to Delegate

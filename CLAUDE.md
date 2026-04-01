@@ -137,7 +137,7 @@ Skills and agents are managed by 3 meta-skills + an orchestration rule:
 | `/forge-hook-creator` | Create/update/audit hooks (25 events, 4 handler types) |
 
 - **Orchestration**: `.claude/rules/orchestration.md` — decision tree (skill → agent → self), mandatory routing tables
-- **Gate Reviewer**: `.claude/agents/gate-reviewer.md` — mandatory at every phase checkpoint, adversarial review with visual inspection
+- **QA Director**: `.claude/agents/qa-director.md` — mandatory at every phase checkpoint, adversarial review with visual inspection
 - **Dynamic Tags**: Skills use `{{TEXTURE_SERVICES}}`, `{{AI_3D_SERVICES}}`, etc. — resolved at runtime from tool registry. See `.claude/rules/skill-authoring.md`.
 - **20 specialized agents** in `.claude/agents/` — engineering, design, art/audio, narrative, QA
 - **7 team pipeline skills** — /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio, /team-release
@@ -169,7 +169,7 @@ Skills and agents are managed by 3 meta-skills + an orchestration rule:
 6. **GDScript puro** — no C#, no GDExtensions in the plugin.
 7. **Skills use dynamic tags** — resolved at runtime. Never hardcode service names.
 8. **Always use `/forge-skill-creator`** to create or update skills. Never write SKILL.md manually.
-9. **Gate-reviewer at every phase checkpoint** — producing agent cannot approve its own work.
+9. **QA Director at every phase checkpoint** — producing agent cannot approve its own work.
 
 ## Adding a New Editor Tool
 
