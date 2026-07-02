@@ -95,15 +95,56 @@ func _do_input_sequence(json_str: String) -> void:
 		if not entry is Dictionary:
 			continue
 		var action: String = entry.get("action", "")
+		var mouse_click: Variant = entry.get("mouse_click")
 		var delay_ms: int = entry.get("delay_ms", 0)
 
 		if delay_ms > 0:
 			await get_tree().create_timer(delay_ms / 1000.0).timeout
 
-		if action != "":
+		if mouse_click is Dictionary:
+			await _do_mouse_click(mouse_click)
+			await get_tree().create_timer(0.05).timeout
+		elif action != "":
 			_do_input(action)
 			# Small gap between inputs for physics frame detection
 			await get_tree().create_timer(0.05).timeout
+
+
+const _MOUSE_BUTTONS := {
+	"left": MOUSE_BUTTON_LEFT,
+	"right": MOUSE_BUTTON_RIGHT,
+	"middle": MOUSE_BUTTON_MIDDLE,
+	"wheel_up": MOUSE_BUTTON_WHEEL_UP,
+	"wheel_down": MOUSE_BUTTON_WHEEL_DOWN,
+}
+
+
+func _do_mouse_click(click: Dictionary) -> void:
+	var pos := Vector2(click.get("x", 0.0), click.get("y", 0.0))
+	var button: MouseButton = _MOUSE_BUTTONS.get(click.get("button", "left"), MOUSE_BUTTON_LEFT)
+	var double_click: bool = click.get("double_click", false)
+
+	# Move the cursor first so _unhandled_input raycasts see a consistent position.
+	var motion := InputEventMouseMotion.new()
+	motion.position = pos
+	motion.global_position = pos
+	Input.parse_input_event(motion)
+	await get_tree().create_timer(0.05).timeout
+
+	var press := InputEventMouseButton.new()
+	press.position = pos
+	press.global_position = pos
+	press.button_index = button
+	press.pressed = true
+	press.double_click = double_click
+	Input.parse_input_event(press)
+	await get_tree().create_timer(0.05).timeout
+
+	var release := press.duplicate() as InputEventMouseButton
+	release.pressed = false
+	release.double_click = false
+	Input.parse_input_event(release)
+	_log("Mouse click (%s) at %s" % [click.get("button", "left"), pos])
 
 
 # --- Screenshot Capture ---

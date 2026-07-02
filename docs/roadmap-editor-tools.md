@@ -17,6 +17,7 @@
 | **P2** | Profiling (2) | Performance monitor access, perf summary | Open-world frame budget (chunk streaming) |
 | **P3** | Testing/QA (6) | Node state assertions, screen text verification, **screenshot comparison**, stress testing, test scenario execution, reports | QA loop hardening — we observe well but can't assert |
 | **P3** | Runtime extras | Property monitoring, input recording/replay, find node by screen position, UI element interaction | Playtesting automation |
+| ~~Done~~ | Positioned mouse clicks | `mouse_click` step in `simulate_input_sequence` (x/y, button, double_click) — needed for click-to-move QA | Shipped 2026-07-02 (MMORPG milestone 1) |
 | **P3** | Batch/Refactoring (8) | Scene dependency analysis, cross-scene property updates, find references, circular dependency detection, batch property set | Project grows past ~50 scenes |
 | **P4** | Shader (6) | Shader create/read/edit, ShaderMaterial assignment, parameters | Custom water/grass/toon shaders |
 | **P4** | Particle (5) | GPUParticles creation, ProcessMaterial config, gradients, presets | Skill VFX |
@@ -32,6 +33,14 @@
 
 - **Tool modes** (godot-mcp-pro ships Full 175 / 3D 103 / Lite 84 / Minimal 35): GodotForge already has 152 tools and hits MCP client tool limits — a `--tools <profile>` flag selecting subsets would help stdio clients.
 - **Input action listing/modification** as dedicated tools (today only via `set_project_setting`).
+
+## Dogfooding findings (MMORPG, 2026-07-02)
+
+Gaps observed while play-testing the game via tools — backlog, not yet triaged into the table:
+
+- **Game stdout/print capture**: `print()` from the running game is not reachable (`get_editor_errors` reads the editor log only). A `get_game_log` tool would make runtime debugging far faster.
+- **`get_runtime_state` velocity always `(0,0,0)`** for CharacterBody3D even mid-movement — likely sampled outside the physics frame. Position works.
+- **`take_game_screenshot` ignores `output_path`** — always writes `res://.godotforge/game_screenshot.png`.
 
 ## Process
 

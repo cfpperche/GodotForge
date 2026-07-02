@@ -68,12 +68,19 @@ export function registerRuntimeTools(ctx: ToolContext): void {
 
   regTool(
     "simulate_input_sequence",
-    "Execute a timed sequence of input actions in the running game. Single HTTP call, game-side timing.",
+    "Execute a timed sequence of inputs in the running game. Single HTTP call, game-side timing. Each step is either an input action or a positioned mouse click (for click-to-move/UI testing).",
     {
       sequence: z.array(z.object({
-        action: z.string().describe("Input action name"),
-        delay_ms: z.number().describe("Delay before this action in ms (0 = immediate)"),
-      })).describe("Array of timed input actions"),
+        action: z.string().optional().describe("Input action name (omit when using mouse_click)"),
+        mouse_click: z.object({
+          x: z.number().describe("Viewport X coordinate in pixels"),
+          y: z.number().describe("Viewport Y coordinate in pixels"),
+          button: z.enum(["left", "right", "middle", "wheel_up", "wheel_down"]).optional()
+            .describe("Mouse button (default: left)"),
+          double_click: z.boolean().optional().describe("Send as double click (default: false)"),
+        }).optional().describe("Positioned mouse click (omit when using action)"),
+        delay_ms: z.number().optional().describe("Delay before this step in ms (default: 0 = immediate)"),
+      })).describe("Array of timed input steps"),
     },
     async (args) => runTool("simulate_input_sequence", args)
   );
