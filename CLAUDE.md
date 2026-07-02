@@ -85,7 +85,7 @@ mcp-server/src/
     *-handlers.ts                 → Handler functions per service
     poll.ts                       → Shared polling (exponential backoff, jitter, cancellation)
   docs/                           → Docs engine (SQLite FTS5, 912 Godot + 3800 Blender classes)
-  studio/                         → .claude/ integration (skills, agents, templates routing)
+  studio/                         → legacy .claude/ integration (content removed July 2026; orchestration now via Tachyon)
   memory/                         → Memory engine (FTS5 + markdown, 50KB cap)
   context/                        → Context builder (token-budgeted, auto-RAG)
 
@@ -126,21 +126,9 @@ Full tool reference: see tool tables in `mcp-server/src/server.ts` (zod schemas)
 - **Polling**: Exponential backoff (2s→4s→8s→16s→30s cap), ±20% jitter, `onProgress` + `isCancelled` callbacks.
 - **SSE Streaming**: `POST /chat/stream` returns Server-Sent Events (text, tool_use, tool_result, done).
 
-## Forge Ecosystem
+## Agent Orchestration
 
-Skills and agents are managed by 3 meta-skills + an orchestration rule:
-
-| Skill | Purpose |
-|-------|---------|
-| `/forge-skill-creator` | Create/update/audit skills. **Always use this — never write SKILL.md manually.** |
-| `/forge-agent-creator` | Create/update/audit agents (5-Block Architecture) |
-| `/forge-hook-creator` | Create/update/audit hooks (25 events, 4 handler types) |
-
-- **Orchestration**: `.claude/rules/orchestration.md` — decision tree (skill → agent → self), mandatory routing tables
-- **QA Director**: `.claude/agents/qa-director.md` — mandatory at every phase checkpoint, adversarial review with visual inspection
-- **Dynamic Tags**: Skills use `{{TEXTURE_SERVICES}}`, `{{AI_3D_SERVICES}}`, etc. — resolved at runtime from tool registry. See `.claude/rules/skill-authoring.md`.
-- **20 specialized agents** in `.claude/agents/` — engineering, design, art/audio, narrative, QA
-- **7 team pipeline skills** — /team-combat, /team-narrative, /team-ui, /team-level, /team-polish, /team-audio, /team-release
+Multi-agent work is orchestrated by **Tachyon** (`~/tachyon` — VSCode extension, tmux sessions + MCP Bridge, configured via `tachyon.yml`). The legacy `.claude/` ecosystem (skills, agents, rules, hooks) was removed in July 2026.
 
 ## Languages & Conventions
 
@@ -167,9 +155,6 @@ Skills and agents are managed by 3 meta-skills + an orchestration rule:
 4. **Port discovery**: Plugin → `.godot/godotforge.port`, MCP → `.godotforge/mcp.port`.
 5. **Plugin auto-spawns MCP** in `--http-only` mode if not already running.
 6. **GDScript puro** — no C#, no GDExtensions in the plugin.
-7. **Skills use dynamic tags** — resolved at runtime. Never hardcode service names.
-8. **Always use `/forge-skill-creator`** to create or update skills. Never write SKILL.md manually.
-9. **QA Director at every phase checkpoint** — producing agent cannot approve its own work.
 
 ## Adding a New Editor Tool
 
