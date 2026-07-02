@@ -206,6 +206,7 @@ echo '{"tool":"health","args":{}}' | nc -w 5 127.0.0.1 8400
 
 ## Related Docs
 
+- `docs/roadmap-editor-tools.md` — Editor tools gap map (inspired by godot-mcp-pro), demand-driven by the MMORPG project
 - `docs/godotforge-prd.md` — Product requirements
 - `docs/godotforge-architecture-diagram.md` — Flow diagrams
 - `docs/godotforge-concept-brief.md` — Business model
